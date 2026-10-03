@@ -155,6 +155,8 @@ export type ComputerInfo = {
   keySource: "env" | "settings" | null;
   cloudKey: "env" | "settings" | null; // E2B key for cloud computers
   openRouter: "env" | "settings" | null; // OpenRouter key for open models
+  qdelta: "env" | "settings" | null; // Cloudflare Workers AI / QDelta key
+  qdeltaBaseUrl?: string | null;
   triggersKey: "env" | "settings" | null; // Composio API key for triggers
   sky: boolean; // OpenAI's Sky computer-use runtime is installed on this Mac
   composio: boolean; // COMPOSIO_API_KEY is set

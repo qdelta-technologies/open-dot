@@ -3,6 +3,7 @@ import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
+import { isQDeltaModel } from "./qdelta";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
@@ -298,7 +299,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   const tools: Tool[] = [
     ...toolsForDot(dot).map((t): Tool => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: !stateless && t.strict !== false })),
     // OpenRouter's server-side search: the model decides when to search, same as OpenAI's web_search.
-    stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" },
+    ...(isQDeltaModel(appModel) ? [] : [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : ({ type: "web_search" as const })]),
   ];
   if (!stateless && COMPUTER_ENABLED && supportsComputerTool(model)) tools.push({ type: "computer" } as Tool);
 
@@ -546,7 +547,7 @@ setConsult(async (target, message, from, _depth, signal) => {
         model,
         instructions: systemPrompt(target, { kind: "dot", from: from.name }),
         input: [...rebuildContext(target.id, message).slice(-12), { role: "user", content: `${from.name} asks: ${message}` }],
-        tools: [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" }],
+        tools: isQDeltaModel(model) ? [] : [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" }],
         ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}),
       },
       { signal },

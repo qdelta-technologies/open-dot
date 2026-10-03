@@ -45,7 +45,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   const mine = useMemo(() => conversations.filter((c) => c.dotId === dot.id).sort((a, b) => b.updatedAt - a.updatedAt), [conversations, dot.id]);
   const convId = conversation === "new" ? null : conversation ?? mine[0]?.id ?? null;
   const messages = useMemo(() => (convId ? all.filter((m) => m.conversationId === convId && !m.channelId) : []), [all, convId]);
-  const hasKey = useStore((s) => s.computer.hasKey || s.computer.openRouter !== null);
+  const hasKey = useStore((s) => s.computer.hasKey || s.computer.openRouter !== null || s.computer.qdelta !== null);
   const [, start] = useTransition();
   // A chat counts as started once you've written, or talked in voice mode.
   const fresh = !messages.some((m) => m.role === "user" || m.from === "voice");

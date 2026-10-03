@@ -57,12 +57,6 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "extraResources": [
-      {
-        "from": ".desktop/server",
-        "to": "server"
-      }
-    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
@@ -74,6 +68,12 @@
         }
       ],
       "icon": "build/icon.png",
+      "extraResources": [
+        {
+          "from": ".desktop/server",
+          "to": "server"
+        }
+      ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Open Dot uses the microphone for voice mode."
       },

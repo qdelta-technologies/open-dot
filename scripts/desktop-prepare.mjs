@@ -38,6 +38,9 @@ fs.rmSync(path.join(out, "node_modules/electron"), { recursive: true, force: tru
 // local data); none of it is needed, and some of it must never ship.
 const KEEP = new Set([".next", "node_modules", "public", "server.js", "package.json"]);
 for (const entry of fs.readdirSync(out)) if (!KEEP.has(entry)) fs.rmSync(path.join(out, entry), { recursive: true, force: true });
+const nextModules = path.join(out, ".next", "node_modules");
+if (fs.existsSync(nextModules)) fs.rmSync(nextModules, { recursive: true, force: true });
+
 // The packaged app gets its own copy. pnpm's symlinks stay (Node resolves packages through them), but every one
 // must be relative and stay inside the folder, or code signing rejects the app.
 const app = path.join(root, ".desktop/server");
@@ -57,6 +60,9 @@ if (process.platform === "darwin") {
   } catch (err) {
     if (err && err.status !== undefined && err.status >= 8) throw err;
   }
+  const appNextModules = path.join(app, ".next", "node_modules");
+  if (fs.existsSync(appNextModules)) fs.rmSync(appNextModules, { recursive: true, force: true });
+
   // On Windows, pnpm uses NTFS junctions which NSIS / 7-Zip unarchivers cannot restore.
   // Flatten .pnpm dependencies into node_modules as real physical folders.
   const pnpmDir = path.join(app, "node_modules/.pnpm");

@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { getSetting, setSetting } from "../db";
 import { seal, unseal } from "../vault";
 import { isOpenRouterModel, openModels, openRouterId, openRouterKey, openrouter, preferredOpenModel, smallOpenModel } from "./openrouter";
+import { isQDeltaModel, qdeltaClient, qdeltaKey, qdeltaModelId, qdeltaModels } from "./qdelta";
 
 // Models are chosen from what the API key can actually use. Precedence for a dot's model:
 // the dot's own choice → the default picked in Settings → DOTS_MODEL → best available.
@@ -94,19 +95,25 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
   };
 }
 
-/** OpenAI models (with an OpenAI key) first, then open models (with an OpenRouter key). */
+/** OpenAI models (with an OpenAI key), open models (with an OpenRouter key), and QDelta models (with Cloudflare). */
 async function resolve() {
-  const [oa, open] = await Promise.all([
+  const [oa, open, qdelta] = await Promise.all([
     resolveOpenAI(),
     openModels().catch((err) => {
       console.warn("[dots] couldn't list OpenRouter models:", err instanceof Error ? err.message : err);
       return [] as string[];
     }),
+    qdeltaModels().catch((err) => {
+      console.warn("[dots] couldn't list QDelta models:", err instanceof Error ? err.message : err);
+      return [] as string[];
+    }),
   ]);
+  const mainDefault = qdelta[0] ?? oa?.main ?? (open.length ? preferredOpenModel(open) : process.env.DOTS_MODEL || MAIN_PREFERENCE[0]);
+  const reviewDefault = qdelta.find((m) => m.includes("3.1-8b")) ?? qdelta[0] ?? oa?.review ?? (open.length ? smallOpenModel(open) : process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0]);
   const resolved = {
-    main: oa?.main ?? (open.length ? preferredOpenModel(open) : process.env.DOTS_MODEL || MAIN_PREFERENCE[0]),
-    review: oa?.review ?? (open.length ? smallOpenModel(open) : process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0]),
-    available: [...(oa?.available ?? []), ...open],
+    main: mainDefault,
+    review: reviewDefault,
+    available: [...qdelta, ...(oa?.available ?? []), ...open],
   };
   g.__dotsResolved = resolved;
   console.log(`[dots] default ${resolved.main} (agent), ${resolved.review} (rule review); ${resolved.available.length} models available`);
@@ -121,12 +128,15 @@ export function resetModels() {
 
 /** The API client for a model, the model id that API expects, and whether it keeps conversation state. */
 export function clientFor(model: string): { client: OpenAI; model: string; stateless: boolean } {
+  if (isQDeltaModel(model)) {
+    return { client: qdeltaClient(), model: qdeltaModelId(model), stateless: true };
+  }
   return isOpenRouterModel(model) ? { client: openrouter(), model: openRouterId(model), stateless: true } : { client: openai(), model, stateless: false };
 }
 
-/** True when any model provider is set up (OpenAI or OpenRouter). */
+/** True when any model provider is set up (OpenAI, OpenRouter, or QDelta). */
 export function canThink(): boolean {
-  return hasKey() || Boolean(openRouterKey());
+  return hasKey() || Boolean(openRouterKey()) || Boolean(qdeltaKey());
 }
 
 export function models(): Promise<{ main: string; review: string; available: string[] }> {
@@ -151,10 +161,11 @@ export function knownModels(): { main: string; review: string; available: string
 
 /** gpt-5.x / gpt-6 / o-series accept `reasoning`; gpt-4.1 and friends reject it. */
 export function isReasoningModel(model: string): boolean {
-  return !isOpenRouterModel(model) && /^(gpt-[5-9]|o[1-9])/.test(model) && !/chat/.test(model);
+  return !isQDeltaModel(model) && !isOpenRouterModel(model) && /^(gpt-[5-9]|o[1-9])/.test(model) && !/chat/.test(model);
 }
 
 /** OpenAI's GA computer tool needs a recent model; older ones get the page-reading tools only. */
 export function supportsComputerTool(model: string): boolean {
+  if (isQDeltaModel(model)) return false;
   return /^gpt-5\.[4-9]|^gpt-[6-9]|computer-use/.test(model);
 }

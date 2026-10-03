@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bell, KeyRound, Lock, LogOut, Plus, RefreshCw } from "lucide-react";
-import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setOpenRouterKey, signInComposio, signOutComposio } from "@/app/actions";
+import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setOpenRouterKey, setQDeltaConfig, signInComposio, signOutComposio } from "@/app/actions";
 import { useStore } from "@/lib/store";
 import { openAfter } from "@/lib/popup";
 import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./SettingsKit";
@@ -121,7 +121,8 @@ export default function SettingsView() {
           </div>
         </Section>
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models come from what your OpenAI key can use, plus open models once you add an OpenRouter key.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models come from Cloudflare Workers AI, OpenAI, or OpenRouter.">
+          <QDeltaKey />
           <ApiKey />
           <OpenModelsKey />
           <CloudKey />
@@ -416,6 +417,111 @@ function OpenModelsKey() {
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Cloudflare Workers AI / QDelta key & base URL */
+function QDeltaKey() {
+  const computer = useStore((s) => s.computer);
+  const qdeltaCount = computer.models.filter((m) => m.startsWith("qdelta:")).length;
+  const [editing, setEditing] = useState(false);
+  const defaultUrl = "https://qdelta-ai.qdelta-work.workers.dev/v1";
+  const [url, setUrl] = useState(computer.qdeltaBaseUrl || defaultUrl);
+  const [key, setKey] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.qdelta !== null;
+
+  const save = (value: string, baseUrl?: string) =>
+    start(async () => {
+      const err = await setQDeltaConfig(value, baseUrl);
+      setError(err);
+      if (!err) {
+        setKey("");
+        setEditing(false);
+      }
+    });
+
+  return (
+    <div id="qdelta-key" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="text-[14px]">
+            Cloudflare Workers AI <span className="text-foreground/40">· Meta Llama 4 Scout</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.qdelta === "env"
+              ? `Connected from QDELTA_API_KEY${qdeltaCount ? ` · ${qdeltaCount} models available` : ""}.`
+              : saved
+                ? `Connected${qdeltaCount ? ` · ${qdeltaCount} models in the model picker` : ""}. Stored encrypted on this computer.`
+                : "Connect your Cloudflare Worker adapter running Meta Llama 4 Scout and Llama 3.1."}
+          </div>
+        </div>
+        {computer.qdelta === "settings" && !editing && (
+          <>
+            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
+              Remove
+            </button>
+            <button
+              className="btn-secondary h-8 px-3 text-[13px]"
+              onClick={() => {
+                setEditing(true);
+                setUrl(computer.qdeltaBaseUrl || defaultUrl);
+              }}
+            >
+              Change
+            </button>
+          </>
+        )}
+      </div>
+      {(editing || !saved) && computer.qdelta !== "env" && (
+        <form
+          className="mt-3 space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save(key, url);
+          }}
+        >
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              className="field font-mono text-[13px]"
+              type="text"
+              placeholder={defaultUrl}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              autoComplete="off"
+              title="Cloudflare Worker Base URL"
+            />
+            <input
+              className="field font-mono text-[13px]"
+              type="password"
+              placeholder="Cloudflare Worker API Secret"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            {editing && (
+              <button
+                type="button"
+                className="btn-quiet h-8 px-3 text-[13px]"
+                onClick={() => {
+                  setEditing(false);
+                  setError(null);
+                }}
+              >
+                Cancel
+              </button>
+            )}
+            <button className="btn-primary h-8 px-3 text-[13px]" disabled={pending || !key.trim()}>
+              {pending ? "Checking…" : "Save"}
+            </button>
+          </div>
         </form>
       )}
       {error && <p className="mt-2 text-caption text-destructive">{error}</p>}

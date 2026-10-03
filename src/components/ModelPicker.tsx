@@ -5,9 +5,15 @@ import { Check, ChevronDown, Cpu } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 const OPEN = "openrouter:";
-const label = (id: string) => (id.startsWith(OPEN) ? id.slice(OPEN.length) : id);
+const QDELTA = "qdelta:";
+const label = (id: string) => {
+  if (id.startsWith(OPEN)) return id.slice(OPEN.length);
+  if (id.startsWith(QDELTA)) return id.slice(QDELTA.length);
+  return id;
+};
 
 function hint(id: string): string | null {
+  if (id.startsWith(QDELTA)) return "Cloudflare Workers AI · Llama";
   if (id.startsWith(OPEN)) return "Open model · OpenRouter";
   if (/-pro\b/.test(id)) return "Strongest · slower";
   if (/-nano\b/.test(id)) return "Fastest · cheapest";
@@ -38,13 +44,23 @@ export default function ModelPicker({
   const list = models.length ? models : fallback ? [fallback] : [];
   const options: { id: string | null; label: string; sub: string | null; group?: string }[] = [
     ...(allowDefault ? [{ id: null, label: "Default", sub: fallback ? label(fallback) : null }] : []),
-    ...list.map((id, i) => ({
-      id,
-      label: label(id),
-      sub: hint(id),
-      // a heading above the first open model (and above OpenAI's when both are there)
-      group: id.startsWith(OPEN) && !list[i - 1]?.startsWith(OPEN) ? "Open models" : i === 0 && list.some((m) => m.startsWith(OPEN)) ? "OpenAI" : undefined,
-    })),
+    ...list.map((id, i) => {
+      const prev = list[i - 1];
+      let group: string | undefined;
+      if (id.startsWith(QDELTA) && !prev?.startsWith(QDELTA)) {
+        group = "Cloudflare Workers AI";
+      } else if (id.startsWith(OPEN) && !prev?.startsWith(OPEN)) {
+        group = "Open models";
+      } else if (!id.startsWith(OPEN) && !id.startsWith(QDELTA) && (i === 0 || prev?.startsWith(OPEN) || prev?.startsWith(QDELTA))) {
+        group = "OpenAI";
+      }
+      return {
+        id,
+        label: label(id),
+        sub: hint(id),
+        group,
+      };
+    }),
   ];
 
   return (
