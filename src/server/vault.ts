@@ -7,11 +7,41 @@ import { DATA_DIR } from "./db";
 import { insertPassword, sealedPasswordFor } from "./repo";
 
 // Passwords are AES-256-GCM encrypted at rest. The master key lives in the macOS
-// Keychain when available, otherwise in a 0600 file under .data/. Plaintext secrets
+// Keychain when available, Windows DPAPI on Windows, otherwise in a 0600 file under .data/. Plaintext secrets
 // are only ever decrypted to type them into a page — never returned to the model or UI.
 
 const SERVICE = "dots-openai-vault";
 const g = globalThis as unknown as { __dotsVaultKey?: Buffer };
+
+function dpapiProtect(plain: string): string {
+  const script = `
+$raw = [Console]::In.ReadToEnd().Trim()
+Add-Type -AssemblyName System.Security
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($raw)
+$enc = [System.Security.Cryptography.ProtectedData]::Protect($bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+[Console]::Out.Write([Convert]::ToBase64String($enc))
+`;
+  return execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    input: plain,
+    encoding: "utf8",
+    stdio: ["pipe", "pipe", "ignore"],
+  }).trim();
+}
+
+function dpapiUnprotect(b64: string): string {
+  const script = `
+$b64 = [Console]::In.ReadToEnd().Trim()
+Add-Type -AssemblyName System.Security
+$bytes = [Convert]::FromBase64String($b64)
+$dec = [System.Security.Cryptography.ProtectedData]::Unprotect($bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+[Console]::Out.Write([System.Text.Encoding]::UTF8.GetString($dec))
+`;
+  return execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    input: b64,
+    encoding: "utf8",
+    stdio: ["pipe", "pipe", "ignore"],
+  }).trim();
+}
 
 function masterKey(): Buffer {
   if (g.__dotsVaultKey) return g.__dotsVaultKey;
@@ -28,7 +58,59 @@ function masterKey(): Buffer {
         hex = null;
       }
     }
+  } else if (process.platform === "win32") {
+    const dpapiFile = path.join(DATA_DIR, "vault.dpapi");
+    const legacyFile = path.join(DATA_DIR, "vault.key");
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+
+    // 1. Existing DPAPI-protected key
+    if (fs.existsSync(dpapiFile)) {
+      try {
+        const b64 = fs.readFileSync(dpapiFile, "utf8").trim();
+        const recovered = dpapiUnprotect(b64);
+        if (recovered && /^[0-9a-fA-F]{64}$/.test(recovered)) {
+          hex = recovered;
+        }
+      } catch (err) {
+        console.error("[vault] Failed to unprotect Windows DPAPI vault key:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // 2. Safe one-time migration from existing plaintext vault.key
+    if (!hex && fs.existsSync(legacyFile)) {
+      try {
+        const legacyHex = fs.readFileSync(legacyFile, "utf8").trim();
+        if (legacyHex && /^[0-9a-fA-F]{64}$/.test(legacyHex)) {
+          const enc = dpapiProtect(legacyHex);
+          const verify = dpapiUnprotect(enc);
+          if (verify === legacyHex) {
+            fs.writeFileSync(dpapiFile, enc, "utf8");
+            fs.rmSync(legacyFile, { force: true });
+            hex = legacyHex;
+          }
+        }
+      } catch (err) {
+        console.error("[vault] Windows DPAPI migration failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // 3. New DPAPI-protected key
+    if (!hex) {
+      try {
+        const newHex = crypto.randomBytes(32).toString("hex");
+        const enc = dpapiProtect(newHex);
+        const verify = dpapiUnprotect(enc);
+        if (verify === newHex) {
+          fs.writeFileSync(dpapiFile, enc, "utf8");
+          hex = newHex;
+        }
+      } catch (err) {
+        console.error("[vault] Failed to initialize Windows DPAPI vault key:", err instanceof Error ? err.message : String(err));
+      }
+    }
   }
+
+  // Linux or fallback if secure storage failed
   if (!hex) {
     const file = path.join(DATA_DIR, "vault.key");
     fs.mkdirSync(DATA_DIR, { recursive: true });

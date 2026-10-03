@@ -43,11 +43,93 @@ for (const entry of fs.readdirSync(out)) if (!KEEP.has(entry)) fs.rmSync(path.jo
 const app = path.join(root, ".desktop/server");
 fs.rmSync(app, { recursive: true, force: true });
 fs.mkdirSync(path.dirname(app), { recursive: true });
-execFileSync("cp", ["-RP", out, app]); // -P copies symlinks as they are
-const links = execFileSync("find", [app, "-type", "l"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
-const escaping = links.filter((l) => {
-  const target = fs.readlinkSync(l);
-  return path.isAbsolute(target) || !path.resolve(path.dirname(l), target).startsWith(app + path.sep) || !fs.existsSync(l);
-});
-if (escaping.length) throw new Error(`Symlinks that leave the desktop server (or are broken):\n${escaping.join("\n")}`);
+if (process.platform === "darwin") {
+  execFileSync("cp", ["-RP", out, app]); // -P copies symlinks as they are
+  const links = execFileSync("find", [app, "-type", "l"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  const escaping = links.filter((l) => {
+    const target = fs.readlinkSync(l);
+    return path.isAbsolute(target) || !path.resolve(path.dirname(l), target).startsWith(app + path.sep) || !fs.existsSync(l);
+  });
+  if (escaping.length) throw new Error(`Symlinks that leave the desktop server (or are broken):\n${escaping.join("\n")}`);
+} else if (process.platform === "win32") {
+  try {
+    execFileSync("robocopy", [out, app, "/E", "/SJ", "/SL", "/NP", "/NDL", "/NFL", "/NJH", "/NJS"], { stdio: "ignore" });
+  } catch (err) {
+    if (err && err.status !== undefined && err.status >= 8) throw err;
+  }
+  // On Windows, pnpm uses NTFS junctions which NSIS / 7-Zip unarchivers cannot restore.
+  // Flatten .pnpm dependencies into node_modules as real physical folders.
+  const pnpmDir = path.join(app, "node_modules/.pnpm");
+  const destModules = path.join(app, "node_modules");
+  if (fs.existsSync(pnpmDir)) {
+    for (const entry of fs.readdirSync(pnpmDir)) {
+      const innerModules = path.join(pnpmDir, entry, "node_modules");
+      if (!fs.existsSync(innerModules)) continue;
+      for (const pkg of fs.readdirSync(innerModules)) {
+        if (pkg.startsWith("@")) {
+          const scopeDir = path.join(innerModules, pkg);
+          for (const subPkg of fs.readdirSync(scopeDir)) {
+            const src = path.join(scopeDir, subPkg);
+            const dest = path.join(destModules, pkg, subPkg);
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            if (!fs.existsSync(dest)) {
+              fs.cpSync(src, dest, { recursive: true, dereference: true });
+            }
+          }
+        } else {
+          const src = path.join(innerModules, pkg);
+          const dest = path.join(destModules, pkg);
+          if (!fs.existsSync(dest)) {
+            fs.cpSync(src, dest, { recursive: true, dereference: true });
+          }
+        }
+      }
+    }
+  }
+} else {
+  fs.cpSync(out, app, { recursive: true, verbatimSymlinks: true });
+}
 console.log("desktop server ready:", path.relative(root, app));
+
+// Bundle Playwright Chromium for standalone Windows desktop installations
+if (process.platform === "win32") {
+  const browsersDest = path.join(root, ".desktop", "browsers");
+  const localPlaywright = path.join(process.env.LOCALAPPDATA || "", "ms-playwright");
+  let chromiumFolder = null;
+  if (fs.existsSync(localPlaywright)) {
+    chromiumFolder = fs.readdirSync(localPlaywright).find((e) => e.startsWith("chromium-"));
+  }
+  if (!chromiumFolder) {
+    console.log("Playwright Chromium not found in ms-playwright, installing...");
+    execFileSync("npx", ["playwright", "install", "chromium"], { stdio: "inherit" });
+    if (fs.existsSync(localPlaywright)) {
+      chromiumFolder = fs.readdirSync(localPlaywright).find((e) => e.startsWith("chromium-"));
+    }
+  }
+  if (chromiumFolder) {
+    fs.mkdirSync(browsersDest, { recursive: true });
+    const srcChromium = path.join(localPlaywright, chromiumFolder);
+    const destChromium = path.join(browsersDest, chromiumFolder);
+    if (!fs.existsSync(destChromium)) {
+      console.log(`Copying ${chromiumFolder} to ${path.relative(root, destChromium)}...`);
+      try {
+        execFileSync("robocopy", [srcChromium, destChromium, "/E", "/NP", "/NDL", "/NFL", "/NJH", "/NJS"], { stdio: "ignore" });
+      } catch (err) {
+        if (err && err.status !== undefined && err.status >= 8) throw err;
+      }
+    }
+    const ffmpegFolder = fs.existsSync(localPlaywright) ? fs.readdirSync(localPlaywright).find((e) => e.startsWith("ffmpeg-")) : null;
+    if (ffmpegFolder) {
+      const srcFfmpeg = path.join(localPlaywright, ffmpegFolder);
+      const destFfmpeg = path.join(browsersDest, ffmpegFolder);
+      if (!fs.existsSync(destFfmpeg)) {
+        try {
+          execFileSync("robocopy", [srcFfmpeg, destFfmpeg, "/E", "/NP", "/NDL", "/NFL", "/NJH", "/NJS"], { stdio: "ignore" });
+        } catch (err) {
+          if (err && err.status !== undefined && err.status >= 8) throw err;
+        }
+      }
+    }
+    console.log("bundled browsers ready:", path.relative(root, browsersDest));
+  }
+}

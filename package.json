@@ -10,7 +10,9 @@
     "desktop:dev": "OPEN_DOT_DEV_URL=http://localhost:3100 electron electron",
     "desktop:prepare": "next build && node scripts/desktop-prepare.mjs",
     "desktop": "electron electron",
-    "desktop:build": "pnpm desktop:prepare && electron-builder --mac"
+    "desktop:build": "pnpm desktop:prepare && electron-builder",
+    "desktop:build:win": "pnpm desktop:prepare && electron-builder --win",
+    "desktop:build:mac": "pnpm desktop:prepare && electron-builder --mac"
   },
   "dependencies": {
     "@composio/core": "0.22.0",
@@ -77,6 +79,36 @@
       },
       "identity": "-",
       "hardenedRuntime": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "extraResources": [
+        {
+          "from": ".desktop/server",
+          "to": "server"
+        },
+        {
+          "from": ".desktop/browsers",
+          "to": "browsers"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Open Dot",
+      "uninstallDisplayName": "Open Dot"
     },
     "files": [
       "main.mjs",

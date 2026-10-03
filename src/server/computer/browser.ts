@@ -44,9 +44,17 @@ function track(dotId: string, p: Page) {
   });
 }
 
+// If bundled browsers exist alongside the server (e.g. in packaged desktop mode), point Playwright to them.
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  const candidate = path.resolve(process.cwd(), "..", "browsers");
+  if (fs.existsSync(candidate)) {
+    process.env.PLAYWRIGHT_BROWSERS_PATH = candidate;
+  }
+}
+
 // The real installed Chrome, not Playwright's test build: Google refuses sign-in on the test build.
 // Falls back to Playwright's Chromium if Chrome isn't installed.
-let channel: "chrome" | "chromium" = "chrome";
+let channel: "chrome" | "chromium" = (process.env.OPEN_DOT_BROWSER_CHANNEL as "chrome" | "chromium") || "chrome";
 // Headless Chrome still says "HeadlessChrome" in its user agent, which sites treat as a bot. Use the normal one.
 let chromeUA: string | null = null;
 
@@ -77,8 +85,11 @@ async function freeProfile(dir: string) {
 
 async function launch(dotId: string): Promise<Session> {
   await freeProfile(profileDir(dotId));
-  const open = () =>
-    chromium.launchPersistentContext(profileDir(dotId), {
+  const open = () => {
+    try {
+      console.log(`[Browser] Launching browser for dot ${dotId} (channel: ${channel}, executable: ${chromium.executablePath()})`);
+    } catch {}
+    return chromium.launchPersistentContext(profileDir(dotId), {
       channel,
       headless: true,
       timeout: 30_000,
@@ -92,6 +103,7 @@ async function launch(dotId: string): Promise<Session> {
       ignoreDefaultArgs: ["--enable-automation", "--unsafely-disable-devtools-self-xss-warnings"],
       args: ["--disable-blink-features=AutomationControlled", ...(chromeUA ? [`--user-agent=${chromeUA}`] : [])],
     });
+  };
   let context: BrowserContext;
   try {
     context = await open();

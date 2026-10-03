@@ -51,18 +51,34 @@ async function ensureContainer(dotId: string): Promise<void> {
   ], { timeoutMs: 180_000 });
 }
 
+function localShell(command: string): { cmd: string; args: string[] } {
+  if (process.platform === "win32") {
+    return {
+      cmd: "powershell.exe",
+      args: ["-NoProfile", "-NonInteractive", "-Command", command],
+    };
+  }
+  return {
+    cmd: "bash",
+    args: ["-lc", command],
+  };
+}
+
 /** Run a shell command on the dot's own computer (its container, or its sandbox folder as a fallback). */
 export async function runOnDotComputer(dotId: string, command: string, signal?: AbortSignal): Promise<string> {
   if (dockerAvailable()) {
     await ensureContainer(dotId);
     return run("docker", ["exec", "-w", "/workspace", containerName(dotId), "bash", "-lc", command], { timeoutMs: 120_000, signal });
   }
-  return run("bash", ["-lc", command], { cwd: workspaceDir(dotId), timeoutMs: 120_000, signal });
+  const sh = localShell(command);
+  return run(sh.cmd, sh.args, { cwd: workspaceDir(dotId), timeoutMs: 120_000, signal });
 }
 
 /** Run a command on the user's own machine (the computer running this app). Always gated by approvals. */
 export async function runOnUserComputer(command: string, signal?: AbortSignal): Promise<string> {
-  return run("bash", ["-lc", command], { cwd: process.env.HOME, timeoutMs: 120_000, signal });
+  const home = process.env.USERPROFILE || process.env.HOME;
+  const sh = localShell(command);
+  return run(sh.cmd, sh.args, { cwd: home, timeoutMs: 120_000, signal });
 }
 
 export function resolveWorkspacePath(dotId: string, p: string): string {

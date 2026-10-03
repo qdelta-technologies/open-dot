@@ -11,6 +11,10 @@ export default async function afterPack(context) {
   const from = path.join(context.packager.projectDir, ".desktop", "server", "node_modules");
   const to = path.join(resources, "server", "node_modules");
   fs.rmSync(to, { recursive: true, force: true });
-  execFileSync("cp", ["-RP", from, to]);
+  if (process.platform === "darwin") {
+    execFileSync("cp", ["-RP", from, to]);
+  } else {
+    fs.cpSync(from, to, { recursive: true, dereference: true });
+  }
   console.log(`  • copied server node_modules → ${path.relative(context.appOutDir, to)}`);
 }

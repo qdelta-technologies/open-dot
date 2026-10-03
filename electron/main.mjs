@@ -12,7 +12,7 @@ import { spawn, execFileSync } from "node:child_process";
 const PORT = Number(process.env.OPEN_DOT_PORT || 3100);
 // Development: point the window at `pnpm dev` instead of starting the bundled server.
 const DEV_URL = process.env.OPEN_DOT_DEV_URL;
-const APP_URL = DEV_URL || `http://localhost:${PORT}`;
+const APP_URL = DEV_URL || `http://127.0.0.1:${PORT}`;
 const isOurs = (url) => {
   try {
     const u = new URL(url);
@@ -28,6 +28,9 @@ let quitting = false;
 
 // Apps opened from Finder get a bare PATH; dots need the user's tools (git, docker, python, brew…).
 function loginPath() {
+  if (process.platform === "win32") {
+    return process.env.PATH || "";
+  }
   try {
     const shellPath = process.env.SHELL || "/bin/zsh";
     return execFileSync(shellPath, ["-ilc", "printf %s \"$PATH\""], { timeout: 5000, encoding: "utf8" }).trim();
@@ -45,23 +48,34 @@ function startServer() {
   }
   const dataDir = path.join(app.getPath("userData"), "data");
   const log = fs.createWriteStream(path.join(app.getPath("userData"), "server.log"), { flags: "a" });
+  log.write(`[Electron] Starting server at ${dir} on port ${PORT}\n`);
+  const browsersDir = app.isPackaged
+    ? path.join(process.resourcesPath, "browsers")
+    : path.join(import.meta.dirname, "..", ".desktop", "browsers");
+  const serverEnv = {
+    ...process.env,
+    PATH: loginPath(),
+    ELECTRON_RUN_AS_NODE: "1",
+    NODE_ENV: "production",
+    PORT: String(PORT),
+    HOSTNAME: "127.0.0.1",
+    DOTS_DATA_DIR: dataDir,
+    DOTS_PUBLIC_URL: APP_URL,
+  };
+  if (fs.existsSync(browsersDir)) {
+    serverEnv.PLAYWRIGHT_BROWSERS_PATH = browsersDir;
+    log.write(`[Electron] Using bundled browsers from: ${browsersDir}\n`);
+  }
+
   server = spawn(process.execPath, [path.join(dir, "server.js")], {
     cwd: dir,
-    env: {
-      ...process.env,
-      PATH: loginPath(),
-      ELECTRON_RUN_AS_NODE: "1",
-      NODE_ENV: "production",
-      PORT: String(PORT),
-      HOSTNAME: "127.0.0.1",
-      DOTS_DATA_DIR: dataDir,
-      DOTS_PUBLIC_URL: `http://localhost:${PORT}`,
-    },
+    env: serverEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
   server.stdout.pipe(log);
   server.stderr.pipe(log);
-  server.on("exit", (code) => {
+  server.on("exit", (code, signal) => {
+    log.write(`[Electron] Server exited with code ${code}, signal ${signal}\n`);
     server = null;
     if (quitting) return;
     dialog.showErrorBox("Open Dot", `The app server stopped (code ${code}). Details are in ${path.join(app.getPath("userData"), "server.log")}.`);
