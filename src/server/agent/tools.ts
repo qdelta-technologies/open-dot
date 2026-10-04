@@ -240,7 +240,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "ask_user",
     label: "Waiting for you",
-    description: "Ask the user a question and wait for the answer. Offer 2-4 likely answers as options when possible.",
+    description: "Ask the user a clarification question when you genuinely need their decision (e.g. choosing between project options or ambiguous instructions). Never use this to report search results or when an answer is not found — write that directly in the chat instead.",
     parameters: obj({ question: str("The question"), options: { type: "array", items: { type: "string" }, description: "Suggested answers (may be empty)" } }),
     pause: "question",
   },

@@ -2,19 +2,37 @@ import "server-only";
 import OpenAI from "openai";
 import { getSetting, setSetting } from "../db";
 import { seal, unseal } from "../vault";
-import { isOpenRouterModel, openModels, openRouterId, openRouterKey, openrouter, preferredOpenModel, smallOpenModel } from "./openrouter";
-import { isQDeltaModel, qdeltaClient, qdeltaKey, qdeltaModelId, qdeltaModels } from "./qdelta";
+import {
+  cloudflare,
+  cloudflareId,
+  cloudflareModelsAndMeta,
+  cloudflareWorkerUrl,
+  DEFAULT_CLOUDFLARE_MODELS,
+  isCloudflareModel,
+  preferredCloudflareModel,
+  smallCloudflareModel,
+} from "./cloudflare";
+import {
+  isOpenRouterModel,
+  openModelsAndMeta,
+  openRouterId,
+  openRouterKey,
+  openrouter,
+  preferredOpenModel,
+  smallOpenModel,
+} from "./openrouter";
+import type { ModelMeta } from "@/lib/types";
 
-// Models are chosen from what the API key can actually use. Precedence for a dot's model:
-// the dot's own choice → the default picked in Settings → DOTS_MODEL → best available.
+// Models are chosen from what the configured providers can actually use. Precedence:
+// dot's own choice → default picked in Settings → DOTS_MODEL → best available.
 const MAIN_PREFERENCE = ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5"];
 const REVIEW_PREFERENCE = ["gpt-5.4-mini", "gpt-5-mini", "gpt-5.4-nano", "gpt-5-nano", "gpt-4.1-mini"];
 
 const g = globalThis as unknown as {
   __dotsOpenAI?: OpenAI;
   __dotsOpenAIKey?: string;
-  __dotsModels?: Promise<{ main: string; review: string; available: string[] }>;
-  __dotsResolved?: { main: string; review: string; available: string[] };
+  __dotsModels?: Promise<{ main: string; review: string; available: string[]; meta: Record<string, ModelMeta> }>;
+  __dotsResolved?: { main: string; review: string; available: string[]; meta: Record<string, ModelMeta> };
 };
 
 // The key comes from OPENAI_API_KEY (development) or from Settings, sealed with the vault key (the desktop app).
@@ -55,7 +73,9 @@ export async function saveApiKey(key: string): Promise<string | null> {
   try {
     await new OpenAI({ apiKey: key }).models.list();
   } catch (err) {
-    return err instanceof Error && /401|Incorrect API key|invalid/i.test(err.message) ? "OpenAI didn't accept that key." : `Couldn't check the key: ${err instanceof Error ? err.message : String(err)}`;
+    return err instanceof Error && /401|Incorrect API key|invalid/i.test(err.message)
+      ? "OpenAI didn't accept that key."
+      : `Couldn't check the key: ${err instanceof Error ? err.message : String(err)}`;
   }
   setSetting(KEY_SETTING, seal(key));
   resetModels();
@@ -65,7 +85,8 @@ export async function saveApiKey(key: string): Promise<string | null> {
 /** Chat-capable models worth offering in a picker (no audio/image/embedding/realtime variants). */
 function isAgentModel(id: string): boolean {
   if (!/^(gpt-[4-9]|o[1-9])/.test(id)) return false;
-  if (/audio|realtime|transcribe|tts|image|embedding|search|instruct|moderation|chat-latest|-\d{4}-\d{2}-\d{2}$|0613|0314|1106|0125|preview/.test(id)) return false;
+  if (/audio|realtime|transcribe|tts|image|embedding|search|instruct|moderation|chat-latest|-\d{4}-\d{2}-\d{2}$|0613|0314|1106|0125|preview/.test(id))
+    return false;
   return !/^gpt-4(-|$)|gpt-4o|gpt-4-turbo|gpt-3/.test(id);
 }
 
@@ -95,32 +116,51 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
   };
 }
 
-/** OpenAI models (with an OpenAI key), open models (with an OpenRouter key), and QDelta models (with Cloudflare). */
+/** OpenAI models (with an OpenAI key), Cloudflare Worker models, and OpenRouter models. */
 async function resolve() {
-  const [oa, open, qdelta] = await Promise.all([
+  const [oa, cfData, openData] = await Promise.all([
     resolveOpenAI(),
-    openModels().catch((err) => {
-      console.warn("[dots] couldn't list OpenRouter models:", err instanceof Error ? err.message : err);
-      return [] as string[];
+    cloudflareModelsAndMeta().catch((err) => {
+      console.warn("[dots] couldn't list Cloudflare models:", err instanceof Error ? err.message : err);
+      return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
     }),
-    qdeltaModels().catch((err) => {
-      console.warn("[dots] couldn't list QDelta models:", err instanceof Error ? err.message : err);
-      return [] as string[];
+    openModelsAndMeta().catch((err) => {
+      console.warn("[dots] couldn't list OpenRouter models:", err instanceof Error ? err.message : err);
+      return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
     }),
   ]);
-  const mainDefault = qdelta[0] ?? oa?.main ?? (open.length ? preferredOpenModel(open) : process.env.DOTS_MODEL || MAIN_PREFERENCE[0]);
-  const reviewDefault = qdelta.find((m) => m.includes("3.1-8b")) ?? qdelta[0] ?? oa?.review ?? (open.length ? smallOpenModel(open) : process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0]);
+
+  const cf = cfData.ids;
+  const open = openData.ids;
+
+  let mainDefault = oa?.main;
+  let reviewDefault = oa?.review;
+
+  if (!mainDefault) {
+    if (cf.length) mainDefault = preferredCloudflareModel(cf);
+    else if (open.length) mainDefault = preferredOpenModel(open);
+    else mainDefault = process.env.DOTS_MODEL || MAIN_PREFERENCE[0];
+  }
+
+  if (!reviewDefault) {
+    if (cf.length) reviewDefault = smallCloudflareModel(cf);
+    else if (open.length) reviewDefault = smallOpenModel(open);
+    else reviewDefault = process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0];
+  }
+
   const resolved = {
     main: mainDefault,
     review: reviewDefault,
-    available: [...qdelta, ...(oa?.available ?? []), ...open],
+    available: [...(oa?.available ?? []), ...cf, ...open],
+    meta: { ...cfData.meta, ...openData.meta },
   };
+
   g.__dotsResolved = resolved;
   console.log(`[dots] default ${resolved.main} (agent), ${resolved.review} (rule review); ${resolved.available.length} models available`);
   return resolved;
 }
 
-/** Forget the resolved model list (a key was added or removed). */
+/** Forget the resolved model list (a key/URL was added or removed). */
 export function resetModels() {
   g.__dotsModels = undefined;
   g.__dotsResolved = undefined;
@@ -128,18 +168,21 @@ export function resetModels() {
 
 /** The API client for a model, the model id that API expects, and whether it keeps conversation state. */
 export function clientFor(model: string): { client: OpenAI; model: string; stateless: boolean } {
-  if (isQDeltaModel(model)) {
-    return { client: qdeltaClient(), model: qdeltaModelId(model), stateless: true };
+  if (isCloudflareModel(model)) {
+    return { client: cloudflare(), model: cloudflareId(model), stateless: true };
   }
-  return isOpenRouterModel(model) ? { client: openrouter(), model: openRouterId(model), stateless: true } : { client: openai(), model, stateless: false };
+  if (isOpenRouterModel(model)) {
+    return { client: openrouter(), model: openRouterId(model), stateless: true };
+  }
+  return { client: openai(), model, stateless: false };
 }
 
-/** True when any model provider is set up (OpenAI, OpenRouter, or QDelta). */
+/** True when any model provider is set up (Cloudflare, OpenAI, or OpenRouter). */
 export function canThink(): boolean {
-  return hasKey() || Boolean(openRouterKey()) || Boolean(qdeltaKey());
+  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey());
 }
 
-export function models(): Promise<{ main: string; review: string; available: string[] }> {
+export function models(): Promise<{ main: string; review: string; available: string[]; meta: Record<string, ModelMeta> }> {
   g.__dotsModels ??= resolve().catch((err) => {
     g.__dotsModels = undefined;
     throw err;
@@ -149,23 +192,31 @@ export function models(): Promise<{ main: string; review: string; available: str
 
 /** The model a dot should run on right now. */
 export async function modelFor(dotModel: string | null): Promise<string> {
-  if (dotModel) return dotModel;
-  return getSetting("default_model") ?? (await models()).main;
+  const m = await models();
+  if (dotModel && m.available.includes(dotModel)) return dotModel;
+  return getSetting("default_model") ?? m.main;
 }
 
 /** Best-known model info for display, without blocking. */
-export function knownModels(): { main: string; review: string; available: string[]; defaultModel: string } {
-  const r = g.__dotsResolved ?? { main: process.env.DOTS_MODEL || MAIN_PREFERENCE[0], review: process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0], available: [] };
+export function knownModels(): { main: string; review: string; available: string[]; defaultModel: string; meta: Record<string, ModelMeta> } {
+  if (!g.__dotsResolved && cloudflareWorkerUrl()) {
+    void resolve();
+  }
+  const r = g.__dotsResolved ?? {
+    main: process.env.DOTS_MODEL || (cloudflareWorkerUrl() ? "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast" : MAIN_PREFERENCE[0]),
+    review: process.env.DOTS_REVIEW_MODEL || (cloudflareWorkerUrl() ? "cloudflare:@cf/meta/llama-3.1-8b-instruct" : REVIEW_PREFERENCE[0]),
+    available: cloudflareWorkerUrl() ? DEFAULT_CLOUDFLARE_MODELS.map((m) => "cloudflare:" + m.id) : [],
+    meta: {},
+  };
   return { ...r, defaultModel: getSetting("default_model") ?? r.main };
 }
 
 /** gpt-5.x / gpt-6 / o-series accept `reasoning`; gpt-4.1 and friends reject it. */
 export function isReasoningModel(model: string): boolean {
-  return !isQDeltaModel(model) && !isOpenRouterModel(model) && /^(gpt-[5-9]|o[1-9])/.test(model) && !/chat/.test(model);
+  return !isCloudflareModel(model) && !isOpenRouterModel(model) && /^(gpt-[5-9]|o[1-9])/.test(model) && !/chat/.test(model);
 }
 
 /** OpenAI's GA computer tool needs a recent model; older ones get the page-reading tools only. */
 export function supportsComputerTool(model: string): boolean {
-  if (isQDeltaModel(model)) return false;
   return /^gpt-5\.[4-9]|^gpt-[6-9]|computer-use/.test(model);
 }

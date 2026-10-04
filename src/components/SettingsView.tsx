@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bell, KeyRound, Lock, LogOut, Plus, RefreshCw } from "lucide-react";
-import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setOpenRouterKey, setQDeltaConfig, signInComposio, signOutComposio } from "@/app/actions";
+import { Bell, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, Sun } from "lucide-react";
+import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setCloudflareWorker, signInComposio, signOutComposio } from "@/app/actions";
 import { useStore } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 import { openAfter } from "@/lib/popup";
 import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./SettingsKit";
 import ModelPicker from "./ModelPicker";
@@ -121,10 +122,11 @@ export default function SettingsView() {
           </div>
         </Section>
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models come from Cloudflare Workers AI, OpenAI, or OpenRouter.">
-          <QDeltaKey />
+        <AppearanceSection />
+
+        <Section eyebrow="Engine" title="Models & computers" description="Models come from your Cloudflare AI Worker or OpenAI.">
+          <CloudflareWorkerKey />
           <ApiKey />
-          <OpenModelsKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
             <div className="flex-1">
@@ -363,163 +365,95 @@ function CloudKey() {
   );
 }
 
-/** Optional OpenRouter key: adds open models (Qwen, DeepSeek, Kimi, GLM, Llama, gpt-oss…) to every model picker. */
-function OpenModelsKey() {
+/** Cloudflare AI Worker: connect opendot-worker URL and optional auth token. */
+function CloudflareWorkerKey() {
   const computer = useStore((s) => s.computer);
-  const openCount = computer.models.filter((m) => m.startsWith("openrouter:")).length;
+  const cfCount = computer.models.filter((m) => m.startsWith("cloudflare:")).length;
   const [editing, setEditing] = useState(false);
-  const [key, setKey] = useState("");
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const saved = computer.openRouter !== null;
-  const save = (value: string) =>
+  const saved = Boolean(computer.cloudflare?.url);
+  const save = (urlVal: string, tokenVal?: string) =>
     start(async () => {
-      const err = await setOpenRouterKey(value);
-      setError(err);
-      if (!err) (setKey(""), setEditing(false));
-    });
-
-  return (
-    <div id="open-models" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <div className="text-[14px]">
-            Open models <span className="text-foreground/40">· optional</span>
-          </div>
-          <div className="text-body-sm text-foreground/55">
-            {computer.openRouter === "env"
-              ? `Connected from OPENROUTER_API_KEY${openCount ? ` · ${openCount} open models in the model picker` : ""}.`
-              : saved
-                ? `Connected${openCount ? ` · ${openCount} open models in the model picker` : ""}. Voice calls still use OpenAI.`
-                : "Paste an OpenRouter key (from openrouter.ai) to run dots on open models like Qwen, DeepSeek, Kimi, GLM and Llama."}
-          </div>
-        </div>
-        {computer.openRouter === "settings" && !editing && (
-          <>
-            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
-              Remove
-            </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
-              Change
-            </button>
-          </>
-        )}
-      </div>
-      {(editing || !saved) && computer.openRouter !== "env" && (
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            save(key);
-          }}
-        >
-          <input className="field font-mono text-[13px]" type="password" placeholder="sk-or-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
-          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
-            {pending ? "Checking…" : "Save"}
-          </button>
-        </form>
-      )}
-      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
-    </div>
-  );
-}
-
-/** Cloudflare Workers AI / QDelta key & base URL */
-function QDeltaKey() {
-  const computer = useStore((s) => s.computer);
-  const qdeltaCount = computer.models.filter((m) => m.startsWith("qdelta:")).length;
-  const [editing, setEditing] = useState(false);
-  const defaultUrl = "https://qdelta-ai.qdelta-work.workers.dev/v1";
-  const [url, setUrl] = useState(computer.qdeltaBaseUrl || defaultUrl);
-  const [key, setKey] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  const saved = computer.qdelta !== null;
-
-  const save = (value: string, baseUrl?: string) =>
-    start(async () => {
-      const err = await setQDeltaConfig(value, baseUrl);
+      const err = await setCloudflareWorker(urlVal, tokenVal);
       setError(err);
       if (!err) {
-        setKey("");
+        setUrl("");
+        setToken("");
         setEditing(false);
       }
     });
 
   return (
-    <div id="qdelta-key" className="surface mb-3 scroll-mt-6 p-4">
+    <div id="cloudflare-worker" className="surface mb-3 scroll-mt-6 p-4">
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <div className="text-[14px]">
-            Cloudflare Workers AI <span className="text-foreground/40">· Meta Llama 4 Scout</span>
+          <div className="flex items-center gap-2 text-[14px]">
+            Cloudflare AI Worker <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">Recommended · Fast</span>
           </div>
           <div className="text-body-sm text-foreground/55">
-            {computer.qdelta === "env"
-              ? `Connected from QDELTA_API_KEY${qdeltaCount ? ` · ${qdeltaCount} models available` : ""}.`
+            {computer.cloudflare?.source === "env"
+              ? `Connected from CLOUDFLARE_WORKER_URL${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
               : saved
-                ? `Connected${qdeltaCount ? ` · ${qdeltaCount} models in the model picker` : ""}. Stored encrypted on this computer.`
-                : "Connect your Cloudflare Worker adapter running Meta Llama 4 Scout and Llama 3.1."}
+                ? `Connected to ${computer.cloudflare?.url}${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
+                : "Connect your opendot-worker URL to run dots on fast edge models (Llama 3.3 70B, Qwen 2.5 72B, DeepSeek R1 32B, Llama 3.1 8B) with zero rate limits."}
           </div>
         </div>
-        {computer.qdelta === "settings" && !editing && (
-          <>
+        {saved && !editing && (
+          <div className="flex items-center gap-2">
             <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
               Remove
             </button>
             <button
               className="btn-secondary h-8 px-3 text-[13px]"
               onClick={() => {
+                setUrl(computer.cloudflare?.url || "");
                 setEditing(true);
-                setUrl(computer.qdeltaBaseUrl || defaultUrl);
               }}
             >
               Change
             </button>
-          </>
+          </div>
         )}
       </div>
-      {(editing || !saved) && computer.qdelta !== "env" && (
+      {(editing || !saved) && (
         <form
           className="mt-3 space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
-            save(key, url);
+            save(url, token);
           }}
         >
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
-              className="field font-mono text-[13px]"
+              className="field font-mono text-[13px] flex-1"
               type="text"
-              placeholder={defaultUrl}
+              placeholder="https://opendot-worker.yourname.workers.dev (or http://localhost:8787)"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               autoComplete="off"
-              title="Cloudflare Worker Base URL"
             />
             <input
-              className="field font-mono text-[13px]"
+              className="field font-mono text-[13px] sm:w-44"
               type="password"
-              placeholder="Cloudflare Worker API Secret"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
+              placeholder="Token (Optional)"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
               autoComplete="off"
             />
-          </div>
-          <div className="flex items-center justify-end gap-2">
             {editing && (
               <button
                 type="button"
-                className="btn-quiet h-8 px-3 text-[13px]"
-                onClick={() => {
-                  setEditing(false);
-                  setError(null);
-                }}
+                className="btn-secondary shrink-0"
+                onClick={() => setEditing(false)}
               >
                 Cancel
               </button>
             )}
-            <button className="btn-primary h-8 px-3 text-[13px]" disabled={pending || !key.trim()}>
-              {pending ? "Checking…" : "Save"}
+            <button className="btn-primary shrink-0" disabled={pending || !url.trim()}>
+              {pending ? "Connecting…" : "Save"}
             </button>
           </div>
         </form>
@@ -528,3 +462,60 @@ function QDeltaKey() {
     </div>
   );
 }
+
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <Section
+      eyebrow="Appearance"
+      title="Theme"
+      description="Choose your preferred color theme or match your operating system settings."
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[
+          { id: "light", label: "Light", icon: Sun, desc: "Clean & bright" },
+          { id: "dark", label: "Dark", icon: Moon, desc: "Sleek & deep" },
+          { id: "system", label: "System", icon: Laptop, desc: "Sync with OS" },
+        ].map((item) => {
+          const Icon = item.icon;
+          const active = mounted && theme === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTheme(item.id as "light" | "dark" | "system")}
+              className={`surface flex flex-col items-start p-3.5 text-left transition-[border-color,box-shadow,background-color] ${
+                active
+                  ? "border-foreground bg-card ring-2 ring-foreground/20 shadow-elevated"
+                  : "hover:border-black/20 hover:bg-popover dark:hover:border-white/20"
+              }`}
+            >
+              <div className="flex w-full items-center justify-between">
+                <div
+                  className={`flex size-8 items-center justify-center rounded-lg border ${
+                    active
+                      ? "border-foreground bg-foreground text-card"
+                      : "border-black/10 bg-popover text-foreground/70 dark:border-white/10"
+                  }`}
+                >
+                  <Icon className="size-4" strokeWidth={1.75} />
+                </div>
+                {active && <span className="size-2 rounded-full bg-brand" />}
+              </div>
+              <div className="mt-3 text-[14px] font-medium">{item.label}</div>
+              <div className="text-caption text-foreground/50">{item.desc}</div>
+            </button>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+

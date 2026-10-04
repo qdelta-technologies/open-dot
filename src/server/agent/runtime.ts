@@ -3,7 +3,6 @@ import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
-import { isQDeltaModel } from "./qdelta";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
@@ -214,7 +213,12 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
   } catch (err) {
     if (!s.abort.signal.aborted) {
       console.error("[dots] run failed", err);
-      repo.addMessage({ dotId, role: "system", text: `Something went wrong: ${err instanceof Error ? err.message : String(err)}` });
+      const msg = err instanceof Error ? err.message : String(err);
+      const is429 = /429|rate limit|quota|provider returned error/i.test(msg);
+      const friendlyMsg = is429
+        ? `The model provider is temporarily busy (429 rate limit). Please try again in a moment or switch to another free model (e.g. Google Gemma 4 or OpenRouter Free) in Setup.`
+        : `Something went wrong: ${msg}`;
+      repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }
   } finally {
     s.running = false;
@@ -299,7 +303,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   const tools: Tool[] = [
     ...toolsForDot(dot).map((t): Tool => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: !stateless && t.strict !== false })),
     // OpenRouter's server-side search: the model decides when to search, same as OpenAI's web_search.
-    ...(isQDeltaModel(appModel) ? [] : [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : ({ type: "web_search" as const })]),
+    ...(stateless ? [{ type: "openrouter:web_search" } as unknown as Tool] : [{ type: "web_search" as const }]),
   ];
   if (!stateless && COMPUTER_ENABLED && supportsComputerTool(model)) tools.push({ type: "computer" } as Tool);
 
@@ -547,7 +551,7 @@ setConsult(async (target, message, from, _depth, signal) => {
         model,
         instructions: systemPrompt(target, { kind: "dot", from: from.name }),
         input: [...rebuildContext(target.id, message).slice(-12), { role: "user", content: `${from.name} asks: ${message}` }],
-        tools: isQDeltaModel(model) ? [] : [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" }],
+        tools: stateless ? [{ type: "openrouter:web_search" } as unknown as Tool] : [{ type: "web_search" }],
         ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}),
       },
       { signal },

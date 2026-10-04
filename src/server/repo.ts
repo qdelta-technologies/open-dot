@@ -217,7 +217,22 @@ export function setThread(dotId: string, thread: string | null, pending: string 
 export function getHistory(dotId: string): unknown[] {
   const r = db().prepare("SELECT history FROM conversations WHERE id = ?").get(currentConversation(dotId)) as Row | undefined;
   try {
-    return r?.history ? (JSON.parse(r.history as string) as unknown[]) : [];
+    const raw = r?.history ? (JSON.parse(r.history as string) as unknown[]) : [];
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((item: any) => {
+      if (!item) return false;
+      if (item.type === "function_call") {
+        if (!item.name || item.name === "unknown_tool") return false;
+        if (typeof item.arguments === "string") {
+          try {
+            JSON.parse(item.arguments);
+          } catch {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
   } catch {
     return [];
   }

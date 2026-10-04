@@ -1,9 +1,11 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@custom-variant dark (&:is(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 /*
  * Composio design system (FOR YOU surface), ported from ~/Desktop/landing/src/styles/globals.css.
  * Surfaces: background #f6f6f6 → card #fff → popover #fafafa. Brand is sky blue.
+ * Dark surfaces: background #0d0f14 → card #151821 → popover #1c202b.
  * Geist Sans never goes bold (400/500 only); JetBrains Mono carries the chrome.
  */
 
@@ -21,7 +23,9 @@
   --highlight: #d4ff4a;
   --highlight-foreground: #0f0f0f;
 
-  --border: oklch(0.922 0 0);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-strong: rgba(0, 0, 0, 0.18);
   --ring: oklch(0.708 0 0);
 
   --destructive: oklch(0.577 0.215 27.3);
@@ -29,6 +33,32 @@
   --warning: oklch(0.666 0.16 75);
 
   color-scheme: light;
+}
+
+.dark, [data-theme="dark"] {
+  --background: #0d0f14;
+  --card: #151821;
+  --popover: #1c202b;
+  --foreground: #f3f4f6;
+
+  --brand: #51a2ff;
+  --brand-hover: #70b4ff;
+  --brand-active: #3590f5;
+  --brand-readable: #60a5fa;
+
+  --highlight: #d4ff4a;
+  --highlight-foreground: #0f0f0f;
+
+  --border: rgba(255, 255, 255, 0.09);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --ring: rgba(81, 162, 255, 0.35);
+
+  --destructive: oklch(0.65 0.22 27.3);
+  --success: oklch(0.68 0.18 155.8);
+  --warning: oklch(0.78 0.16 75);
+
+  color-scheme: dark;
 }
 
 @theme {
@@ -107,32 +137,36 @@
   @apply btn bg-foreground text-card hover:opacity-85 active:opacity-75;
 }
 @utility btn-secondary {
-  @apply btn border border-black/10 bg-card text-foreground hover:border-black/20 hover:bg-popover;
+  @apply btn border border-black/10 bg-card text-foreground hover:border-black/20 hover:bg-popover dark:border-white/10 dark:hover:border-white/20;
 }
 @utility btn-brand {
   @apply btn bg-brand text-card hover:bg-brand-hover active:bg-brand-active;
 }
 @utility btn-quiet {
-  @apply btn h-8 px-2.5 text-[13px] text-foreground/60 hover:bg-black/[0.04] hover:text-foreground;
+  @apply btn h-8 px-2.5 text-[13px] text-foreground/60 hover:bg-black/[0.04] hover:text-foreground dark:hover:bg-white/[0.06];
 }
 
 @utility field {
-  @apply h-9 w-full rounded-md border border-black/10 bg-card px-3 font-sans text-[14px] tracking-default text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-foreground/35 focus:border-black/25 focus:shadow-[0_0_0_3px_rgba(81,162,255,0.18)];
+  @apply h-9 w-full rounded-md border border-black/10 bg-card px-3 font-sans text-[14px] tracking-default text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-foreground/35 focus:border-black/25 focus:shadow-[0_0_0_3px_rgba(81,162,255,0.18)] dark:border-white/10 dark:focus:border-white/25;
 }
 
 @utility surface {
-  @apply rounded-xl border border-black/[0.06] bg-card;
+  @apply rounded-xl border border-black/[0.06] bg-card dark:border-white/[0.08];
 }
 
 /* Hairline page frame, the landing site's vertical rails. */
 @utility rails {
-  @apply border-x border-black/[0.06];
+  @apply border-x border-black/[0.06] dark:border-white/[0.08];
 }
 
 /* Dotted field used behind 3D stages. */
 @utility dot-grid {
   background-image: radial-gradient(rgba(15, 15, 15, 0.09) 1px, transparent 1px);
   background-size: 16px 16px;
+}
+
+.dark .dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
 }
 
 @keyframes dot-bob {
@@ -159,8 +193,52 @@
   animation: shimmer 2.2s linear infinite;
 }
 
+.dark .shimmer-text {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.35) 20%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0.35) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.2s linear infinite;
+}
+
 .live-dot {
   animation: pulse-ring 1.4s ease-out infinite;
+}
+
+/* Dark mode utility harmonizers */
+.dark .border-black\/\[0\.06\],
+.dark .border-black\/\[0\.08\],
+.dark .border-black\/10,
+.dark .border-black\/20,
+.dark .border-black\/25 {
+  border-color: var(--border);
+}
+
+.dark .divide-black\/\[0\.06\],
+.dark .divide-black\/10 {
+  border-color: var(--border);
+}
+
+.dark .hover\:border-black\/15:hover,
+.dark .hover\:border-black\/20:hover,
+.dark .hover\:border-black\/25:hover,
+.dark .hover\:border-black\/50:hover {
+  border-color: var(--border-strong);
+}
+
+.dark .bg-black\/\[0\.03\],
+.dark .bg-black\/\[0\.04\],
+.dark .bg-black\/\[0\.05\],
+.dark .bg-black\/\[0\.06\] {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .hover\:bg-black\/\[0\.03\]:hover,
+.dark .hover\:bg-black\/\[0\.04\]:hover,
+.dark .hover\:bg-black\/\[0\.05\]:hover,
+.dark .hover\:bg-black\/\[0\.06\]:hover {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Markdown replies, tuned to the body tokens. */
@@ -175,6 +253,14 @@
   --tw-prose-bullets: rgba(0, 0, 0, 0.3);
   --tw-prose-counters: rgba(0, 0, 0, 0.45);
 }
+
+.dark .dot-prose {
+  --tw-prose-th-borders: rgba(255, 255, 255, 0.12);
+  --tw-prose-td-borders: rgba(255, 255, 255, 0.08);
+  --tw-prose-bullets: rgba(255, 255, 255, 0.35);
+  --tw-prose-counters: rgba(255, 255, 255, 0.5);
+}
+
 .dot-prose > :first-child {
   margin-top: 0;
 }
@@ -185,14 +271,14 @@
   font-weight: 500;
 }
 .dot-prose :where(code):not(:where(pre code)) {
-  @apply rounded-xs bg-black/[0.05] px-1 py-0.5 font-mono text-[13px] font-normal;
+  @apply rounded-xs bg-black/[0.05] dark:bg-white/[0.08] px-1 py-0.5 font-mono text-[13px] font-normal;
 }
 .dot-prose :where(code):not(:where(pre code))::before,
 .dot-prose :where(code):not(:where(pre code))::after {
   content: none;
 }
 .dot-prose :where(pre) {
-  @apply rounded-lg border border-black/[0.06] bg-popover font-mono text-[13px] text-foreground;
+  @apply rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-popover font-mono text-[13px] text-foreground;
 }
 .dot-prose :where(table) {
   @apply text-[14px];
@@ -202,4 +288,20 @@
 }
 .dot-prose :where(a) {
   @apply no-underline hover:underline;
+}
+
+/* Custom scrollbars for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }

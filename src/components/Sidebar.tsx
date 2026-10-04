@@ -8,6 +8,7 @@ import { deleteConversation } from "@/app/actions";
 import { markRead, useStore } from "@/lib/store";
 import { setSidebarOpen, useSidebarOpen } from "@/lib/ui";
 import { statusDot, timeAgo } from "@/lib/status";
+import ThemeToggle from "./ThemeToggle";
 import DotOrb from "./DotOrb";
 import type { Conversation, Message } from "@/lib/types";
 
@@ -215,13 +216,14 @@ export default function Sidebar() {
       <div className="flex shrink-0 items-center gap-2 p-3">
         <Link
           href="/apps"
-          className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-full border text-[14px] transition-colors ${pathname === "/apps" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25"}`}
+          className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-full border text-[14px] transition-colors ${pathname === "/apps" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25 dark:border-white/10 dark:hover:border-white/25"}`}
         >
           <LayoutGrid className="size-4" strokeWidth={1.5} /> Apps
         </Link>
+        <ThemeToggle />
         <Link
           href="/settings"
-          className={`relative flex size-10 items-center justify-center rounded-full border transition-colors ${pathname === "/settings" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25"}`}
+          className={`relative flex size-10 items-center justify-center rounded-full border transition-colors ${pathname === "/settings" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25 dark:border-white/10 dark:hover:border-white/25"}`}
           title={`Settings · ${model || "model"} · ${connected ? "connected" : "reconnecting"}`}
           aria-label="Settings"
         >

@@ -144,19 +144,29 @@ export type Snapshot = {
 /** A Composio app the user can connect (Gmail, Slack…). */
 export type ToolkitState = { slug: string; name: string; logo?: string; connected: boolean; accountId?: string };
 
+export type ModelMeta = {
+  isFree: boolean;
+  paidUntil?: number | null; // expiration timestamp if in 30-day grace period
+  contextLength?: number | null;
+  contextFormatted?: string | null; // e.g. "256k ctx", "1M ctx"
+  parameters?: string | null; // e.g. "27B", "3B", "70B"
+  category?: "general" | "coding" | "vision" | "fast" | null;
+  description?: string | null;
+};
+
 export type ComputerInfo = {
   mode: "cloud" | "docker" | "local"; // where dots' computers run by default
   docker: boolean;
   image: string;
   model: string; // default model for dots without their own choice
   models: string[]; // models the API key can use
+  modelMeta?: Record<string, ModelMeta>; // pricing / grace period status per model
   computerTool: string;
   hasKey: boolean;
   keySource: "env" | "settings" | null;
   cloudKey: "env" | "settings" | null; // E2B key for cloud computers
   openRouter: "env" | "settings" | null; // OpenRouter key for open models
-  qdelta: "env" | "settings" | null; // Cloudflare Workers AI / QDelta key
-  qdeltaBaseUrl?: string | null;
+  cloudflare?: { url: string | null; source: "env" | "settings" | null; hasToken: boolean } | null; // Cloudflare AI Worker
   triggersKey: "env" | "settings" | null; // Composio API key for triggers
   sky: boolean; // OpenAI's Sky computer-use runtime is installed on this Mac
   composio: boolean; // COMPOSIO_API_KEY is set

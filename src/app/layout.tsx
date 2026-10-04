@@ -17,9 +17,26 @@ export const metadata: Metadata = {
   description: "Open-source personal AI agents that work on their own, on their own computers",
 };
 
+const themeScript = `(function() {
+  try {
+    var stored = localStorage.getItem('opendot-theme');
+    var isDark = stored === 'dark' || ((!stored || stored === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.dataset.theme = 'dark';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.dataset.theme = 'light';
+    }
+  } catch (e) {}
+})();`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${jetbrainsMono.variable} h-full`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${jetbrainsMono.variable} h-full`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="flex h-full overflow-hidden">
         <Suspense>
           <Sidebar />

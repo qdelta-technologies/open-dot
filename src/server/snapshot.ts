@@ -7,26 +7,33 @@ import { COMPUTER_ENABLED } from "./agent/tools";
 import { skyInstalled } from "./computer/sky";
 import { cloudKeySource } from "./computer/cloud";
 import { openRouterSource } from "./agent/openrouter";
-import { qdeltaBaseUrl, qdeltaSource } from "./agent/qdelta";
+import { cloudflareSource, cloudflareWorkerUrl, cloudflareWorkerToken } from "./agent/cloudflare";
 import { triggersKeySource } from "./triggers";
 import { apps, signedIn } from "./composio";
 import type { ComputerInfo, Snapshot } from "@/lib/types";
 
 export function computerInfo(): ComputerInfo {
   const m = knownModels();
+  const cfSource = cloudflareSource();
   return {
     mode: defaultMode(),
     docker: dockerAvailable(),
     image: BOX_IMAGE,
     model: m.defaultModel,
     models: m.available,
+    modelMeta: m.meta,
     computerTool: COMPUTER_ENABLED ? "computer" : "off",
     hasKey: hasKey(),
     keySource: keySource(),
     cloudKey: cloudKeySource(),
     openRouter: openRouterSource(),
-    qdelta: qdeltaSource(),
-    qdeltaBaseUrl: qdeltaBaseUrl(),
+    cloudflare: cfSource
+      ? {
+          url: cloudflareWorkerUrl(),
+          source: cfSource,
+          hasToken: Boolean(cloudflareWorkerToken()),
+        }
+      : null,
     triggersKey: triggersKeySource(),
     sky: skyInstalled(),
     composio: signedIn(),

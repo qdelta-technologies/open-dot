@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS conversations (
 CREATE INDEX IF NOT EXISTS conversations_dot ON conversations(dot_id, updated_at);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS passwords (id TEXT PRIMARY KEY, site TEXT NOT NULL, username TEXT NOT NULL, secret TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS open_model_status (
+  id TEXT PRIMARY KEY, is_free INTEGER NOT NULL, first_paid_at INTEGER, last_seen_at INTEGER NOT NULL,
+  context_length INTEGER, parameters TEXT
+);
 `;
 
 const g = globalThis as unknown as { __dotsDb?: DatabaseSync };
@@ -59,6 +63,13 @@ export function db(): DatabaseSync {
 
 /** Additive migrations for databases created by earlier versions. */
 function migrate(conn: DatabaseSync) {
+  conn.exec(`CREATE TABLE IF NOT EXISTS open_model_status (
+    id TEXT PRIMARY KEY, is_free INTEGER NOT NULL, first_paid_at INTEGER, last_seen_at INTEGER NOT NULL,
+    context_length INTEGER, parameters TEXT
+  );`);
+  const statusCols = conn.prepare("PRAGMA table_info(open_model_status)").all().map((c) => (c as { name: string }).name);
+  if (!statusCols.includes("context_length")) conn.exec("ALTER TABLE open_model_status ADD COLUMN context_length INTEGER");
+  if (!statusCols.includes("parameters")) conn.exec("ALTER TABLE open_model_status ADD COLUMN parameters TEXT");
   const cols = conn.prepare("PRAGMA table_info(dots)").all().map((c) => (c as { name: string }).name);
   if (!cols.includes("model")) conn.exec("ALTER TABLE dots ADD COLUMN model TEXT");
   if (!cols.includes("box_id")) conn.exec("ALTER TABLE dots ADD COLUMN box_id TEXT");

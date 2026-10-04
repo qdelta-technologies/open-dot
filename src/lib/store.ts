@@ -19,7 +19,7 @@ export type State = Snapshot & {
 
 const EMPTY: State = {
   dots: [], messages: [], routines: [], triggers: [], rules: [], memories: [], skills: [], passwords: [],
-  computer: { mode: "local", docker: false, image: "", model: "", models: [], computerTool: "", hasKey: true, keySource: null, cloudKey: null, openRouter: null, qdelta: null, qdeltaBaseUrl: "https://qdelta-ai.qdelta-work.workers.dev/v1", triggersKey: null, sky: false, composio: false },
+  computer: { mode: "local", docker: false, image: "", model: "", models: [], computerTool: "", hasKey: true, keySource: null, cloudKey: null, openRouter: null, cloudflare: null, triggersKey: null, sky: false, composio: false },
   apps: [],
   channels: [],
   conversations: [],
@@ -96,8 +96,28 @@ function apply(ev: ServerEvent) {
       if (ev.data.dotId === activeDotId() && document.visibilityState === "visible") markRead(ev.data.dotId);
       return;
     }
-    case "message_delta":
-      return set({ messages: state.messages.map((m): Message => (m.id === ev.id ? { ...m, text: m.text + ev.delta } : m)) });
+    case "message_delta": {
+      const exists = state.messages.some((m) => m.id === ev.id);
+      if (exists) {
+        return set({
+          messages: state.messages.map((m): Message => (m.id === ev.id ? { ...m, text: m.text + ev.delta } : m)),
+        });
+      }
+      const newMsg: Message = {
+        id: ev.id,
+        dotId: ev.dotId,
+        role: "dot",
+        text: ev.delta,
+        title: null,
+        card: null,
+        from: null,
+        attachments: null,
+        channelId: null,
+        conversationId: null,
+        createdAt: Date.now(),
+      };
+      return set({ messages: [...state.messages, newMsg] });
+    }
     case "routine":
       return set({ routines: upsert(state.routines, ev.data) });
     case "routine_deleted":
