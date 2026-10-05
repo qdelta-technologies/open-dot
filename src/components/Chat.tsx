@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, use, useMemo, useRef, useState, useTransition } from "react";
+import { Suspense, use, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -27,6 +27,7 @@ import {
   Mic,
   MonitorSmartphone,
   Paperclip,
+  Phone,
   Plug,
   Plus,
   RotateCcw,
@@ -266,9 +267,95 @@ function Composer({
   const [text, setText] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [pending, start] = useTransition();
+  const recognitionRef = useRef<any>(null);
+  const baseTextRef = useRef<string>("");
+
   const ready = uploads.filter((u) => u.state === "done" && u.file).map((u) => u.file!);
   const busy = uploads.some((u) => u.state === "uploading");
+
+  // Clean up speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || "en-US";
+
+      baseTextRef.current = text;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        let final = "";
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            final += item[0].transcript;
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+
+        const spoken = (final + interim).trim();
+        if (spoken) {
+          const prefix = baseTextRef.current.trim() ? `${baseTextRef.current.trim()} ` : "";
+          setText(prefix + spoken);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("[speech recognition error]", event.error);
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          alert("Microphone permission was denied. Please allow microphone access in your browser to dictate.");
+        }
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn("[speech recognition start error]", err);
+      setIsListening(false);
+    }
+  };
 
   const addFiles = (list: File[]) => {
     if (!list.length) return;
@@ -286,6 +373,14 @@ function Composer({
   };
 
   const submit = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListening(false);
+    }
     const value = text.trim();
     if ((!value && !ready.length) || busy) return;
     setText("");
@@ -327,6 +422,22 @@ function Composer({
           dragging ? "border-brand border-dashed bg-brand/[0.04]" : ""
         }`}
       >
+        {isListening && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-red-500/10 dark:bg-red-500/15 px-3 py-1.5 text-[12px] font-medium text-red-500 dark:text-red-400">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-red-500 animate-ping" />
+              <span>Listening to your voice... speak now (click Stop when done)</span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleListening}
+              className="text-[11px] font-semibold text-red-600 dark:text-red-300 underline underline-offset-2 hover:opacity-80"
+            >
+              Stop & Keep Text
+            </button>
+          </div>
+        )}
+
         {uploads.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5 pl-1 pt-1">
             {uploads.map((u) => (
@@ -389,7 +500,13 @@ function Composer({
                 submit();
               }
             }}
-            placeholder={dragging ? "Drop files to attach..." : `Ask ${dot.name}...`}
+            placeholder={
+              dragging
+                ? "Drop files to attach..."
+                : isListening
+                  ? "Listening to your voice..."
+                  : `Ask ${dot.name}...`
+            }
             className="max-h-52 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.5] tracking-default outline-none [field-sizing:content] placeholder:text-foreground/35 text-foreground"
           />
 
@@ -403,24 +520,59 @@ function Composer({
             >
               <Square className="size-3.5 fill-current" />
             </button>
+          ) : isListening ? (
+            <button
+              type="button"
+              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-md animate-pulse transition-all hover:bg-red-600 active:scale-95"
+              onClick={toggleListening}
+              aria-label="Stop speaking and keep text"
+              title="Stop speaking (text will stay in box)"
+            >
+              <Square className="size-3.5 fill-current" />
+            </button>
           ) : text.trim() || ready.length || busy ? (
-            <button
-              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-              disabled={pending || busy}
-              onClick={submit}
-              aria-label="Send message"
-            >
-              <ArrowUp className="size-4" strokeWidth={2.5} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="flex size-8.5 shrink-0 items-center justify-center rounded-full text-foreground/50 transition-all hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground active:scale-95"
+                onClick={toggleListening}
+                aria-label="Dictate voice"
+                title="Speak to dictate"
+              >
+                <Mic className="size-4" strokeWidth={1.75} />
+              </button>
+              <button
+                className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+                disabled={pending || busy}
+                onClick={submit}
+                aria-label="Send message"
+              >
+                <ArrowUp className="size-4" strokeWidth={2.5} />
+              </button>
+            </div>
           ) : (
-            <button
-              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-foreground/75 transition-all hover:bg-black/10 dark:hover:bg-white/15 hover:text-foreground active:scale-95"
-              onClick={onVoice}
-              aria-label={`Voice conversation with ${dot.name}`}
-              title="Start voice mode"
-            >
-              <Mic className="size-4" strokeWidth={2} />
-            </button>
+            <div className="flex items-center gap-1">
+              {onVoice && (
+                <button
+                  type="button"
+                  className="flex size-8.5 shrink-0 items-center justify-center rounded-full text-foreground/45 transition-all hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground active:scale-95"
+                  onClick={onVoice}
+                  aria-label={`Voice call with ${dot.name}`}
+                  title="Start live voice call (Realtime)"
+                >
+                  <Phone className="size-3.5" strokeWidth={1.75} />
+                </button>
+              )}
+              <button
+                type="button"
+                className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-foreground/75 transition-all hover:bg-black/10 dark:hover:bg-white/15 hover:text-foreground active:scale-95"
+                onClick={toggleListening}
+                aria-label="Click to speak (speech to text)"
+                title="Click to speak (speech to text)"
+              >
+                <Mic className="size-4" strokeWidth={2} />
+              </button>
+            </div>
           )}
         </div>
       </div>
