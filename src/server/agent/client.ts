@@ -25,8 +25,8 @@ import type { ModelMeta } from "@/lib/types";
 
 // Models are chosen from what the configured providers can actually use. Precedence:
 // dot's own choice → default picked in Settings → DOTS_MODEL → best available.
-const MAIN_PREFERENCE = ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5"];
-const REVIEW_PREFERENCE = ["gpt-5.4-mini", "gpt-5-mini", "gpt-5.4-nano", "gpt-5-nano", "gpt-4.1-mini"];
+const MAIN_PREFERENCE = ["gpt-4o", "gpt-4o-mini", "o3-mini", "o1"];
+const REVIEW_PREFERENCE = ["gpt-4o-mini", "o3-mini"];
 
 const g = globalThis as unknown as {
   __dotsOpenAI?: OpenAI;
@@ -85,10 +85,10 @@ export async function saveApiKey(key: string): Promise<string | null> {
 
 /** Chat-capable models worth offering in a picker (no audio/image/embedding/realtime variants). */
 function isAgentModel(id: string): boolean {
-  if (!/^(gpt-[4-9]|o[1-9])/.test(id)) return false;
-  if (/audio|realtime|transcribe|tts|image|embedding|search|instruct|moderation|chat-latest|-\d{4}-\d{2}-\d{2}$|0613|0314|1106|0125|preview/.test(id))
+  if (!/^(gpt-4|o[1-9])/.test(id)) return false;
+  if (/audio|realtime|transcribe|tts|image|embedding|search|moderation|chat-latest|-\d{4}-\d{2}-\d{2}$|0613|0314|1106|0125|preview/.test(id))
     return false;
-  return !/^gpt-4(-|$)|gpt-4o|gpt-4-turbo|gpt-3/.test(id);
+  return true;
 }
 
 function rank(id: string): number {
@@ -104,16 +104,17 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
   try {
     for await (const m of openai().models.list()) ids.push(m.id);
   } catch (err) {
-    console.warn("[dots] couldn't list models, using defaults:", err instanceof Error ? err.message : err);
-    ids = [];
+    console.warn("[dots] couldn't list models:", err instanceof Error ? err.message : err);
+    return null;
   }
   const set = new Set(ids);
   const pick = (envVar: string | undefined, prefs: string[]) => envVar || prefs.find((id) => set.has(id)) || prefs[0];
   const available = ids.filter(isAgentModel).sort((a, b) => rank(b) - rank(a) || a.localeCompare(b));
+  if (available.length === 0) return null;
   return {
     main: pick(process.env.DOTS_MODEL, MAIN_PREFERENCE),
     review: pick(process.env.DOTS_REVIEW_MODEL, REVIEW_PREFERENCE),
-    available: available.length ? available : MAIN_PREFERENCE,
+    available,
   };
 }
 
@@ -134,19 +135,22 @@ async function resolve() {
   const cf = cfData.ids;
   const open = openData.ids;
 
-  let mainDefault = oa?.main;
-  let reviewDefault = oa?.review;
+  let mainDefault = process.env.DOTS_MODEL;
+  let reviewDefault = process.env.DOTS_REVIEW_MODEL;
 
+  // Default to fast, verified, free edge model (Llama 3.3 70B FP8)
   if (!mainDefault) {
     if (cf.length) mainDefault = preferredCloudflareModel(cf);
     else if (open.length) mainDefault = preferredOpenModel(open);
-    else mainDefault = process.env.DOTS_MODEL || MAIN_PREFERENCE[0];
+    else if (oa?.main) mainDefault = oa.main;
+    else mainDefault = "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
   }
 
   if (!reviewDefault) {
     if (cf.length) reviewDefault = smallCloudflareModel(cf);
     else if (open.length) reviewDefault = smallOpenModel(open);
-    else reviewDefault = process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0];
+    else if (oa?.review) reviewDefault = oa.review;
+    else reviewDefault = "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast";
   }
 
   const resolved = {
