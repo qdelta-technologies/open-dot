@@ -7,9 +7,9 @@ import { savePassword as vaultSave } from "@/server/vault";
 import { setSetting } from "@/server/db";
 import { emit } from "@/server/bus";
 import { computerInfo } from "@/server/snapshot";
-import { models, resetModels, saveApiKey } from "@/server/agent/client";
-import { saveOpenRouterKey } from "@/server/agent/openrouter";
-import { saveCloudflareConfig } from "@/server/agent/cloudflare";
+import { apiKey, models, resetModels, saveApiKey } from "@/server/agent/client";
+import { openRouterKey, saveOpenRouterKey } from "@/server/agent/openrouter";
+import { cloudflareWorkerToken, cloudflareWorkerUrl, saveCloudflareConfig } from "@/server/agent/cloudflare";
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
 import * as voice from "@/server/voice";
@@ -191,6 +191,10 @@ export async function setOpenAIKey(key: string): Promise<string | null> {
   return null;
 }
 
+export async function getOpenAIKey(): Promise<string> {
+  return apiKey() || "";
+}
+
 /** Save Cloudflare Worker URL and optional token in Settings (empty removes it). */
 export async function setCloudflareWorker(url: string, token?: string): Promise<string | null> {
   const err = await saveCloudflareConfig(url, token);
@@ -201,6 +205,13 @@ export async function setCloudflareWorker(url: string, token?: string): Promise<
   return null;
 }
 
+export async function getCloudflareConfig(): Promise<{ url: string; token: string }> {
+  return {
+    url: cloudflareWorkerUrl() || "",
+    token: cloudflareWorkerToken() || "",
+  };
+}
+
 /** Paste an OpenRouter key in Settings to add open models (empty removes it). */
 export async function setOpenRouterKey(key: string): Promise<string | null> {
   const err = await saveOpenRouterKey(key.trim());
@@ -209,6 +220,14 @@ export async function setOpenRouterKey(key: string): Promise<string | null> {
   emit({ type: "computer", data: computerInfo() });
   void models().then(() => emit({ type: "computer", data: computerInfo() })).catch(() => {});
   return null;
+}
+
+export async function getOpenRouterKey(): Promise<string> {
+  return openRouterKey() || "";
+}
+
+export async function getCloudKey(): Promise<string> {
+  return computer.getSavedCloudKey() || "";
 }
 
 // ---------- triggers (Composio API key) ----------

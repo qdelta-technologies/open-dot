@@ -38,7 +38,7 @@ const g = globalThis as unknown as {
 // The key comes from OPENAI_API_KEY (development) or from Settings, sealed with the vault key (the desktop app).
 const KEY_SETTING = "openai_key";
 
-function apiKey(): string | null {
+export function apiKey(): string | null {
   if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
   const sealed = getSetting(KEY_SETTING);
   if (!sealed) return null;

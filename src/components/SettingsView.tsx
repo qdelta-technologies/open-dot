@@ -2,8 +2,24 @@
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bell, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, Sun } from "lucide-react";
-import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setOpenRouterKey, setCloudflareWorker, signInComposio, signOutComposio } from "@/app/actions";
+import { Bell, Eye, EyeOff, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, Sun } from "lucide-react";
+import {
+  connectApp,
+  deletePassword,
+  getCloudflareConfig,
+  getCloudKey,
+  getOpenAIKey,
+  getOpenRouterKey,
+  refreshApps,
+  savePassword,
+  setCloudflareWorker,
+  setCloudKey,
+  setDefaultModel,
+  setOpenAIKey,
+  setOpenRouterKey,
+  signInComposio,
+  signOutComposio,
+} from "@/app/actions";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { openAfter } from "@/lib/popup";
@@ -260,9 +276,26 @@ function ApiKey() {
   const computer = useStore((s) => s.computer);
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const open = editing || !computer.hasKey;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const val = await getOpenAIKey();
+      if (val) setKey(val);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getOpenAIKey().then((val) => {
+        if (val) setKey(val);
+      });
+    }
+  }, [editing]);
 
   return (
     <div id="api-key" className="surface mb-3 p-4">
@@ -278,7 +311,7 @@ function ApiKey() {
           </div>
         </div>
         {computer.hasKey && computer.keySource !== "env" && !editing && (
-          <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
+          <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
             Change
           </button>
         )}
@@ -291,11 +324,45 @@ function ApiKey() {
             start(async () => {
               const err = await setOpenAIKey(key);
               setError(err);
-              if (!err) (setKey(""), setEditing(false));
+              if (!err) {
+                setKey("");
+                setEditing(false);
+                setShowKey(false);
+              }
             });
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="sk-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="sk-..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+                setShowKey(false);
+              }}
+            >
+              Cancel
+            </button>
+          )}
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
@@ -311,14 +378,36 @@ function CloudKey() {
   const computer = useStore((s) => s.computer);
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const saved = computer.cloudKey !== null;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const val = await getCloudKey();
+      if (val) setKey(val);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getCloudKey().then((val) => {
+        if (val) setKey(val);
+      });
+    }
+  }, [editing]);
+
   const save = (value: string) =>
     start(async () => {
       const err = await setCloudKey(value);
       setError(err);
-      if (!err) (setKey(""), setEditing(false));
+      if (!err) {
+        setKey("");
+        setEditing(false);
+        setShowKey(false);
+      }
     });
 
   return (
@@ -341,7 +430,7 @@ function CloudKey() {
             <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
               Remove
             </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
               Change
             </button>
           </>
@@ -355,7 +444,37 @@ function CloudKey() {
             save(key);
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="e2b_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="e2b_..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+                setShowKey(false);
+              }}
+            >
+              Cancel
+            </button>
+          )}
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
@@ -373,9 +492,31 @@ function CloudflareWorkerKey() {
   const [editing, setEditing] = useState(false);
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const saved = Boolean(computer.cloudflare?.url);
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const cfg = await getCloudflareConfig();
+      if (cfg.url) setUrl(cfg.url);
+      if (cfg.token) setToken(cfg.token);
+    } catch {
+      setUrl(computer.cloudflare?.url || "");
+    }
+  };
+
+  useEffect(() => {
+    if (editing && (!url || !token)) {
+      void getCloudflareConfig().then((cfg) => {
+        if (cfg.url && !url) setUrl(cfg.url);
+        if (cfg.token && !token) setToken(cfg.token);
+      });
+    }
+  }, [editing]);
+
   const save = (urlVal: string, tokenVal?: string) =>
     start(async () => {
       const err = await setCloudflareWorker(urlVal, tokenVal);
@@ -384,6 +525,7 @@ function CloudflareWorkerKey() {
         setUrl("");
         setToken("");
         setEditing(false);
+        setShowToken(false);
       }
     });
 
@@ -407,13 +549,7 @@ function CloudflareWorkerKey() {
             <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
               Remove
             </button>
-            <button
-              className="btn-secondary h-8 px-3 text-[13px]"
-              onClick={() => {
-                setUrl(computer.cloudflare?.url || "");
-                setEditing(true);
-              }}
-            >
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
               Change
             </button>
           </div>
@@ -436,19 +572,32 @@ function CloudflareWorkerKey() {
               onChange={(e) => setUrl(e.target.value)}
               autoComplete="off"
             />
-            <input
-              className="field font-mono text-[13px] sm:w-44"
-              type="password"
-              placeholder="Token (Optional)"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              autoComplete="off"
-            />
+            <div className="relative sm:w-52">
+              <input
+                className="field font-mono text-[13px] pr-9 w-full"
+                type={showToken ? "text" : "password"}
+                placeholder="Token (Optional)"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken(!showToken)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+                title={showToken ? "Hide token" : "Show token"}
+              >
+                {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
             {editing && (
               <button
                 type="button"
                 className="btn-secondary shrink-0"
-                onClick={() => setEditing(false)}
+                onClick={() => {
+                  setEditing(false);
+                  setShowToken(false);
+                }}
               >
                 Cancel
               </button>
@@ -470,9 +619,27 @@ function OpenModelsKey() {
   const openCount = computer.models.filter((m) => m.startsWith("openrouter:")).length;
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const saved = computer.openRouter !== null;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const existing = await getOpenRouterKey();
+      if (existing) setKey(existing);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getOpenRouterKey().then((existing) => {
+        if (existing) setKey(existing);
+      });
+    }
+  }, [editing]);
+
   const save = (value: string) =>
     start(async () => {
       const err = await setOpenRouterKey(value);
@@ -480,6 +647,7 @@ function OpenModelsKey() {
       if (!err) {
         setKey("");
         setEditing(false);
+        setShowKey(false);
       }
     });
 
@@ -503,7 +671,7 @@ function OpenModelsKey() {
             <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
               Remove
             </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
               Change
             </button>
           </div>
@@ -517,7 +685,24 @@ function OpenModelsKey() {
             save(key);
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="sk-or-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="sk-or-..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
           {editing && (
             <button
               type="button"
@@ -525,6 +710,7 @@ function OpenModelsKey() {
               onClick={() => {
                 setEditing(false);
                 setError(null);
+                setShowKey(false);
               }}
             >
               Cancel

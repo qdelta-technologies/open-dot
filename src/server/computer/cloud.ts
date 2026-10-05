@@ -35,6 +35,16 @@ function loadSavedKey() {
 
 export const cloudEnabled = () => (loadSavedKey(), Boolean(process.env.E2B_API_KEY));
 
+export function getSavedCloudKey(): string | null {
+  if (KEY_FROM_ENV) return process.env.E2B_API_KEY || null;
+  const sealed = getSetting(KEY_SETTING);
+  let key: string | null = null;
+  try {
+    key = sealed ? unseal(sealed) : null;
+  } catch {}
+  return key;
+}
+
 export const cloudKeySource = (): "env" | "settings" | null => (KEY_FROM_ENV ? "env" : getSetting(KEY_SETTING) ? "settings" : null);
 
 /** Check the key with E2B, then save it (encrypted). Empty removes it. Returns an error message or null. */

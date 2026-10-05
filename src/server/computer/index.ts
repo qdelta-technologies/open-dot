@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as repo from "../repo";
 import * as cloud from "./cloud";
+export { getSavedCloudKey } from "./cloud";
 import * as browser from "./browser";
 import { BOX_IMAGE, dockerAvailable, resetDotComputer, resolveWorkspacePath, runOnDotComputer, workspaceDir } from "./shell";
 import type { ComputerAction } from "./browser";
