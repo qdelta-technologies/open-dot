@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bell, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, Sun } from "lucide-react";
-import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setCloudflareWorker, signInComposio, signOutComposio } from "@/app/actions";
+import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setOpenRouterKey, setCloudflareWorker, signInComposio, signOutComposio } from "@/app/actions";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { openAfter } from "@/lib/popup";
@@ -124,8 +124,9 @@ export default function SettingsView() {
 
         <AppearanceSection />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models come from your Cloudflare AI Worker or OpenAI.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models come from your Cloudflare AI Worker, OpenRouter, or OpenAI.">
           <CloudflareWorkerKey />
+          <OpenModelsKey />
           <ApiKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
@@ -456,6 +457,82 @@ function CloudflareWorkerKey() {
               {pending ? "Connecting…" : "Save"}
             </button>
           </div>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Optional OpenRouter key: adds open models (Nemotron, Gemma, Qwen, DeepSeek, Kimi, GLM, Llama…) to every model picker. */
+function OpenModelsKey() {
+  const computer = useStore((s) => s.computer);
+  const openCount = computer.models.filter((m) => m.startsWith("openrouter:")).length;
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.openRouter !== null;
+  const save = (value: string) =>
+    start(async () => {
+      const err = await setOpenRouterKey(value);
+      setError(err);
+      if (!err) {
+        setKey("");
+        setEditing(false);
+      }
+    });
+
+  return (
+    <div id="open-models" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[14px]">
+            OpenRouter <span className="rounded-xs bg-emerald-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">Open Models</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.openRouter === "env"
+              ? `Connected from OPENROUTER_API_KEY${openCount ? ` · ${openCount} open models in the model picker` : ""}.`
+              : saved
+                ? `Connected${openCount ? ` · ${openCount} open models in the model picker` : ""}. Stored encrypted on this computer.`
+                : "Paste an OpenRouter key (from openrouter.ai) to run dots on open models like Nemotron, Gemma, Qwen, and DeepSeek."}
+          </div>
+        </div>
+        {saved && !editing && (
+          <div className="flex items-center gap-2">
+            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
+              Remove
+            </button>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
+              Change
+            </button>
+          </div>
+        )}
+      </div>
+      {(editing || !saved) && computer.openRouter !== "env" && (
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save(key);
+          }}
+        >
+          <input className="field font-mono text-[13px]" type="password" placeholder="sk-or-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          {editing && (
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+              }}
+            >
+              Cancel
+            </button>
+          )}
+          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
+            {pending ? "Checking…" : "Save"}
+          </button>
         </form>
       )}
       {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
