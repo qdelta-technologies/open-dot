@@ -267,22 +267,23 @@ async function turn(dotId: string, text: string, trigger: Trigger, signal: Abort
   const { stateless } = clientFor(await modelFor(dot.model));
   if (!fresh && (stateless ? !repo.getHistory(dotId).length : !thread)) input.unshift(...rebuildContext(dotId, text));
   input.push(userInput(text, attachments));
-  await drive(dot, thread, input, trigger, signal);
+  await drive(dot, thread, input, trigger, signal, conversationId);
 }
 
-async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[], trigger: Trigger, signal: AbortSignal) {
+async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[], trigger: Trigger, signal: AbortSignal, conversationId?: string | null) {
+  const convId = conversationId ?? repo.currentConversation(dot.id);
   for (let step = 0; step < MAX_STEPS; step++) {
     signal.throwIfAborted();
     let resp: Response;
     try {
-      resp = await respond(dot, prevId, input, trigger, signal);
+      resp = await respond(dot, prevId, input, trigger, signal, convId);
     } catch (err) {
       if (!prevId || signal.aborted || clientFor(await modelFor(dot.model)).stateless || !/previous|not found|No tool output/i.test(String(err))) throw err;
       // The server-side thread is gone or broken: rebuild from our transcript and carry on.
       const userText = input.filter((i) => "role" in i && i.role === "user").map((i) => ("content" in i ? String(i.content) : "")).join("\n");
       input = [...rebuildContext(dot.id, userText), { role: "user", content: userText || "Continue." }];
       prevId = null;
-      resp = await respond(dot, null, input, trigger, signal);
+      resp = await respond(dot, null, input, trigger, signal, convId);
     }
     repo.setThread(dot.id, clientFor(await modelFor(dot.model)).stateless ? null : resp.id, null);
 
@@ -297,7 +298,8 @@ async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[]
 }
 
 /** Stream one model response, mirroring text into the transcript as it arrives. */
-async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem[], trigger: Trigger, signal: AbortSignal): Promise<Response> {
+async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem[], trigger: Trigger, signal: AbortSignal, conversationId?: string | null): Promise<Response> {
+  const convId = conversationId ?? repo.currentConversation(dot.id);
   const appModel = await modelFor(dot.model);
   const { client, model, stateless } = clientFor(appModel);
   const tools: Tool[] = [
@@ -341,11 +343,11 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
         case "response.output_text.delta": {
           let d = drafts.get(ev.item_id);
           if (!d) {
-            const m = repo.addMessage({ dotId: dot.id, role: "dot", text: "" });
+            const m = repo.addMessage({ dotId: dot.id, role: "dot", text: "", conversationId: convId });
             drafts.set(ev.item_id, (d = { id: m.id, text: "" }));
           }
           d.text += ev.delta;
-          emit({ type: "message_delta", id: d.id, dotId: dot.id, delta: ev.delta });
+          emit({ type: "message_delta", id: d.id, dotId: dot.id, delta: ev.delta, conversationId: convId });
           break;
         }
         case "response.output_item.done":

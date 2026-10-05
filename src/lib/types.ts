@@ -177,7 +177,7 @@ export type ServerEvent =
   | { type: "dot"; data: Dot }
   | { type: "dot_deleted"; id: string }
   | { type: "message"; data: Message }
-  | { type: "message_delta"; id: string; dotId: string; delta: string }
+  | { type: "message_delta"; id: string; dotId: string; delta: string; conversationId?: string | null }
   | { type: "routine"; data: Routine }
   | { type: "routine_deleted"; id: string }
   | { type: "trigger"; data: AppTrigger }

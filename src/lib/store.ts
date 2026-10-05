@@ -113,7 +113,7 @@ function apply(ev: ServerEvent) {
         from: null,
         attachments: null,
         channelId: null,
-        conversationId: null,
+        conversationId: ev.conversationId ?? null,
         createdAt: Date.now(),
       };
       return set({ messages: [...state.messages, newMsg] });
