@@ -157,24 +157,15 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
           )}
 
           <div className="space-y-6 py-6">
-            {shown.map((m, i) => {
-              const isLast = i === shown.length - 1;
-              const isStreaming = isLast && workingHere && m.role === "dot";
-              return (
-                <div key={m.id}>
-                  {i === firstNew && i > 0 && <NewDivider />}
-                  {(i === 0 || m.createdAt - shown[i - 1].createdAt > 60 * 60_000) && <DateSeparator ts={m.createdAt} />}
-                  <MessageRow
-                    m={m}
-                    dot={dot}
-                    isStreaming={isStreaming}
-                    onRetry={() => send("Please continue or refine the previous answer.")}
-                  />
-                </div>
-              );
-            })}
+            {shown.map((m, i) => (
+              <div key={m.id}>
+                {i === firstNew && i > 0 && <NewDivider />}
+                {(i === 0 || m.createdAt - shown[i - 1].createdAt > 60 * 60_000) && <DateSeparator ts={m.createdAt} />}
+                <MessageRow m={m} dot={dot} onRetry={() => send("Please continue or refine the previous answer.")} />
+              </div>
+            ))}
 
-            {workingHere && (!shown.length || shown[shown.length - 1].role !== "dot") && (
+            {workingHere && (
               <div className="flex items-center gap-2.5 py-3 pl-1 text-foreground/75">
                 <DotOrb look={dot.look} status="working" size={22} />
                 <span className="shimmer-text text-[14px] font-medium">{dot.activity ?? "Thinking"}…</span>
@@ -624,13 +615,11 @@ export function MessageRow({
   m,
   dot,
   showName = false,
-  isStreaming = false,
   onRetry,
 }: {
   m: Message;
   dot: Dot;
   showName?: boolean;
-  isStreaming?: boolean;
   onRetry?: () => void;
 }) {
   // ── USER MESSAGE (Pill on the right) ──
@@ -770,20 +759,14 @@ export function MessageRow({
             },
           }}
         >
-          {m.text || (isStreaming ? "" : "…")}
+          {m.text || "…"}
         </Markdown>
-        {isStreaming && (
-          <span
-            className="inline-block w-2 h-4.5 bg-brand align-middle ml-1 -mt-0.5 rounded-xs animate-pulse shadow-sm"
-            aria-label="Typing..."
-          />
-        )}
       </div>
 
       {!!m.attachments?.length && <Attachments items={m.attachments} />}
 
       {/* Assistant Action Bar */}
-      {!isStreaming && <AssistantActions text={m.text || ""} onRetry={onRetry} />}
+      <AssistantActions text={m.text || ""} onRetry={onRetry} />
     </div>
   );
 }
