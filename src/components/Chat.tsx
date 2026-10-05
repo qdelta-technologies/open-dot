@@ -27,7 +27,6 @@ import {
   Mic,
   MonitorSmartphone,
   Paperclip,
-  Phone,
   Plug,
   Plus,
   RotateCcw,
@@ -551,28 +550,15 @@ function Composer({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
-              {onVoice && (
-                <button
-                  type="button"
-                  className="flex size-8.5 shrink-0 items-center justify-center rounded-full text-foreground/45 transition-all hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground active:scale-95"
-                  onClick={onVoice}
-                  aria-label={`Voice call with ${dot.name}`}
-                  title="Start live voice call (Realtime)"
-                >
-                  <Phone className="size-3.5" strokeWidth={1.75} />
-                </button>
-              )}
-              <button
-                type="button"
-                className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-foreground/75 transition-all hover:bg-black/10 dark:hover:bg-white/15 hover:text-foreground active:scale-95"
-                onClick={toggleListening}
-                aria-label="Click to speak (speech to text)"
-                title="Click to speak (speech to text)"
-              >
-                <Mic className="size-4" strokeWidth={2} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-foreground/75 transition-all hover:bg-black/10 dark:hover:bg-white/15 hover:text-foreground active:scale-95"
+              onClick={toggleListening}
+              aria-label="Click to speak (speech to text)"
+              title="Click to speak (speech to text)"
+            >
+              <Mic className="size-4" strokeWidth={2} />
+            </button>
           )}
         </div>
       </div>
