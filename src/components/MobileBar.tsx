@@ -18,7 +18,7 @@ export function MenuButton() {
 /** Top bar for small screens on pages without their own header (dot pages have one). */
 export default function MobileBar() {
   const pathname = usePathname();
-  if (pathname.startsWith("/dots/")) return null;
+  if (pathname === "/login" || pathname.startsWith("/dots/")) return null;
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 md:hidden">
       <MenuButton />

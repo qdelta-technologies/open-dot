@@ -79,6 +79,8 @@ export default function Sidebar() {
 
   const closeSearch = () => (setSearching(false), setQ(""));
 
+  if (pathname === "/login") return null;
+
   return (
     <>
       {/* Phones / narrow windows: the sidebar is a drawer over a dimmed backdrop */}

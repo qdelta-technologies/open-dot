@@ -14,6 +14,8 @@ import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
 import * as voice from "@/server/voice";
 import { autoTitle } from "@/server/titles";
+import { cookies } from "next/headers";
+import { AUTH_COOKIE_NAME, hashPassword, isAuthEnabled } from "@/lib/auth";
 import type { Attachment, Dot, Look, RuleDecision, TriggerApp, TriggerType } from "@/lib/types";
 
 // All mutations go through here; the UI updates from the event stream, not from return values.
@@ -391,3 +393,45 @@ export async function deleteChannel(channelId: string) {
 export async function sendChannelMessage(channelId: string, text: string) {
   if (text.trim()) runtime.sendToChannel(channelId, text.trim());
 }
+
+// ---------- access security (ACCESS_PASSWORD) ----------
+
+export async function checkAuthStatus(): Promise<{ enabled: boolean; authenticated: boolean }> {
+  const enabled = isAuthEnabled();
+  if (!enabled) return { enabled: false, authenticated: true };
+
+  const cookieStore = await cookies();
+  const session = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  const rawExpected = process.env.ACCESS_PASSWORD?.trim() || "";
+  const expectedToken = await hashPassword(rawExpected);
+  return { enabled: true, authenticated: session === expectedToken };
+}
+
+export async function verifyAccessPassword(password: string): Promise<{ success: boolean; error?: string }> {
+  if (!isAuthEnabled()) {
+    return { success: true };
+  }
+
+  const expected = process.env.ACCESS_PASSWORD?.trim() || "";
+  if (password.trim() !== expected) {
+    return { success: false, error: "Incorrect password. Please try again." };
+  }
+
+  const hash = await hashPassword(expected);
+  const cookieStore = await cookies();
+  cookieStore.set(AUTH_COOKIE_NAME, hash, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  });
+
+  return { success: true };
+}
+
+export async function lockApp(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(AUTH_COOKIE_NAME);
+}
+

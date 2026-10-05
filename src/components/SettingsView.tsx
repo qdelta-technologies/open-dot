@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
-import { useSearchParams } from "next/navigation";
-import { Bell, Eye, EyeOff, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, Sun } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Bell, Eye, EyeOff, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, ShieldCheck, Sun } from "lucide-react";
 import {
+  checkAuthStatus,
   connectApp,
   deletePassword,
   getCloudflareConfig,
   getCloudKey,
   getOpenAIKey,
   getOpenRouterKey,
+  lockApp,
   refreshApps,
   savePassword,
   setCloudflareWorker,
@@ -139,6 +141,8 @@ export default function SettingsView() {
         </Section>
 
         <AppearanceSection />
+
+        <AccessSecuritySection />
 
         <Section eyebrow="Engine" title="Models & computers" description="Models come from your Cloudflare AI Worker, OpenRouter, or OpenAI.">
           <CloudflareWorkerKey />
@@ -782,5 +786,72 @@ function AppearanceSection() {
     </Section>
   );
 }
+
+function AccessSecuritySection() {
+  const router = useRouter();
+  const [auth, setAuth] = useState<{ enabled: boolean; authenticated: boolean } | null>(null);
+  const [locking, startLock] = useTransition();
+
+  useEffect(() => {
+    checkAuthStatus().then(setAuth);
+  }, []);
+
+  if (!auth) return null;
+
+  return (
+    <Section
+      eyebrow="Security"
+      title="Master access"
+      description="Protect your workspace and free AI quotas from unauthorized visitors with ACCESS_PASSWORD."
+    >
+      <div className="surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <div
+          className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${
+            auth.enabled
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-black/10 bg-popover text-foreground/40 dark:border-white/10"
+          }`}
+        >
+          {auth.enabled ? <ShieldCheck className="size-4.5" strokeWidth={2} /> : <Lock className="size-4.5" strokeWidth={1.75} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-medium">
+              {auth.enabled ? "Password Protection Active" : "Password Protection Inactive"}
+            </span>
+            {auth.enabled && (
+              <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">
+                Secured
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-caption text-foreground/50">
+            {auth.enabled
+              ? "Configured via ACCESS_PASSWORD in Railway. Authenticated sessions last 30 days."
+              : "Set ACCESS_PASSWORD in your Railway environment variables to lock this deployment behind a passcode."}
+          </p>
+        </div>
+        {auth.enabled && (
+          <button
+            type="button"
+            disabled={locking}
+            onClick={() => {
+              startLock(async () => {
+                await lockApp();
+                router.replace("/login");
+                router.refresh();
+              });
+            }}
+            className="btn-quiet flex shrink-0 items-center gap-1.5 border border-black/10 px-3 py-1.5 text-xs text-foreground/75 hover:border-black/25 hover:text-foreground dark:border-white/10 dark:hover:border-white/25"
+          >
+            <LogOut className="size-3.5" strokeWidth={1.75} />
+            <span>Lock Workspace</span>
+          </button>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 
 
