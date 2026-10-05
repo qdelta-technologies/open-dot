@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
-import { deleteConversation } from "@/app/actions";
+import { LayoutGrid, LogOut, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
+import { checkAuthStatus, deleteConversation, lockApp } from "@/app/actions";
 import { markRead, useStore } from "@/lib/store";
 import { setSidebarOpen, useSidebarOpen } from "@/lib/ui";
 import { statusDot, timeAgo } from "@/lib/status";
@@ -50,9 +50,14 @@ export default function Sidebar() {
   const [searching, setSearching] = useState(false);
   const [q, setQ] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [authEnabled, setAuthEnabled] = useState(false);
   const [, start] = useTransition();
   const activeDot = pathname.match(/^\/dots\/([^/]+)/)?.[1];
   const drawerOpen = useSidebarOpen();
+
+  useEffect(() => {
+    checkAuthStatus().then((s) => setAuthEnabled(s.enabled));
+  }, []);
 
   const dotById = useMemo(() => new Map(dots.map((d) => [d.id, d])), [dots]);
 
@@ -232,6 +237,23 @@ export default function Sidebar() {
           <Settings className="size-4" strokeWidth={1.5} />
           <span className={`absolute top-0.5 right-0.5 size-2 rounded-full ring-2 ring-background ${connected ? "bg-success" : "bg-foreground/25"}`} />
         </Link>
+        {authEnabled && (
+          <button
+            type="button"
+            onClick={() => {
+              start(async () => {
+                await lockApp();
+                router.replace("/login");
+                router.refresh();
+              });
+            }}
+            className="flex size-10 items-center justify-center rounded-full border border-black/10 text-foreground/60 transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive dark:border-white/10"
+            title="Lock workspace / Logout"
+            aria-label="Lock workspace / Logout"
+          >
+            <LogOut className="size-4" strokeWidth={1.5} />
+          </button>
+        )}
       </div>
       </aside>
     </>
