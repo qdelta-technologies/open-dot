@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME, hashPassword, isAuthEnabled } from "@/lib/auth";
+import { checkRateLimit, getRequestIp, recordFailedAttempt, resetRateLimit } from "@/lib/rateLimit";
 
 export async function GET() {
   if (!isAuthEnabled()) {
@@ -23,14 +24,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  const clientIp = getRequestIp(req);
+  const rateLimit = checkRateLimit(clientIp);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Too many failed attempts. Please wait ${rateLimit.waitMinutes || 15} minute(s) before trying again.`,
+      },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await req.json();
     const password = typeof body.password === "string" ? body.password.trim() : "";
     const expected = process.env.ACCESS_PASSWORD?.trim() || "";
 
     if (password !== expected) {
-      return NextResponse.json({ success: false, error: "Incorrect access password." }, { status: 401 });
+      const { remaining } = recordFailedAttempt(clientIp);
+      const errorMsg =
+        remaining === 0
+          ? "Too many failed attempts. Access locked for 15 minutes."
+          : `Incorrect access password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`;
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 401 });
     }
+
+    // Success: clear failed attempts
+    resetRateLimit(clientIp);
 
     const hash = await hashPassword(expected);
     const cookieStore = await cookies();
@@ -43,7 +64,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ success: false, error: "Invalid request payload." }, { status: 400 });
   }
 }

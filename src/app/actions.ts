@@ -16,6 +16,7 @@ import * as voice from "@/server/voice";
 import { autoTitle } from "@/server/titles";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME, hashPassword, isAuthEnabled } from "@/lib/auth";
+import { checkRateLimit, getClientIp, recordFailedAttempt, resetRateLimit } from "@/lib/rateLimit";
 import type { Attachment, Dot, Look, RuleDecision, TriggerApp, TriggerType } from "@/lib/types";
 
 // All mutations go through here; the UI updates from the event stream, not from return values.
@@ -412,10 +413,32 @@ export async function verifyAccessPassword(password: string): Promise<{ success:
     return { success: true };
   }
 
+  const clientIp = await getClientIp();
+  const rateLimit = checkRateLimit(clientIp);
+  if (!rateLimit.allowed) {
+    return {
+      success: false,
+      error: `Too many failed attempts. Please wait ${rateLimit.waitMinutes || 15} minute(s) before trying again.`,
+    };
+  }
+
   const expected = process.env.ACCESS_PASSWORD?.trim() || "";
   if (password.trim() !== expected) {
-    return { success: false, error: "Incorrect password. Please try again." };
+    const { remaining } = recordFailedAttempt(clientIp);
+    if (remaining === 0) {
+      return {
+        success: false,
+        error: "Too many failed attempts. Access locked for 15 minutes.",
+      };
+    }
+    return {
+      success: false,
+      error: `Incorrect password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+    };
   }
+
+  // Clear failed attempts counter on success
+  resetRateLimit(clientIp);
 
   const hash = await hashPassword(expected);
   const cookieStore = await cookies();
