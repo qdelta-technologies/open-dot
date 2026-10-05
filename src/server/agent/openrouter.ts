@@ -68,17 +68,18 @@ function envKey(): string | null {
 }
 
 export function openRouterKey(): string | null {
-  if (envKey()) return envKey();
   const sealed = getSetting(KEY_SETTING);
-  if (!sealed) return null;
-  try {
-    return unseal(sealed);
-  } catch {
-    return null;
+  if (sealed) {
+    try {
+      return unseal(sealed);
+    } catch {
+      // ignore
+    }
   }
+  return envKey();
 }
 
-export const openRouterSource = (): "env" | "settings" | null => (envKey() ? "env" : getSetting(KEY_SETTING) ? "settings" : null);
+export const openRouterSource = (): "env" | "settings" | null => (getSetting(KEY_SETTING) ? "settings" : envKey() ? "env" : null);
 
 export const isOpenRouterModel = (model: string) => model.startsWith(OPENROUTER_PREFIX);
 export const openRouterId = (model: string) => model.slice(OPENROUTER_PREFIX.length);
@@ -92,9 +93,9 @@ export function openrouter(): OpenAI {
 
 /** Check the key with OpenRouter, then save it encrypted. An empty key removes it. Returns an error or null. */
 export async function saveOpenRouterKey(key: string): Promise<string | null> {
-  if (envKey()) return "The OpenRouter key is set by OPENROUTER_API_KEY.";
   if (!key) {
     setSetting(KEY_SETTING, null);
+    g.__dotsOpenModels = undefined;
     return null;
   }
   try {

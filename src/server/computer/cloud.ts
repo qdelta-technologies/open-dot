@@ -45,11 +45,10 @@ export function getSavedCloudKey(): string | null {
   return key;
 }
 
-export const cloudKeySource = (): "env" | "settings" | null => (KEY_FROM_ENV ? "env" : getSetting(KEY_SETTING) ? "settings" : null);
+export const cloudKeySource = (): "env" | "settings" | null => (getSetting(KEY_SETTING) ? "settings" : KEY_FROM_ENV ? "env" : null);
 
 /** Check the key with E2B, then save it (encrypted). Empty removes it. Returns an error message or null. */
 export async function saveCloudKey(key: string): Promise<string | null> {
-  if (KEY_FROM_ENV) return "The E2B key is set by E2B_API_KEY.";
   if (!key) {
     setSetting(KEY_SETTING, null);
     loadSavedKey();

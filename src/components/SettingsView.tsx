@@ -310,13 +310,13 @@ function ApiKey() {
                 : "Your dots need one to think. Create one at platform.openai.com."}
           </div>
         </div>
-        {computer.hasKey && computer.keySource !== "env" && !editing && (
+        {computer.hasKey && !editing && (
           <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
             Change
           </button>
         )}
       </div>
-      {open && computer.keySource !== "env" && (
+      {open && (
         <form
           className="mt-3 flex gap-2"
           onSubmit={(e) => {
@@ -425,7 +425,7 @@ function CloudKey() {
                 : "Paste an E2B API key (from e2b.dev) to give each dot a cloud computer that keeps working while your Mac sleeps."}
           </div>
         </div>
-        {computer.cloudKey === "settings" && !editing && (
+        {saved && !editing && (
           <>
             <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
               Remove
@@ -436,7 +436,7 @@ function CloudKey() {
           </>
         )}
       </div>
-      {(editing || !saved) && computer.cloudKey !== "env" && (
+      {(editing || !saved) && (
         <form
           className="mt-3 flex gap-2"
           onSubmit={(e) => {
@@ -677,7 +677,7 @@ function OpenModelsKey() {
           </div>
         )}
       </div>
-      {(editing || !saved) && computer.openRouter !== "env" && (
+      {(editing || !saved) && (
         <form
           className="mt-3 flex gap-2"
           onSubmit={(e) => {

@@ -39,14 +39,15 @@ const g = globalThis as unknown as {
 const KEY_SETTING = "openai_key";
 
 export function apiKey(): string | null {
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
   const sealed = getSetting(KEY_SETTING);
-  if (!sealed) return null;
-  try {
-    return unseal(sealed);
-  } catch {
-    return null;
+  if (sealed) {
+    try {
+      return unseal(sealed);
+    } catch {
+      // ignore
+    }
   }
+  return process.env.OPENAI_API_KEY || null;
 }
 
 export function hasKey(): boolean {
@@ -55,7 +56,7 @@ export function hasKey(): boolean {
 
 /** Where the key came from, for Settings. */
 export function keySource(): "env" | "settings" | null {
-  return process.env.OPENAI_API_KEY ? "env" : getSetting(KEY_SETTING) ? "settings" : null;
+  return getSetting(KEY_SETTING) ? "settings" : process.env.OPENAI_API_KEY ? "env" : null;
 }
 
 export function openai(): OpenAI {
