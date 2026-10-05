@@ -50,6 +50,33 @@ function parseModelId(id: string): {
       desc: "Alibaba's advanced thinking and reasoning model competing with DeepSeek-R1 and o1",
     };
   }
+  if (lower.includes("nemotron-3-ultra-550b") || lower.includes("ultra-550b")) {
+    return {
+      cleanId: raw,
+      name: "NVIDIA Nemotron 3 Ultra 550B",
+      category: "general",
+      badge: "550B MoE",
+      desc: "NVIDIA's massive 550B MoE flagship with frontier-grade reasoning",
+    };
+  }
+  if (lower.includes("nemotron-3-nano-omni") || lower.includes("nano-omni")) {
+    return {
+      cleanId: raw,
+      name: "NVIDIA Nemotron 3 Nano Omni 30B",
+      category: "general",
+      badge: "Omni 30B",
+      desc: "NVIDIA's 30B omni reasoning model with structured thinking",
+    };
+  }
+  if (lower.includes("nemotron-3.5-lightning") || lower.includes("nemotron-3.5")) {
+    return {
+      cleanId: raw,
+      name: "NVIDIA Nemotron 3.5 Lightning",
+      category: "fast",
+      badge: "Lightning",
+      desc: "NVIDIA's ultra-fast agentic reasoning and function calling model",
+    };
+  }
   if (lower.includes("nemotron-3")) {
     return {
       cleanId: raw,
@@ -57,6 +84,123 @@ function parseModelId(id: string): {
       category: "general",
       badge: "Nemotron",
       desc: "NVIDIA's hybrid MoE flagship with leading accuracy for multi-agent applications",
+    };
+  }
+  if (lower.includes("gemma-4-31b")) {
+    return {
+      cleanId: raw,
+      name: "Google Gemma 4 31B IT",
+      category: "general",
+      badge: "Gemma 4",
+      desc: "Google's 31B flagship open model with state-of-the-art reasoning",
+    };
+  }
+  if (lower.includes("gemma-4-26b")) {
+    return {
+      cleanId: raw,
+      name: "Google Gemma 4 26B-A4B IT",
+      category: "general",
+      badge: "Gemma 4",
+      desc: "Google's 26B MoE instruction model built on Gemini research",
+    };
+  }
+  if (lower.includes("laguna-s")) {
+    return {
+      cleanId: raw,
+      name: "Poolside Laguna S 2.1",
+      category: "coding",
+      badge: "Coder",
+      desc: "Poolside's specialized software engineering and coding model",
+    };
+  }
+  if (lower.includes("laguna-xs")) {
+    return {
+      cleanId: raw,
+      name: "Poolside Laguna XS 2.1",
+      category: "coding",
+      badge: "Fast Code",
+      desc: "Lightweight code synthesis and debugging model by Poolside",
+    };
+  }
+  if (lower.includes("north-mini-code")) {
+    return {
+      cleanId: raw,
+      name: "Cohere North Mini Code",
+      category: "coding",
+      badge: "Code",
+      desc: "Cohere's compact code generation and programming agent",
+    };
+  }
+  if (lower.includes("inkling-small")) {
+    return {
+      cleanId: raw,
+      name: "Thinking Machines Inkling Small",
+      category: "fast",
+      badge: "Small",
+      desc: "Lightweight tool-calling and reasoning model",
+    };
+  }
+  if (lower.includes("inkling")) {
+    return {
+      cleanId: raw,
+      name: "Thinking Machines Inkling",
+      category: "general",
+      badge: "Agentic",
+      desc: "Frontier tool-calling and problem-solving model",
+    };
+  }
+  if (lower.includes("ling-3.1") || lower.includes("ling-3.0")) {
+    return {
+      cleanId: raw,
+      name: "Ling 3.1 Flash",
+      category: "fast",
+      badge: "Flash",
+      desc: "High-speed reasoning and tool-calling model by Inclusion AI",
+    };
+  }
+  if (lower.includes("lfm-2.5") || lower.includes("liquid")) {
+    return {
+      cleanId: raw,
+      name: "Liquid LFM 2.5 2.6B",
+      category: "fast",
+      badge: "Edge",
+      desc: "Liquid neural network architecture for ultra-fast edge inference",
+    };
+  }
+  if (lower.includes("apodex")) {
+    return {
+      cleanId: raw,
+      name: "Apodex 1.1 Mini",
+      category: "fast",
+      badge: "Mini",
+      desc: "Lightweight conversational agent model",
+    };
+  }
+  if (lower.includes("space-bunny")) {
+    return {
+      cleanId: raw,
+      name: "Space Bunny Alpha",
+      category: "general",
+      badge: "Alpha",
+      desc: "Experimental reasoning and instruction model",
+    };
+  }
+  if (lower.includes("dots-3-note")) {
+    return {
+      cleanId: raw,
+      name: "Dots 3 Note Preview",
+      category: "general",
+      badge: "Preview",
+      desc: "Dots Studio note and text synthesis model",
+    };
+  }
+  if (lower.includes("openrouter/free")) {
+    return {
+      cleanId: raw,
+      name: "OpenRouter Auto Free Router",
+      category: "general",
+      badge: "Auto Free",
+      desc: "Automatically routes to the best available free model on OpenRouter",
     };
   }
   if (lower.includes("gpt-oss-120b")) {
@@ -165,6 +309,15 @@ function parseModelId(id: string): {
       category: "fast",
       badge: "Micro",
       desc: "Efficient agentic model built for tool calling, instruction following & RAG",
+    };
+  }
+  if (lower.includes("llama-3.1-8b-instruct-fast") || lower.includes("8b-instruct-fast")) {
+    return {
+      cleanId: raw,
+      name: "Llama 3.1 8B Instruct Fast",
+      category: "fast",
+      badge: "Fast Edge",
+      desc: "High-throughput 8B model optimized for real-time conversation and edge latency",
     };
   }
   if (lower.includes("llama-3.1-8b-instruct-fp8") || (lower.includes("8b") && lower.includes("fp8"))) {
@@ -352,38 +505,19 @@ const CLOUDFLARE_CATALOG = [
   "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
   "cloudflare:@cf/qwen/qwq-32b",
   "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
-  "cloudflare:@cf/qwen/qwen2.5-72b-instruct",
-  "cloudflare:@cf/nvidia/nemotron-3-120b-a12b",
-  "cloudflare:@cf/openai/gpt-oss-120b",
-  "cloudflare:@cf/qwen/qwen3.8-27b",
-  "cloudflare:@cf/qwen/qwen3-30b-a3b-fp8",
-  "cloudflare:@cf/moonshotai/kimi-k2.6",
-  "cloudflare:@cf/zai-org/glm-5.3-flash",
   "cloudflare:@cf/meta/llama-3.1-70b-instruct",
-  "cloudflare:@cf/meta/llama-3.1-8b-instruct",
 
   // ── Coding & Technical ──
   "cloudflare:@cf/qwen/qwen2.5-coder-32b-instruct",
-  "cloudflare:@cf/zai-org/glm-5.3",
-  "cloudflare:@cf/moonshotai/kimi-k2.7-code",
-  "cloudflare:@cf/deepseek-ai/deepseek-coder-6.7b-instruct",
-  "cloudflare:@cf/defog/sqlcoder-7b-2",
 
   // ── Vision & Multimodal ──
   "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct",
-  "cloudflare:@cf/meta/llama-3.2-11b-vision-instruct",
-  "cloudflare:@cf/meta/llama-3.2-90b-vision-instruct",
-  "cloudflare:@cf/moondream/moondream3.1-9B-A2B",
 
   // ── Fast, Light & High-Throughput ──
   "cloudflare:@cf/meta/llama-3.2-3b-instruct",
   "cloudflare:@cf/meta/llama-3.2-1b-instruct",
+  "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast",
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
-  "cloudflare:@cf/openai/gpt-oss-20b",
-  "cloudflare:@cf/zai-org/glm-4.7-flash",
-  "cloudflare:@cf/ibm-granite/granite-4.0-h-micro",
-  "cloudflare:@cf/mistral/mistral-7b-instruct-v0.2",
-  "cloudflare:@cf/google/gemma-2-9b-it",
 ];
 
 /**
@@ -411,8 +545,8 @@ export default function ModelPicker({
   const [activeCategory, setActiveCategory] = useState<ModelCategory>("all");
 
   const current = value ?? fallback;
-  const isCfActive = cloudflareConnected || (models && models.some((m) => m.startsWith(CF))) || (fallback && fallback.startsWith(CF));
-  const combinedList = isCfActive ? [...new Set([...models, ...CLOUDFLARE_CATALOG])] : models;
+  // Always include verified Cloudflare edge catalog by default alongside any OpenRouter free models
+  const combinedList = [...new Set([...(models || []), ...CLOUDFLARE_CATALOG])];
   const list = combinedList.length ? combinedList : fallback ? [fallback] : CLOUDFLARE_CATALOG;
 
   const parsedList = useMemo(() => {

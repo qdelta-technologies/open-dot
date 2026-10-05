@@ -539,9 +539,11 @@ function CloudflareWorkerKey() {
           <div className="text-body-sm text-foreground/55">
             {computer.cloudflare?.source === "env"
               ? `Connected from CLOUDFLARE_WORKER_URL${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
+              : computer.cloudflare?.source === "default"
+                ? `Connected to default Cloudflare Workers AI edge proxy${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
               : saved
                 ? `Connected to ${computer.cloudflare?.url}${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
-                : "Connect your opendot-worker URL to run dots on fast edge models (Llama 3.3 70B, Qwen 2.5 72B, DeepSeek R1 32B, Llama 3.1 8B) with zero rate limits."}
+                : "Connect your opendot-worker URL to run dots on fast edge models (Llama 3.3 70B, Llama 4 Scout, DeepSeek R1 32B, Qwen 2.5 Coder) with zero rate limits."}
           </div>
         </div>
         {saved && !editing && (

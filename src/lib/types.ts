@@ -166,7 +166,7 @@ export type ComputerInfo = {
   keySource: "env" | "settings" | null;
   cloudKey: "env" | "settings" | null; // E2B key for cloud computers
   openRouter: "env" | "settings" | null; // OpenRouter key for open models
-  cloudflare?: { url: string | null; source: "env" | "settings" | null; hasToken: boolean } | null; // Cloudflare AI Worker
+  cloudflare?: { url: string | null; source: "env" | "settings" | "default" | null; hasToken: boolean } | null; // Cloudflare AI Worker
   triggersKey: "env" | "settings" | null; // Composio API key for triggers
   sky: boolean; // OpenAI's Sky computer-use runtime is installed on this Mac
   composio: boolean; // COMPOSIO_API_KEY is set

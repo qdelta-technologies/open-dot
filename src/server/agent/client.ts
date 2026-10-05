@@ -166,6 +166,7 @@ export function resetModels() {
   g.__dotsModels = undefined;
   g.__dotsResolved = undefined;
 }
+(globalThis as any).__dotsResetModels = resetModels;
 
 /** The API client for a model, the model id that API expects, and whether it keeps conversation state. */
 export function clientFor(model: string): { client: OpenAI; model: string; stateless: boolean } {
@@ -200,13 +201,14 @@ export async function modelFor(dotModel: string | null): Promise<string> {
 
 /** Best-known model info for display, without blocking. */
 export function knownModels(): { main: string; review: string; available: string[]; defaultModel: string; meta: Record<string, ModelMeta> } {
-  if (!g.__dotsResolved && cloudflareWorkerUrl()) {
+  if (!g.__dotsResolved && (cloudflareWorkerUrl() || openRouterKey() || hasKey())) {
     void resolve();
   }
+  const cfUrl = cloudflareWorkerUrl();
   const r = g.__dotsResolved ?? {
-    main: process.env.DOTS_MODEL || (cloudflareWorkerUrl() ? "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast" : MAIN_PREFERENCE[0]),
-    review: process.env.DOTS_REVIEW_MODEL || (cloudflareWorkerUrl() ? "cloudflare:@cf/meta/llama-3.1-8b-instruct" : REVIEW_PREFERENCE[0]),
-    available: cloudflareWorkerUrl() ? DEFAULT_CLOUDFLARE_MODELS.map((m) => "cloudflare:" + m.id) : [],
+    main: process.env.DOTS_MODEL || (cfUrl ? "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast" : MAIN_PREFERENCE[0]),
+    review: process.env.DOTS_REVIEW_MODEL || (cfUrl ? "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast" : REVIEW_PREFERENCE[0]),
+    available: cfUrl ? DEFAULT_CLOUDFLARE_MODELS.map((m) => "cloudflare:" + m.id) : [],
     meta: {},
   };
   return { ...r, defaultModel: getSetting("default_model") ?? r.main };

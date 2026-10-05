@@ -96,6 +96,7 @@ export async function saveOpenRouterKey(key: string): Promise<string | null> {
   if (!key) {
     setSetting(KEY_SETTING, null);
     g.__dotsOpenModels = undefined;
+    (globalThis as any).__dotsResetModels?.();
     return null;
   }
   try {
@@ -107,6 +108,7 @@ export async function saveOpenRouterKey(key: string): Promise<string | null> {
   }
   setSetting(KEY_SETTING, seal(key));
   g.__dotsOpenModels = undefined;
+  (globalThis as any).__dotsResetModels?.();
   return null;
 }
 
