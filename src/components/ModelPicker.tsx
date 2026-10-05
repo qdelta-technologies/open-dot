@@ -32,6 +32,150 @@ function parseModelId(id: string): {
   const lower = raw.toLowerCase();
 
   // Categories & labels for Cloudflare Workers AI and common models
+  if (lower.includes("llama-4-scout")) {
+    return {
+      cleanId: raw,
+      name: "Meta Llama 4 Scout 17B",
+      category: "general",
+      badge: "Llama 4",
+      desc: "Meta's flagship multimodal mixture-of-experts model for text, vision & agentic workflows",
+    };
+  }
+  if (lower.includes("qwq-32b")) {
+    return {
+      cleanId: raw,
+      name: "QwQ 32B Reasoning",
+      category: "general",
+      badge: "Reasoning",
+      desc: "Alibaba's advanced thinking and reasoning model competing with DeepSeek-R1 and o1",
+    };
+  }
+  if (lower.includes("nemotron-3")) {
+    return {
+      cleanId: raw,
+      name: "NVIDIA Nemotron 3 120B",
+      category: "general",
+      badge: "Nemotron",
+      desc: "NVIDIA's hybrid MoE flagship with leading accuracy for multi-agent applications",
+    };
+  }
+  if (lower.includes("gpt-oss-120b")) {
+    return {
+      cleanId: raw,
+      name: "OpenAI GPT-OSS 120B",
+      category: "general",
+      badge: "OpenAI OSS",
+      desc: "OpenAI's open-weight model designed for production reasoning and agentic tasks",
+    };
+  }
+  if (lower.includes("gpt-oss-20b")) {
+    return {
+      cleanId: raw,
+      name: "OpenAI GPT-OSS 20B",
+      category: "fast",
+      badge: "Fast OSS",
+      desc: "OpenAI's open-weight model for lower latency and efficient developer workflows",
+    };
+  }
+  if (lower.includes("qwen3.8-27b")) {
+    return {
+      cleanId: raw,
+      name: "Qwen 3.8 27B Agentic",
+      category: "general",
+      badge: "Agentic",
+      desc: "Alibaba's 27B instruction-tuned model designed for vision & agentic workloads",
+    };
+  }
+  if (lower.includes("qwen3-30b")) {
+    return {
+      cleanId: raw,
+      name: "Qwen 3 30B FP8 (MoE)",
+      category: "general",
+      badge: "MoE FP8",
+      desc: "Next-gen MoE model with groundbreaking reasoning & multilingual support",
+    };
+  }
+  if (lower.includes("kimi-k2.7") || (lower.includes("kimi") && lower.includes("code"))) {
+    return {
+      cleanId: raw,
+      name: "Kimi K2.7 Code (1T MoE)",
+      category: "coding",
+      badge: "1T Coder",
+      desc: "Frontier-scale 1T MoE model with 262k context, structured outputs & coding excellence",
+    };
+  }
+  if (lower.includes("kimi-k2.6")) {
+    return {
+      cleanId: raw,
+      name: "Kimi K2.6 (1T MoE Agentic)",
+      category: "general",
+      badge: "1T MoE",
+      desc: "Frontier-scale 1T parameter model with 262k context and multi-turn tool calling",
+    };
+  }
+  if (lower.includes("glm-5.3-flash")) {
+    return {
+      cleanId: raw,
+      name: "GLM 5.3 Flash (320B MoE)",
+      category: "general",
+      badge: "Frontier",
+      desc: "Natively multimodal 320B model (18B active) approaching frontier intelligence",
+    };
+  }
+  if (lower.includes("glm-5.3")) {
+    return {
+      cleanId: raw,
+      name: "GLM 5.3 Agentic Coder (1M)",
+      category: "coding",
+      badge: "1M Context",
+      desc: "Flagship agentic coding model with 1M context window and tool-driven development",
+    };
+  }
+  if (lower.includes("glm-4.7")) {
+    return {
+      cleanId: raw,
+      name: "GLM 4.7 Flash (128k ctx)",
+      category: "fast",
+      badge: "Flash 128k",
+      desc: "Fast multilingual model with 131k context window and multi-turn tool calling",
+    };
+  }
+  if (lower.includes("mistral-small-3.1") || lower.includes("mistral-small")) {
+    return {
+      cleanId: raw,
+      name: "Mistral Small 3.1 24B",
+      category: "vision",
+      badge: "128k Vision",
+      desc: "State-of-the-art vision understanding and 128k context without compromising speed",
+    };
+  }
+  if (lower.includes("moondream")) {
+    return {
+      cleanId: raw,
+      name: "Moondream 3.1 9B Vision",
+      category: "vision",
+      badge: "OCR & UI",
+      desc: "Fast, efficient 9B MoE vision language model for OCR, UI pointing & object detection",
+    };
+  }
+  if (lower.includes("granite-4.0") || lower.includes("granite")) {
+    return {
+      cleanId: raw,
+      name: "IBM Granite 4.0 Micro",
+      category: "fast",
+      badge: "Micro",
+      desc: "Efficient agentic model built for tool calling, instruction following & RAG",
+    };
+  }
+  if (lower.includes("llama-3.1-8b-instruct-fp8") || (lower.includes("8b") && lower.includes("fp8"))) {
+    return {
+      cleanId: raw,
+      name: "Llama 3.1 8B (Fast FP8)",
+      category: "fast",
+      badge: "Fast FP8",
+      desc: "Llama 3.1 8B quantized to FP8 precision for ultra-low latency edge responses",
+    };
+  }
   if (lower.includes("llama-3.3-70b")) {
     return {
       cleanId: raw,
@@ -203,22 +347,41 @@ const CATEGORIES: { id: ModelCategory; label: string; icon: typeof Brain }[] = [
 ];
 
 const CLOUDFLARE_CATALOG = [
-  // General & Chat
+  // ── General Chat & Flagship Reasoning ──
   "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-  "cloudflare:@cf/qwen/qwen2.5-72b-instruct",
+  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
+  "cloudflare:@cf/qwen/qwq-32b",
   "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+  "cloudflare:@cf/qwen/qwen2.5-72b-instruct",
+  "cloudflare:@cf/nvidia/nemotron-3-120b-a12b",
+  "cloudflare:@cf/openai/gpt-oss-120b",
+  "cloudflare:@cf/qwen/qwen3.8-27b",
+  "cloudflare:@cf/qwen/qwen3-30b-a3b-fp8",
+  "cloudflare:@cf/moonshotai/kimi-k2.6",
+  "cloudflare:@cf/zai-org/glm-5.3-flash",
   "cloudflare:@cf/meta/llama-3.1-70b-instruct",
   "cloudflare:@cf/meta/llama-3.1-8b-instruct",
-  // Coding
+
+  // ── Coding & Technical ──
   "cloudflare:@cf/qwen/qwen2.5-coder-32b-instruct",
+  "cloudflare:@cf/zai-org/glm-5.3",
+  "cloudflare:@cf/moonshotai/kimi-k2.7-code",
   "cloudflare:@cf/deepseek-ai/deepseek-coder-6.7b-instruct",
   "cloudflare:@cf/defog/sqlcoder-7b-2",
-  // Vision
+
+  // ── Vision & Multimodal ──
+  "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct",
   "cloudflare:@cf/meta/llama-3.2-11b-vision-instruct",
   "cloudflare:@cf/meta/llama-3.2-90b-vision-instruct",
-  // Fast & Routines
+  "cloudflare:@cf/moondream/moondream3.1-9B-A2B",
+
+  // ── Fast, Light & High-Throughput ──
   "cloudflare:@cf/meta/llama-3.2-3b-instruct",
   "cloudflare:@cf/meta/llama-3.2-1b-instruct",
+  "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
+  "cloudflare:@cf/openai/gpt-oss-20b",
+  "cloudflare:@cf/zai-org/glm-4.7-flash",
+  "cloudflare:@cf/ibm-granite/granite-4.0-h-micro",
   "cloudflare:@cf/mistral/mistral-7b-instruct-v0.2",
   "cloudflare:@cf/google/gemma-2-9b-it",
 ];
