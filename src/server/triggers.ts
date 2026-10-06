@@ -5,6 +5,7 @@ import { getSetting, setSetting } from "./db";
 import { seal, unseal } from "./vault";
 import * as repo from "./repo";
 import { runTrigger } from "./agent/runtime";
+import { getAppUrl } from "./composio";
 import type { TriggerApp, TriggerType } from "@/lib/types";
 
 // Triggers: a dot runs an instruction when something happens in one of the user's apps (a new email, a Slack
@@ -103,7 +104,9 @@ export async function connectTriggerApp(toolkit: string): Promise<string> {
   // The app's auth config in this project, or Composio's managed OAuth if the project has none yet.
   const authConfigId =
     (await c.authConfigs.list({ toolkit })).items[0]?.id ?? (await c.authConfigs.create(toolkit, { type: "use_composio_managed_auth", name: `${toolkit} (Open Dot)` })).id;
-  const req = await c.connectedAccounts.link(userId(), authConfigId);
+  const req = await c.connectedAccounts.link(userId(), authConfigId, {
+    callbackUrl: `${getAppUrl()}/settings#triggers`,
+  });
   if (!req.redirectUrl) throw new Error(`${toolkit} is already connected, or doesn't need a sign-in.`);
   return req.redirectUrl;
 }

@@ -37,5 +37,9 @@ function page(error: string | null): string {
   h1 { font-size: 20px; font-weight: 600; margin: 0 0 8px; } p { margin: 0; color: var(--muted); }
 </style></head><body><div class="card">
 <div class="dots"><span style="background:#0a0a0a"></span><span style="background:#51a2ff"></span><span style="background:#c8f169"></span></div>
-<h1>${title}</h1><p>${body}</p></div></body></html>`;
+<h1>${title}</h1><p>${body}</p>
+<div style="margin-top: 24px;">
+  <a href="/settings#apps" style="display: inline-block; padding: 10px 22px; background: #51a2ff; color: #fff; text-decoration: none; border-radius: 9999px; font-weight: 500; font-size: 14px;">Return to Open Dot</a>
+</div>
+</div></body></html>`;
 }

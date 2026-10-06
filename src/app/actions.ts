@@ -14,7 +14,7 @@ import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
 import * as voice from "@/server/voice";
 import { autoTitle } from "@/server/titles";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { AUTH_COOKIE_NAME, hashPassword, isAuthEnabled } from "@/lib/auth";
 import { checkRateLimit, getClientIp, recordFailedAttempt, resetRateLimit } from "@/lib/rateLimit";
 import type { Attachment, Dot, Look, RuleDecision, TriggerApp, TriggerType } from "@/lib/types";
@@ -305,10 +305,23 @@ export async function setDefaultModel(model: string | null) {
 
 // ---------- Composio For You (the user's apps) ----------
 
+async function getRequestOrigin(): Promise<string | null> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") || h.get("host");
+    if (!host) return null;
+    const proto = h.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+    return `${proto}://${host}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Start signing in to Composio. Returns the Composio sign-in URL to open, or nothing if already signed in. */
 export async function signInComposio(): Promise<{ url?: string; error?: string }> {
   try {
-    const url = await composio.signIn();
+    const origin = await getRequestOrigin();
+    const url = await composio.signIn(origin ?? undefined);
     return url ? { url } : {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -323,7 +336,8 @@ export async function signOutComposio() {
 /** Start connecting an app from Settings. Returns the app's sign-in URL to open. */
 export async function connectApp(toolkit: string): Promise<{ url?: string; error?: string }> {
   try {
-    const r = await composio.startConnect(toolkit);
+    const origin = await getRequestOrigin();
+    const r = await composio.startConnect(toolkit, origin ?? undefined);
     if (r.already) return {};
     void r.wait().catch(() => {});
     return { url: r.url };

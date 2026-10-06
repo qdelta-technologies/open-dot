@@ -14,8 +14,33 @@ import type { RuleDecision, ToolkitState } from "@/lib/types";
 // Every tool call still runs through our loop, so rules and approval cards apply.
 
 export const MCP_URL = "https://connect.composio.dev/mcp";
-const APP_URL = process.env.DOTS_PUBLIC_URL ?? "http://localhost:3100";
-const REDIRECT_URL = `${APP_URL}/api/composio/oauth`;
+
+export function getAppUrl(originOverride?: string): string {
+  if (originOverride && !originOverride.includes("localhost:3100")) {
+    return originOverride.replace(/\/+$/, "");
+  }
+  if (process.env.DOTS_PUBLIC_URL) {
+    return process.env.DOTS_PUBLIC_URL.replace(/\/+$/, "");
+  }
+  if (process.env.APP_URL) {
+    return process.env.APP_URL.replace(/\/+$/, "");
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
+  }
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`.replace(/\/+$/, "");
+  }
+  if (process.env.RAILWAY_STATIC_URL) {
+    return `https://${process.env.RAILWAY_STATIC_URL}`.replace(/\/+$/, "");
+  }
+  return originOverride ? originOverride.replace(/\/+$/, "") : "http://localhost:3100";
+}
+
+export function getRedirectUrl(originOverride?: string): string {
+  return `${getAppUrl(originOverride)}/api/composio/oauth`;
+}
+
 export const SUGGESTED = ["gmail", "googlecalendar", "slack", "notion", "github", "googledrive", "linear", "outlook"];
 const HIDDEN_TOOLS = /REMOTE_BASH|REMOTE_WORKBENCH|SKILL|SUBMIT_FEEDBACK|WAIT_FOR_CONNECTIONS/;
 
@@ -34,20 +59,34 @@ const save = (patch: Partial<Stored>) => setSetting("composio_oauth", seal(JSON.
 
 class Provider implements OAuthClientProvider {
   pendingUrl: URL | null = null;
+  originOverride?: string;
+
+  constructor(originOverride?: string) {
+    this.originOverride = originOverride;
+  }
+
   get redirectUrl() {
-    return REDIRECT_URL;
+    return getRedirectUrl(this.originOverride);
   }
   get clientMetadata(): OAuthClientMetadata {
+    const rUrl = getRedirectUrl(this.originOverride);
     return {
       client_name: "Open Dot",
-      redirect_uris: [REDIRECT_URL],
+      redirect_uris: [rUrl],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none",
     };
   }
   clientInformation() {
-    return load().client;
+    const current = load().client;
+    const targetRedirect = getRedirectUrl(this.originOverride);
+    if (current && "redirect_uris" in current && Array.isArray((current as any).redirect_uris)) {
+      if (!(current as any).redirect_uris.includes(targetRedirect)) {
+        return undefined;
+      }
+    }
+    return current;
   }
   saveClientInformation(client: OAuthClientInformationMixed) {
     save({ client });
@@ -96,8 +135,8 @@ const st = (g.__dotsComposio ??= { client: null, pending: null, tools: [], conne
 export const signedIn = () => Boolean(st.client) || Boolean(load().tokens);
 
 /** Connect with saved tokens, or return the sign-in URL if the user needs to (re)authorize. */
-async function connect(): Promise<{ url: string } | null> {
-  const provider = new Provider();
+async function connect(originOverride?: string): Promise<{ url: string } | null> {
+  const provider = new Provider(originOverride);
   const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), { authProvider: provider });
   const client = new Client({ name: "dots", version: "1.0.0" });
   try {
@@ -115,10 +154,10 @@ async function connect(): Promise<{ url: string } | null> {
   return null;
 }
 
-async function ensureClient(): Promise<Client> {
+async function ensureClient(originOverride?: string): Promise<Client> {
   if (st.client) return st.client;
   if (!load().tokens) throw new Error("Composio isn't connected. Sign in from Settings → Apps.");
-  st.connecting ??= connect()
+  st.connecting ??= connect(originOverride)
     .then((r) => {
       if (r) throw new Error("Your Composio sign-in expired. Sign in again from Settings → Apps.");
     })
@@ -128,9 +167,12 @@ async function ensureClient(): Promise<Client> {
 }
 
 /** Start sign-in. Returns the Composio authorization URL, or null if already signed in. */
-export async function signIn(): Promise<string | null> {
-  if (st.client) return null;
-  const r = await connect();
+export async function signIn(originOverride?: string): Promise<string | null> {
+  if (st.client) {
+    await st.client.close().catch(() => {});
+    st.client = null;
+  }
+  const r = await connect(originOverride);
   return r?.url ?? null;
 }
 
@@ -248,9 +290,12 @@ export async function isConnected(toolkit: string): Promise<boolean> {
 }
 
 /** Create a Composio auth link for an app. `wait()` resolves once the connection is active. */
-export async function startConnect(toolkit: string) {
+export async function startConnect(toolkit: string, originOverride?: string) {
   if (await isConnected(toolkit)) return { already: true as const };
-  const out = await callTool("COMPOSIO_MANAGE_CONNECTIONS", { toolkits: [{ name: toolkit, action: "add" }] });
+  const redirectUrl = getRedirectUrl(originOverride);
+  const out = await callTool("COMPOSIO_MANAGE_CONNECTIONS", {
+    toolkits: [{ name: toolkit, action: "add", redirect_url: redirectUrl, callback_url: redirectUrl }],
+  });
   const url = out.match(/"redirect_url"\s*:\s*"([^"]+)"/)?.[1] ?? out.match(/https:\/\/[^\s"')\]]+/)?.[0];
   if (!url) throw new Error(`Composio didn't return a sign-in link for ${toolkit}: ${out.slice(0, 300)}`);
   return {

@@ -12,8 +12,8 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = sessionCookie === expectedToken;
 
-  // If visiting /login or auth API
-  if (pathname === "/login" || pathname.startsWith("/api/auth")) {
+  // If visiting /login, auth API, or Composio OAuth callback
+  if (pathname === "/login" || pathname.startsWith("/api/auth") || pathname === "/api/composio/oauth") {
     if (pathname === "/login" && isAuthenticated) {
       return NextResponse.redirect(new URL("/", request.url));
     }
