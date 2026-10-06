@@ -619,7 +619,7 @@ export default function ModelPicker({
           />
           <div
             role="listbox"
-            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(540px,82vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-96 ${
+            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(540px,82vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-[440px] ${
               placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
             }`}
           >
@@ -680,11 +680,11 @@ export default function ModelPicker({
                       selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                     }`}
                   >
-                    <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                    <div className="min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
                       <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
                       {m.badge && (
                         <span
-                          className={`rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
+                          className={`shrink-0 rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
                             m.badge.includes("Video")
                               ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                               : m.badge.includes("Photo") || m.badge.includes("Vision")
@@ -696,12 +696,12 @@ export default function ModelPicker({
                         </span>
                       )}
                       {m.params && (
-                        <span className="font-mono text-[10px] text-foreground/45">
+                        <span className="shrink-0 font-mono text-[10px] text-foreground/45">
                           {m.params}
                         </span>
                       )}
                       {m.ctx && (
-                        <span className="font-mono text-[10px] text-foreground/40">
+                        <span className="shrink-0 font-mono text-[10px] text-foreground/40">
                           · {m.ctx}
                         </span>
                       )}
