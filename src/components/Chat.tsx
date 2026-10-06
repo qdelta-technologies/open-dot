@@ -56,7 +56,7 @@ import DotOrb from "./DotOrb";
 import { ThinkingOrb, type OrbState } from "thinking-orbs";
 import { compressImageIfLarge } from "@/lib/imageCompression";
 import { StreamingMarkdown } from "./StreamingMarkdown";
-import { VoiceWaveform, ListeningMicButton } from "./VoiceWaveform";
+import { VoiceInputPill } from "./VoiceWaveform";
 import type { Attachment, Dot, Message } from "@/lib/types";
 
 function getOrbState(activity: string | null | undefined): OrbState {
@@ -440,155 +440,153 @@ function Composer({
       }}
       className="relative"
     >
-      <div
-        className={`rounded-[28px] border border-black/10 dark:border-white/10 bg-card p-2 pl-3 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_35px_-10px_rgba(0,0,0,0.35)] transition-all focus-within:border-black/25 dark:focus-within:border-white/25 focus-within:shadow-[0_8px_32px_-10px_rgba(0,0,0,0.15)] dark:focus-within:shadow-[0_14px_45px_-12px_rgba(0,0,0,0.4)] ${
-          dragging ? "border-brand border-dashed bg-brand/[0.04]" : ""
-        }`}
-      >
-        {isListening && (
-          <VoiceWaveform
-            isListening={isListening}
-            transcript={text}
-            onStop={() => {
-              if (recognitionRef.current) {
-                try {
-                  recognitionRef.current.stop();
-                } catch {}
-              }
-              setIsListening(false);
-            }}
-            onSubmit={() => {
-              submit();
-            }}
-            onCancel={() => {
-              if (recognitionRef.current) {
-                try {
-                  recognitionRef.current.abort();
-                } catch {}
-              }
-              setIsListening(false);
-              setText(baseTextRef.current || "");
-            }}
-          />
-        )}
-
-        {uploads.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5 pl-1 pt-1">
-            {uploads.map((u) => (
-              <span
-                key={u.key}
-                className={`flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[12px] ${
-                  u.state === "error" ? "border-destructive/40 text-destructive" : "border-black/10 dark:border-white/10 text-foreground/75"
-                }`}
-                title={u.error}
-              >
-                <Paperclip className="size-3" strokeWidth={1.75} />
-                <span className="max-w-40 truncate">{u.name}</span>
-                {u.state === "uploading" && <span className="font-mono text-[10px] text-foreground/40">…</span>}
-                <button
-                  onClick={() => setUploads((x) => x.filter((y) => y.key !== u.key))}
-                  aria-label={`Remove ${u.name}`}
-                  className="text-foreground/35 hover:text-foreground"
-                >
-                  <X className="size-3" strokeWidth={2} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="flex items-end gap-2">
-          {/* Plus / Attach button */}
-          <label
-            className="flex size-8.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground/60 transition-colors hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground"
-            title="Attach files or screenshots"
-          >
-            <Plus className="size-5" strokeWidth={1.75} />
-            <input
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                addFiles([...(e.target.files ?? [])]);
-                e.target.value = "";
-              }}
-            />
-          </label>
-
-          {/* Chat input textarea */}
-          <textarea
-            rows={1}
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onPaste={(e) => {
-              const pasted = [...e.clipboardData.files];
-              if (pasted.length) {
-                e.preventDefault();
-                addFiles(pasted);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            placeholder={
-              dragging
-                ? "Drop files to attach..."
-                : isListening
-                  ? "Listening to your voice..."
-                  : `Ask ${dot.name}...`
-            }
-            className="max-h-52 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.5] tracking-default outline-none [field-sizing:content] placeholder:text-foreground/35 text-foreground"
-          />
-
-          {/* Voice / Stop / Send Action Button */}
-          {dot.status === "working" ? (
-            <button
-              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:scale-105 active:scale-95"
-              onClick={() => start(() => stopDot(dot.id))}
-              aria-label="Stop current task"
-              title="Stop task"
+      {uploads.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5 pl-1 pt-1">
+          {uploads.map((u) => (
+            <span
+              key={u.key}
+              className={`flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[12px] ${
+                u.state === "error" ? "border-destructive/40 text-destructive" : "border-black/10 dark:border-white/10 text-foreground/75"
+              }`}
+              title={u.error}
             >
-              <Square className="size-3.5 fill-current" />
-            </button>
-          ) : isListening ? (
-            <ListeningMicButton onClick={toggleListening} />
-          ) : text.trim() || ready.length || busy ? (
-            <div className="flex items-center gap-1">
+              <Paperclip className="size-3" strokeWidth={1.75} />
+              <span className="max-w-40 truncate">{u.name}</span>
+              {u.state === "uploading" && <span className="font-mono text-[10px] text-foreground/40">…</span>}
+              <button
+                onClick={() => setUploads((x) => x.filter((y) => y.key !== u.key))}
+                aria-label={`Remove ${u.name}`}
+                className="text-foreground/35 hover:text-foreground"
+              >
+                <X className="size-3" strokeWidth={2} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {isListening ? (
+        <VoiceInputPill
+          transcript={text}
+          onCancel={() => {
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.abort();
+              } catch {}
+            }
+            setIsListening(false);
+            setText(baseTextRef.current || "");
+          }}
+          onStop={() => {
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.stop();
+              } catch {}
+            }
+            setIsListening(false);
+          }}
+          onSubmit={() => {
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.stop();
+              } catch {}
+            }
+            setIsListening(false);
+            submit();
+          }}
+        />
+      ) : (
+        <div
+          className={`rounded-[28px] border border-black/10 dark:border-white/10 bg-card p-2 pl-3 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_35px_-10px_rgba(0,0,0,0.35)] transition-all focus-within:border-black/25 dark:focus-within:border-white/25 focus-within:shadow-[0_8px_32px_-10px_rgba(0,0,0,0.15)] dark:focus-within:shadow-[0_14px_45px_-12px_rgba(0,0,0,0.4)] ${
+            dragging ? "border-brand border-dashed bg-brand/[0.04]" : ""
+          }`}
+        >
+
+          <div className="flex items-end gap-2">
+            {/* Plus / Attach button */}
+            <label
+              className="flex size-8.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground/60 transition-colors hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground"
+              title="Attach files or screenshots"
+            >
+              <Plus className="size-5" strokeWidth={1.75} />
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  addFiles([...(e.target.files ?? [])]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+
+            {/* Chat input textarea */}
+            <textarea
+              rows={1}
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onPaste={(e) => {
+                const pasted = [...e.clipboardData.files];
+                if (pasted.length) {
+                  e.preventDefault();
+                  addFiles(pasted);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              placeholder={dragging ? "Drop files to attach..." : `Ask ${dot.name}...`}
+              className="max-h-52 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.5] tracking-default outline-none [field-sizing:content] placeholder:text-foreground/35 text-foreground"
+            />
+
+            {/* Voice / Stop / Send Action Button */}
+            {dot.status === "working" ? (
+              <button
+                className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:scale-105 active:scale-95"
+                onClick={() => start(() => stopDot(dot.id))}
+                aria-label="Stop current task"
+                title="Stop task"
+              >
+                <Square className="size-3.5 fill-current" />
+              </button>
+            ) : text.trim() || ready.length || busy ? (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="flex size-8.5 shrink-0 items-center justify-center rounded-full text-foreground/50 transition-all hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground active:scale-95"
+                  onClick={toggleListening}
+                  aria-label="Dictate voice"
+                  title="Speak to dictate"
+                >
+                  <Mic className="size-4" strokeWidth={1.75} />
+                </button>
+                <button
+                  className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={pending || busy}
+                  onClick={submit}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="size-4" strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                className="flex size-8.5 shrink-0 items-center justify-center rounded-full text-foreground/50 transition-all hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground active:scale-95"
+                className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-foreground/75 transition-all hover:bg-black/10 dark:hover:bg-white/15 hover:text-foreground active:scale-95"
                 onClick={toggleListening}
-                aria-label="Dictate voice"
-                title="Speak to dictate"
+                aria-label="Click to speak (speech to text)"
+                title="Click to speak (speech to text)"
               >
-                <Mic className="size-4" strokeWidth={1.75} />
+                <Mic className="size-4" strokeWidth={2} />
               </button>
-              <button
-                className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-                disabled={pending || busy}
-                onClick={submit}
-                aria-label="Send message"
-              >
-                <ArrowUp className="size-4" strokeWidth={2.5} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-foreground/75 transition-all hover:bg-black/10 dark:hover:bg-white/15 hover:text-foreground active:scale-95"
-              onClick={toggleListening}
-              aria-label="Click to speak (speech to text)"
-              title="Click to speak (speech to text)"
-            >
-              <Mic className="size-4" strokeWidth={2} />
-            </button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,54 +1,79 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, X } from "lucide-react";
+import { ArrowUp, X } from "lucide-react";
 
-interface VoiceWaveformProps {
-  isListening: boolean;
+interface VoiceInputPillProps {
+  transcript?: string;
+  onCancel: () => void;
   onStop: () => void;
   onSubmit: () => void;
-  onCancel: () => void;
-  transcript?: string;
 }
 
 /**
- * ChatGPT-grade Voice Waveform Component
- * Displays dynamic, fluid audio wave bars that react to microphone volume
- * with sleek frosted glass aesthetics and intuitive controls.
+ * ChatGPT-Identical Voice Input Pill Component
+ * Directly replicates the sleek, unified horizontal voice pill from ChatGPT (Photo 2):
+ * - Dark charcoal pill capsule (#212121)
+ * - Circular Cancel button (X) on the left
+ * - Streaming audio waveform tape across the center:
+ *     - Small dots (3px) during silence
+ *     - Vertical rounded bars (up to 22px) that enter from the right as speech occurs
+ *       and scroll smoothly across the ribbon, forming wave packets matching voice
+ * - Circular Stop button (white rounded square) and Send button (amber gold ArrowUp) on the right
  */
-export function VoiceWaveform({
-  isListening,
+export function VoiceInputPill({
+  transcript,
+  onCancel,
   onStop,
   onSubmit,
-  onCancel,
-  transcript,
-}: VoiceWaveformProps) {
-  const [audioLevel, setAudioLevel] = useState(0);
+}: VoiceInputPillProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [dotCount, setDotCount] = useState<number>(55);
+  const [history, setHistory] = useState<number[]>(() => new Array(55).fill(0));
+  
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const historyRef = useRef<number[]>(new Array(55).fill(0));
+  const lastSampleTimeRef = useRef<number>(0);
   const animFrameRef = useRef<number | null>(null);
 
+  // Dynamic responsive dot count calculation based on container width
   useEffect(() => {
-    if (!isListening) {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
-        void audioContextRef.current.close().catch(() => {});
-        audioContextRef.current = null;
-      }
-      setAudioLevel(0);
-      return;
-    }
+    const el = containerRef.current;
+    if (!el) return;
 
+    const updateCount = () => {
+      const width = el.clientWidth;
+      // Reserve space for left and right buttons (~120px) + padding
+      const available = Math.max(160, width - 130);
+      // Each dot + gap is ~8px
+      const count = Math.max(26, Math.min(68, Math.floor(available / 8.5)));
+      setDotCount(count);
+      historyRef.current = new Array(count).fill(0);
+      setHistory(new Array(count).fill(0));
+    };
+
+    updateCount();
+    const observer = new ResizeObserver(updateCount);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Web Audio API setup and streaming waveform history
+  useEffect(() => {
     let isMounted = true;
 
     async function initAudio() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
         if (!isMounted) {
           stream.getTracks().forEach((t) => t.stop());
           return;
@@ -59,9 +84,13 @@ export function VoiceWaveform({
         const ctx = new AudioContextClass();
         audioContextRef.current = ctx;
 
+        if (ctx.state === "suspended") {
+          void ctx.resume();
+        }
+
         const analyser = ctx.createAnalyser();
-        analyser.fftSize = 64;
-        analyser.smoothingTimeConstant = 0.8;
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.5;
         analyserRef.current = analyser;
 
         const source = ctx.createMediaStreamSource(stream);
@@ -69,26 +98,58 @@ export function VoiceWaveform({
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-        const updateMeter = () => {
+        const tick = (now: number) => {
           if (!isMounted) return;
-          analyser.getByteFrequencyData(dataArray);
 
-          // Calculate average volume
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
+          // Shift audio history every ~38ms (~26 FPS stream)
+          if (now - lastSampleTimeRef.current >= 38) {
+            lastSampleTimeRef.current = now;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // Compute volume across human voice frequencies (bins 2 to 36)
+            let sum = 0;
+            const binCount = Math.min(dataArray.length, 36);
+            for (let i = 2; i < binCount; i++) {
+              sum += dataArray[i];
+            }
+            const avg = sum / (binCount - 2);
+
+            // Silence threshold
+            let amplitude = 0;
+            if (avg > 10) {
+              amplitude = Math.min(1, Math.max(0.12, (avg - 10) / 48));
+            }
+
+            // Push into streaming history tape (enters from right, scrolls to left)
+            const arr = historyRef.current;
+            arr.shift();
+            arr.push(amplitude);
+            setHistory([...arr]);
           }
-          const avg = sum / dataArray.length;
-          // Normalize to 0 - 1 with pleasant scaling
-          const level = Math.min(1, Math.max(0, (avg - 10) / 70));
-          setAudioLevel(level);
 
-          animFrameRef.current = requestAnimationFrame(updateMeter);
+          animFrameRef.current = requestAnimationFrame(tick);
         };
 
-        updateMeter();
+        animFrameRef.current = requestAnimationFrame(tick);
       } catch (err) {
-        console.warn("[VoiceWaveform] AudioContext metering fallback:", err);
+        console.warn("[VoiceInputPill] Web Audio metering fallback:", err);
+        // Fallback gentle idle animation if mic permission pending or unavailable
+        let fallbackTick = 0;
+        const interval = setInterval(() => {
+          if (!isMounted) {
+            clearInterval(interval);
+            return;
+          }
+          fallbackTick++;
+          const arr = historyRef.current;
+          arr.shift();
+          // Gentle breathing dot pulse
+          arr.push(0);
+          setHistory([...arr]);
+        }, 40);
+
+        return () => clearInterval(interval);
       }
     }
 
@@ -104,119 +165,72 @@ export function VoiceWaveform({
         void audioContextRef.current.close().catch(() => {});
       }
     };
-  }, [isListening]);
-
-  if (!isListening) return null;
-
-  // 5 Waveform bars with randomized & volume-driven scale factors
-  const barHeights = [
-    Math.max(0.25, audioLevel * 1.2),
-    Math.max(0.4, audioLevel * 1.6),
-    Math.max(0.55, audioLevel * 2.0),
-    Math.max(0.35, audioLevel * 1.5),
-    Math.max(0.2, audioLevel * 1.1),
-  ];
+  }, [dotCount]);
 
   return (
-    <div className="relative mb-2.5 overflow-hidden rounded-2xl border border-emerald-500/20 dark:border-emerald-500/25 bg-gradient-to-r from-emerald-500/[0.07] via-teal-500/[0.05] to-cyan-500/[0.07] dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-cyan-950/40 p-2.5 sm:px-3.5 shadow-sm backdrop-blur-md transition-all animate-in fade-in zoom-in-95 duration-200">
-      <div className="flex items-center justify-between gap-3">
-        {/* Left: Waveform animation & Status */}
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Animated Waveform Bars */}
-          <div className="flex h-6 items-center gap-1 px-1">
-            {barHeights.map((h, i) => (
+    <div
+      ref={containerRef}
+      className="relative flex h-[52px] sm:h-14 w-full items-center justify-between rounded-full bg-[#212121] px-2.5 sm:px-3 shadow-xl border border-white/[0.06] select-none transition-all"
+    >
+      {/* 1. Left: Cancel Button (X) */}
+      <button
+        type="button"
+        onClick={onCancel}
+        aria-label="Cancel voice recording"
+        title="Cancel voice input"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all active:scale-95 cursor-pointer"
+      >
+        <X className="size-4" strokeWidth={2} />
+      </button>
+
+      {/* 2. Center: Continuous Dotted Audio Waveform Ribbon */}
+      <div className="relative flex flex-1 items-center justify-center h-8 overflow-hidden px-2 sm:px-4">
+        <div className="flex w-full items-center justify-between max-w-[680px]">
+          {history.map((val, idx) => {
+            // When amplitude > 0 (speaking), scale from 5px up to 22px vertical rounded pill
+            // When amplitude === 0 (silence), render a crisp 3px circular dot
+            const isSpeaking = val > 0.05;
+            const barHeight = isSpeaking ? Math.min(22, Math.max(5, Math.round(val * 24))) : 3;
+            const opacity = isSpeaking ? Math.min(1, Math.max(0.65, val * 1.3)) : 0.28;
+
+            return (
               <span
-                key={i}
-                className="w-1 rounded-full bg-gradient-to-t from-emerald-500 to-teal-400 dark:from-emerald-400 dark:to-cyan-300 transition-all duration-75"
+                key={idx}
+                className="w-[3px] rounded-full bg-white transition-all duration-75"
                 style={{
-                  height: `${Math.min(24, Math.max(6, h * 24))}px`,
+                  height: `${barHeight}px`,
+                  opacity,
                 }}
               />
-            ))}
-          </div>
-
-          {/* Status badge & live transcript preview */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-              </span>
-              <span className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400 tracking-wide uppercase font-mono">
-                Listening...
-              </span>
-            </div>
-            {transcript ? (
-              <p className="truncate text-[13px] text-foreground/80 font-medium italic mt-0.5">
-                “{transcript}”
-              </p>
-            ) : (
-              <p className="text-[11px] text-foreground/45 mt-0.5">
-                Speak now · Transcribing in real time
-              </p>
-            )}
-          </div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Right: Quick Action Controls */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Discard / Cancel */}
-          <button
-            type="button"
-            onClick={onCancel}
-            title="Cancel voice input"
-            className="flex size-7.5 items-center justify-center rounded-full text-foreground/40 hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors"
-          >
-            <X className="size-3.5" strokeWidth={2} />
-          </button>
+      {/* 3. Right: Stop and Send Action Buttons */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Stop Button (White rounded square inside dark circle) */}
+        <button
+          type="button"
+          onClick={onStop}
+          aria-label="Stop recording and keep text"
+          title="Done speaking (keep text in box)"
+          className="flex size-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 text-white transition-all active:scale-95 cursor-pointer"
+        >
+          <span className="size-3.5 rounded-[3px] bg-white block" />
+        </button>
 
-          {/* Stop and Keep Text */}
-          <button
-            type="button"
-            onClick={onStop}
-            title="Done speaking (keep text in box)"
-            className="flex items-center gap-1 rounded-full bg-black/[0.06] dark:bg-white/[0.1] px-2.5 py-1 text-[12px] font-medium text-foreground hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
-          >
-            <Check className="size-3 text-emerald-500" strokeWidth={2.5} />
-            <span className="hidden sm:inline">Done</span>
-          </button>
-
-          {/* Send Immediately */}
-          <button
-            type="button"
-            onClick={onSubmit}
-            title="Send message now"
-            className="flex size-7.5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xs hover:bg-emerald-600 active:scale-95 transition-all"
-          >
-            <ArrowUp className="size-3.5" strokeWidth={2.5} />
-          </button>
-        </div>
+        {/* Send Button (Amber / Gold circle with white ArrowUp) */}
+        <button
+          type="button"
+          onClick={onSubmit}
+          aria-label="Send message"
+          title="Send message now"
+          className="flex size-9 items-center justify-center rounded-full bg-[#d99b26] hover:bg-[#c98c1f] text-white shadow-md transition-all active:scale-95 cursor-pointer"
+        >
+          <ArrowUp className="size-4.5 stroke-[2.75] text-white" />
+        </button>
       </div>
     </div>
-  );
-}
-
-/**
- * Pulsating Animated Waveform Icon for the input mic button
- */
-export function ListeningMicButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title="Stop speaking"
-      className="relative flex size-8.5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md transition-all hover:bg-emerald-600 active:scale-95"
-    >
-      {/* Animated ripple rings */}
-      <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-40 animate-ping" />
-      <span className="absolute inset-[-3px] rounded-full border border-emerald-400/50 animate-pulse" />
-
-      {/* Mini dancing waveform bars inside the button */}
-      <div className="relative z-10 flex items-center gap-0.5 h-3.5">
-        <span className="w-0.5 h-2 bg-white rounded-full animate-bounce [animation-delay:0ms]" />
-        <span className="w-0.5 h-3.5 bg-white rounded-full animate-bounce [animation-delay:150ms]" />
-        <span className="w-0.5 h-2.5 bg-white rounded-full animate-bounce [animation-delay:300ms]" />
-      </div>
-    </button>
   );
 }
