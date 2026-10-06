@@ -10,7 +10,7 @@ import { computerInfo } from "@/server/snapshot";
 import { apiKey, models, resetModels, saveApiKey } from "@/server/agent/client";
 import { openRouterKey, saveOpenRouterKey } from "@/server/agent/openrouter";
 import { groqKey, saveGroqKey } from "@/server/agent/groq";
-import { cloudflareWorkerToken, cloudflareWorkerUrl, saveCloudflareConfig } from "@/server/agent/cloudflare";
+import { cloudflareWorkerToken, cloudflareWorkerUrl, cloudflareWorkerUrls, saveCloudflareConfig } from "@/server/agent/cloudflare";
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
 import * as files from "@/server/files";
@@ -212,7 +212,7 @@ export async function setCloudflareWorker(url: string, token?: string): Promise<
 
 export async function getCloudflareConfig(): Promise<{ url: string; token: string }> {
   return {
-    url: cloudflareWorkerUrl() || "",
+    url: cloudflareWorkerUrls().join(", ") || "",
     token: cloudflareWorkerToken() || "",
   };
 }

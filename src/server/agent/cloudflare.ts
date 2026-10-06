@@ -46,26 +46,74 @@ function envToken(): string | null {
   return process.env.CLOUDFLARE_WORKER_TOKEN || null;
 }
 
-/** Parses configured worker URLs into a clean array. Supports comma or newline separated URLs. */
+const EXHAUSTED_SETTING = "cf_exhausted_workers";
+
+function getExhaustedMap(): Map<string, number> {
+  const map = new Map<string, number>();
+  if (g.__dotsCloudflareExhausted) {
+    for (const [k, v] of g.__dotsCloudflareExhausted.entries()) {
+      map.set(k, v);
+    }
+  }
+  try {
+    const raw = getSetting(EXHAUSTED_SETTING);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      for (const [k, v] of Object.entries(obj)) {
+        if (typeof v === "number") map.set(k, Math.max(v, map.get(k) ?? 0));
+      }
+    }
+  } catch {}
+  return map;
+}
+
+function saveExhaustedMap(map: Map<string, number>) {
+  g.__dotsCloudflareExhausted = map;
+  try {
+    const obj: Record<string, number> = {};
+    for (const [k, v] of map.entries()) obj[k] = v;
+    setSetting(EXHAUSTED_SETTING, JSON.stringify(obj));
+  } catch {}
+}
+
+export function clearExhaustedWorkers() {
+  g.__dotsCloudflareExhausted = new Map();
+  try {
+    setSetting(EXHAUSTED_SETTING, null);
+  } catch {}
+}
+
+/** Parses configured worker URLs into a clean array. Combines settings, env variables, and defaults. */
 export function cloudflareWorkerUrls(): string[] {
-  const raw = getSetting(URL_SETTING) || envUrl();
-  if (!raw) return DEFAULT_WORKER_URLS;
-  const list = raw
-    .split(/[\n,]+/)
-    .map((u) => u.trim().replace(/\/+$/, ""))
-    .filter(Boolean);
+  const settingRaw = getSetting(URL_SETTING) || "";
+  const envRaw = envUrl() || "";
+  const combined = `${settingRaw},${envRaw}`;
+  const list = Array.from(
+    new Set(
+      combined
+        .split(/[\n,]+/)
+        .map((u) => u.trim().replace(/\/+$/, ""))
+        .filter(Boolean)
+    )
+  );
   return list.length ? list : DEFAULT_WORKER_URLS;
 }
 
 /** Check which workers are still available (not marked exhausted within the last 12 hours). */
 export function getAvailableWorkerUrls(): string[] {
   const all = cloudflareWorkerUrls();
-  const exhausted = (g.__dotsCloudflareExhausted ??= new Map());
+  const exhausted = getExhaustedMap();
   const now = Date.now();
+  let changed = false;
   // Clear entries older than 12 hours (daily reset window)
   for (const [u, ts] of exhausted.entries()) {
-    if (now - ts > 12 * 60 * 60 * 1000) exhausted.delete(u);
+    if (now - ts > 12 * 60 * 60 * 1000) {
+      exhausted.delete(u);
+      changed = true;
+    }
   }
+  if (changed) saveExhaustedMap(exhausted);
+
   const available = all.filter((u) => !exhausted.has(u));
   return available.length ? available : all;
 }
@@ -73,8 +121,9 @@ export function getAvailableWorkerUrls(): string[] {
 /** Mark a specific worker URL as exhausted (e.g. 10,000 neurons daily limit reached). */
 export function markWorkerExhausted(url: string, reason?: string) {
   const clean = url.trim().replace(/\/+$/, "");
-  const exhausted = (g.__dotsCloudflareExhausted ??= new Map());
+  const exhausted = getExhaustedMap();
   exhausted.set(clean, Date.now());
+  saveExhaustedMap(exhausted);
   console.warn(`[cloudflare] Marked worker ${clean} as exhausted (${reason ?? "quota"}). Remaining active workers: ${getAvailableWorkerUrls().length}`);
 }
 
@@ -175,9 +224,9 @@ export async function saveCloudflareConfig(urlInput: string, tokenInput?: string
   const cleaned = rawUrls.map((u) => u.replace(/\/+$/, "")).join(", ");
   setSetting(URL_SETTING, cleaned);
   setSetting(TOKEN_SETTING, token ? seal(token) : null);
+  clearExhaustedWorkers();
   g.__dotsCloudflare = undefined;
   g.__dotsCloudflareClients = undefined;
-  g.__dotsCloudflareExhausted = undefined;
   g.__dotsCloudflareModels = undefined;
   (globalThis as any).__dotsResetModels?.();
   return null;

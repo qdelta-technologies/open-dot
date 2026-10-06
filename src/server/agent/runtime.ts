@@ -3,7 +3,7 @@ import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
-import { cloudflareForUrl, cloudflareWorkerUrl, getAvailableWorkerUrls, markWorkerExhausted } from "./cloudflare";
+import { cloudflareForUrl, cloudflareWorkerUrl, cloudflareWorkerUrls, getAvailableWorkerUrls, isCloudflareModel, markWorkerExhausted } from "./cloudflare";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
@@ -317,161 +317,198 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   // Stateless providers get the whole conversation every time; the app keeps it (trimmed) per chat.
   const history = stateless ? (repo.getHistory(dot.id) as ResponseInputItem[]) : [];
   repo.setActivity(dot.id, "Thinking");
-  let stream;
-  try {
-    stream = await client.responses.create(
-      stateless
-        ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 2048 }
-        : {
-            model,
-            instructions: systemPrompt(dot, trigger),
-            input,
-            previous_response_id: prevId ?? undefined,
-            tools,
-            ...(isReasoningModel(model) ? { reasoning: { effort: "medium" as const } } : {}),
-            truncation: "auto",
-            parallel_tool_calls: false,
-            store: true,
-            stream: true,
-          },
-      { signal },
-    );
-  } catch (err) {
-    const isContextOverflow = /context length|maximum context|input_tokens|8007|reduce the length/i.test(String(err));
-    if (isContextOverflow && stateless && history.length > 0) {
-      console.warn(`[dots] Context limit reached for ${appModel}. Auto-pruning history and retrying...`);
-      const pruned = history.slice(-4);
-      repo.setHistory(dot.id, pruned);
-      try {
-        stream = await client.responses.create(
-          {
-            model,
-            instructions: systemPrompt(dot, trigger),
-            input: [...pruned, ...input],
-            tools,
-            parallel_tool_calls: false,
-            store: false,
-            stream: true,
-            max_output_tokens: 1500,
-          },
-          { signal },
-        );
-      } catch (retryErr) {
-        throw retryErr;
-      }
-    } else {
-      const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(String(err));
-      const isRateLimit = /429|rate limit|quota|busy/i.test(String(err));
+  const isCloudflare = isCloudflareModel(appModel);
+  const allWorkers = cloudflareWorkerUrls();
+  const availableWorkers = getAvailableWorkerUrls();
+  // Candidate workers to try in priority order: available workers first, then all remaining workers
+  const candidateWorkers: (string | null)[] = isCloudflare
+    ? Array.from(new Set([...availableWorkers, ...allWorkers]))
+    : [null];
 
-      // 1. Check if we have multiple Cloudflare worker URLs configured and can failover to a backup worker
-      const currentWorker = cloudflareWorkerUrl();
-      const availableWorkers = getAvailableWorkerUrls();
-      const nextWorker = availableWorkers.find((u) => u !== currentWorker);
+  let lastErr: unknown = null;
 
-      if ((isNeuronExhausted || isRateLimit) && currentWorker && nextWorker) {
-        markWorkerExhausted(currentWorker, isNeuronExhausted ? "10,000 daily neurons limit reached" : "Rate limit");
-        console.warn(`[dots] Worker ${currentWorker} exhausted. Failing over to ${nextWorker}...`);
-        repo.addMessage({
-          dotId: dot.id,
-          role: "system",
-          conversationId: convId,
-          text: `⚡ Cloudflare Worker (${currentWorker.replace(/^https?:\/\//, "")}) ${isNeuronExhausted ? "daily free 10k neuron limit reached" : "temporarily busy"}. Switching automatically to backup worker (${nextWorker.replace(/^https?:\/\//, "")})...`,
-        });
-        const fallbackClient = cloudflareForUrl(nextWorker);
-        try {
-          stream = await fallbackClient.responses.create(
-            {
-              model,
+  for (let workerIdx = 0; workerIdx < candidateWorkers.length; workerIdx++) {
+    const workerUrl = candidateWorkers[workerIdx];
+    const activeClient = workerUrl ? cloudflareForUrl(workerUrl) : client;
+    const activeModel = model;
+
+    let stream: any = null;
+    try {
+      stream = await activeClient.responses.create(
+        stateless
+          ? { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 2048 }
+          : {
+              model: activeModel,
               instructions: systemPrompt(dot, trigger),
-              input: [...history, ...input],
+              input,
+              previous_response_id: prevId ?? undefined,
+              tools,
+              ...(isReasoningModel(activeModel) ? { reasoning: { effort: "medium" as const } } : {}),
+              truncation: "auto",
+              parallel_tool_calls: false,
+              store: true,
+              stream: true,
+            },
+        { signal },
+      );
+    } catch (err) {
+      const errMsg = String(err);
+      const isContextOverflow = /context length|maximum context|input_tokens|8007|reduce the length/i.test(errMsg);
+      if (isContextOverflow && stateless && history.length > 0) {
+        console.warn(`[dots] Context limit reached for ${appModel}. Auto-pruning history and retrying...`);
+        const pruned = history.slice(-4);
+        repo.setHistory(dot.id, pruned);
+        try {
+          stream = await activeClient.responses.create(
+            {
+              model: activeModel,
+              instructions: systemPrompt(dot, trigger),
+              input: [...pruned, ...input],
               tools,
               parallel_tool_calls: false,
               store: false,
               stream: true,
-              max_output_tokens: 2048,
+              max_output_tokens: 1500,
             },
             { signal },
           );
-        } catch (failoverErr) {
-          throw failoverErr;
+        } catch (retryErr) {
+          lastErr = retryErr;
         }
-      } else if (isRateLimit && appModel !== "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct" && Boolean(cloudflareWorkerUrl())) {
-        console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Meta Llama 4 Scout 17B...`);
+      } else {
+        lastErr = err;
+      }
+
+      if (!stream) {
+        const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(errMsg);
+        const isRateLimit = /429|rate limit|quota|busy/i.test(errMsg);
+
+        if (workerUrl && (isNeuronExhausted || isRateLimit) && workerIdx + 1 < candidateWorkers.length) {
+          const nextWorker = candidateWorkers[workerIdx + 1]!;
+          markWorkerExhausted(workerUrl, isNeuronExhausted ? "10,000 daily neurons limit reached" : "Rate limit");
+          console.warn(`[dots] Worker ${workerUrl} failed (${errMsg}). Failing over to ${nextWorker}...`);
+          repo.addMessage({
+            dotId: dot.id,
+            role: "system",
+            conversationId: convId,
+            text: `⚡ Cloudflare Worker (${workerUrl.replace(/^https?:\/\//, "")}) ${isNeuronExhausted ? "daily free 10k neuron limit reached" : "temporarily busy"}. Switching automatically to backup worker (${nextWorker.replace(/^https?:\/\//, "")})...`,
+          });
+          continue;
+        }
+
+        if (isRateLimit && appModel !== "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct" && Boolean(cloudflareWorkerUrl())) {
+          console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Meta Llama 4 Scout 17B...`);
+          repo.addMessage({
+            dotId: dot.id,
+            role: "system",
+            conversationId: convId,
+            text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 4 Scout 17B on Cloudflare edge...`,
+          });
+          const fallbackClient = clientFor("cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct");
+          try {
+            stream = await fallbackClient.client.responses.create(
+              {
+                model: fallbackClient.model,
+                instructions: systemPrompt(dot, trigger),
+                input: [...history, ...input],
+                tools,
+                parallel_tool_calls: false,
+                store: false,
+                stream: true,
+                max_output_tokens: 2048,
+              },
+              { signal },
+            );
+          } catch (scoutErr) {
+            throw scoutErr;
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    const drafts = new Map<string, { id: string; text: string }>();
+    let final: Response | null = null;
+    let streamFailed = false;
+    let streamError: unknown = null;
+
+    try {
+      for await (const ev of stream) {
+        switch (ev.type) {
+          case "response.output_item.added":
+            if (String(ev.item.type).includes("web_search")) repo.setActivity(dot.id, "Searching the web");
+            else if (ev.item.type === "computer_call") repo.setActivity(dot.id, "Using its computer");
+            else if (ev.item.type === "message") repo.setActivity(dot.id, "Writing");
+            break;
+          case "response.output_text.delta": {
+            let d = drafts.get(ev.item_id);
+            if (!d) {
+              const m = repo.addMessage({ dotId: dot.id, role: "dot", text: "", conversationId: convId });
+              drafts.set(ev.item_id, (d = { id: m.id, text: "" }));
+            }
+            d.text += ev.delta;
+            emit({ type: "message_delta", id: d.id, dotId: dot.id, delta: ev.delta, conversationId: convId });
+            break;
+          }
+          case "response.output_item.done":
+            if (ev.item.type === "message") {
+              const d = drafts.get(ev.item.id);
+              if (d) {
+                const clean = d.text.replace(/<think>[\s\S]*?<\/think>\s*/gi, "").trim();
+                d.text = clean;
+                repo.updateMessage(d.id, { text: clean });
+              }
+            } else if (String(ev.item.type).includes("web_search")) {
+              const action = (ev.item as { action?: { query?: string } }).action;
+              activity(dot.id, "Searched the web", action?.query);
+            }
+            break;
+          case "response.completed":
+            final = ev.response;
+            break;
+          case "response.failed":
+            throw new Error(ev.response.error?.message ?? "The model request failed");
+          case "error":
+            throw new Error(ev.message);
+        }
+      }
+    } catch (sErr) {
+      streamFailed = true;
+      streamError = sErr;
+    } finally {
+      for (const d of drafts.values()) repo.updateMessage(d.id, { text: d.text || "…" });
+    }
+
+    if (streamFailed) {
+      const sErrMsg = String(streamError);
+      const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(sErrMsg);
+      const isRateLimit = /429|rate limit|quota|busy/i.test(sErrMsg);
+      const hasDeliveredText = Array.from(drafts.values()).some((d) => d.text.trim().length > 0);
+
+      // If no text was delivered and this worker hit quota/rate limit, failover to the next worker!
+      if (workerUrl && (isNeuronExhausted || isRateLimit) && !hasDeliveredText && workerIdx + 1 < candidateWorkers.length) {
+        const nextWorker = candidateWorkers[workerIdx + 1]!;
+        markWorkerExhausted(workerUrl, isNeuronExhausted ? "10,000 daily neurons limit reached" : "Rate limit");
+        console.warn(`[dots] Worker ${workerUrl} stream failed (${sErrMsg}). Failing over to ${nextWorker}...`);
         repo.addMessage({
           dotId: dot.id,
           role: "system",
           conversationId: convId,
-          text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 4 Scout 17B on Cloudflare edge...`,
+          text: `⚡ Cloudflare Worker (${workerUrl.replace(/^https?:\/\//, "")}) ${isNeuronExhausted ? "daily free 10k neuron limit reached" : "temporarily busy"}. Switching automatically to backup worker (${nextWorker.replace(/^https?:\/\//, "")})...`,
         });
-        const fallbackClient = clientFor("cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct");
-        stream = await fallbackClient.client.responses.create(
-          {
-            model: fallbackClient.model,
-            instructions: systemPrompt(dot, trigger),
-            input: [...history, ...input],
-            tools,
-            parallel_tool_calls: false,
-            store: false,
-            stream: true,
-            max_output_tokens: 2048,
-          },
-          { signal },
-        );
-      } else {
-        throw err;
+        continue;
       }
+      throw streamError;
+    }
+
+    if (final) {
+      if (stateless) repo.setHistory(dot.id, trimHistory([...history, ...input, ...replayable(final.output)]));
+      return final;
     }
   }
 
-  const drafts = new Map<string, { id: string; text: string }>();
-  let final: Response | null = null;
-  try {
-    for await (const ev of stream) {
-      switch (ev.type) {
-        case "response.output_item.added":
-          if (String(ev.item.type).includes("web_search")) repo.setActivity(dot.id, "Searching the web");
-          else if (ev.item.type === "computer_call") repo.setActivity(dot.id, "Using its computer");
-          else if (ev.item.type === "message") repo.setActivity(dot.id, "Writing");
-          break;
-        case "response.output_text.delta": {
-          let d = drafts.get(ev.item_id);
-          if (!d) {
-            const m = repo.addMessage({ dotId: dot.id, role: "dot", text: "", conversationId: convId });
-            drafts.set(ev.item_id, (d = { id: m.id, text: "" }));
-          }
-          d.text += ev.delta;
-          emit({ type: "message_delta", id: d.id, dotId: dot.id, delta: ev.delta, conversationId: convId });
-          break;
-        }
-        case "response.output_item.done":
-          if (ev.item.type === "message") {
-            const d = drafts.get(ev.item.id);
-            if (d) {
-              const clean = d.text.replace(/<think>[\s\S]*?<\/think>\s*/gi, "").trim();
-              d.text = clean;
-              repo.updateMessage(d.id, { text: clean });
-            }
-          } else if (String(ev.item.type).includes("web_search")) {
-            const action = (ev.item as { action?: { query?: string } }).action;
-            activity(dot.id, "Searched the web", action?.query);
-          }
-          break;
-        case "response.completed":
-          final = ev.response;
-          break;
-        case "response.failed":
-          throw new Error(ev.response.error?.message ?? "The model request failed");
-        case "error":
-          throw new Error(ev.message);
-      }
-    }
-  } finally {
-    // Persist whatever streamed, even if we were stopped mid-sentence.
-    for (const d of drafts.values()) repo.updateMessage(d.id, { text: d.text || "…" });
-  }
-  if (!final) throw new Error("The model stream ended unexpectedly");
-  if (stateless) repo.setHistory(dot.id, trimHistory([...history, ...input, ...replayable(final.output)]));
-  return final;
+  throw lastErr || new Error("The model stream ended unexpectedly");
 }
 
 /** The parts of a response worth sending back next turn: what the model said and the tools it called. */
