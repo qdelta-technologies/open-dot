@@ -39,7 +39,7 @@ function envKey(): string | null {
   return process.env.COMPOSIO_API_KEY || null;
 }
 
-function apiKey(): string | null {
+export function apiKey(): string | null {
   if (envKey()) return envKey();
   const sealed = getSetting(KEY_SETTING);
   if (!sealed) return null;

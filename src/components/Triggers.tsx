@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Eye, EyeOff, Plus, RefreshCw } from "lucide-react";
 import * as actions from "@/app/actions";
 import { useStore } from "@/lib/store";
 import { openAfter } from "@/lib/popup";
@@ -16,13 +16,35 @@ export function TriggersKey() {
   const source = useStore((s) => s.computer.triggersKey);
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  useEffect(() => {
+    if (editing && !key) {
+      void actions.getComposioKey().then((existing) => {
+        if (existing) setKey(existing);
+      });
+    }
+  }, [editing, key]);
+
+  const handleStartEdit = async () => {
+    setError(null);
+    const existing = await actions.getComposioKey();
+    if (existing) setKey(existing);
+    setEditing(true);
+    setShowKey(false);
+  };
+
   const save = (value: string) =>
     start(async () => {
       const err = await actions.setComposioKey(value);
       setError(err);
-      if (!err) (setKey(""), setEditing(false));
+      if (!err) {
+        setKey("");
+        setEditing(false);
+        setShowKey(false);
+      }
     });
 
   return (
@@ -41,16 +63,40 @@ export function TriggersKey() {
           </div>
         </div>
         {source === "settings" && !editing && (
-          <>
+          <div className="flex items-center gap-2">
             <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
               Remove
             </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
               Change
             </button>
-          </>
+          </div>
         )}
       </div>
+
+      {source && !editing && (
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-black/[0.03] px-3 py-1.5 font-mono text-[13px] text-foreground/75 dark:border-white/[0.08] dark:bg-white/[0.04]">
+            <span>{showKey && key ? key : "ak_••••••••••••••••••••••••••••••••"}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!showKey && !key) {
+                  const existing = await actions.getComposioKey();
+                  if (existing) setKey(existing);
+                }
+                setShowKey(!showKey);
+              }}
+              className="text-foreground/45 transition-colors hover:text-foreground p-0.5"
+              title={showKey ? "Hide key" : "Show key"}
+              aria-label={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+          </div>
+        </div>
+      )}
+
       {(editing || !source) && (
         <form
           className="mt-3 flex gap-2"
@@ -59,7 +105,38 @@ export function TriggersKey() {
             save(key);
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="ak_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="ak_..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}
+              aria-label={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button
+              type="button"
+              className="btn-quiet px-3 text-[13px]"
+              onClick={() => {
+                setEditing(false);
+                setKey("");
+                setShowKey(false);
+              }}
+            >
+              Cancel
+            </button>
+          )}
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>

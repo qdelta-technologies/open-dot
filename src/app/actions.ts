@@ -237,6 +237,10 @@ export async function getCloudKey(): Promise<string> {
 
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+export async function getComposioKey(): Promise<string> {
+  return triggers.apiKey() || "";
+}
+
 /** Paste a Composio API key in Settings to turn on triggers (empty removes it). */
 export async function setComposioKey(key: string): Promise<string | null> {
   const err = await triggers.saveComposioKey(key.trim());
