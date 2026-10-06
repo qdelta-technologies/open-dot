@@ -13,15 +13,15 @@ const URL_SETTING = "cloudflare_worker_url";
 const TOKEN_SETTING = "cloudflare_worker_token";
 
 const MAIN_PREFERENCE = [
-  /@cf\/meta\/llama-3\.3-70b/i,
-  /@cf\/qwen\/qwen2\.5-72b/i,
-  /@cf\/deepseek-ai\/deepseek-r1/i,
+  /@cf\/meta\/llama-4-scout/i,
   /@cf\/meta\/llama-3\.1-8b/i,
+  /@cf\/qwen\/qwen2\.5-coder/i,
+  /@cf\/deepseek-ai\/deepseek-r1/i,
 ];
 
 const SMALL_PREFERENCE = [
   /@cf\/meta\/llama-3\.1-8b/i,
-  /@cf\/meta\/llama-3\.3-70b/i,
+  /@cf\/meta\/llama-4-scout/i,
   /@cf\/qwen/i,
 ];
 
@@ -205,12 +205,10 @@ function inferCategory(id: string): "general" | "coding" | "vision" | "fast" {
 }
 
 export const DEFAULT_CLOUDFLARE_MODELS = [
-  // ── General Chat & Flagship Reasoning ──
-  { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", name: "Llama 3.3 70B Instruct (Fast FP8)", parameters: "70B", context_length: 131072, category: "general" as const, description: "Meta's flagship 70B model running on high-speed FP8 edge GPU hardware" },
+  // ── Flagship Reasoning & Multimodal Agent ──
   { id: "@cf/meta/llama-4-scout-17b-16e-instruct", name: "Meta Llama 4 Scout 17B (16E MoE)", parameters: "17B MoE", context_length: 131072, category: "general" as const, description: "Meta's flagship multimodal mixture-of-experts model for text, vision, and agentic workflows" },
-  { id: "@cf/qwen/qwq-32b", name: "QwQ 32B Reasoning", parameters: "32B", context_length: 32768, category: "general" as const, description: "Alibaba's advanced thinking and reasoning model competing with DeepSeek-R1 and o1-mini" },
   { id: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", name: "DeepSeek R1 Distill Qwen 32B", parameters: "32B", context_length: 131072, category: "general" as const, description: "DeepSeek R1 chain-of-thought reasoning architecture distilled into 32B parameters" },
-  { id: "@cf/meta/llama-3.1-70b-instruct", name: "Llama 3.1 70B Instruct", parameters: "70B", context_length: 131072, category: "general" as const, description: "High-intelligence 70B general knowledge and complex instruction following" },
+  { id: "@cf/qwen/qwq-32b", name: "QwQ 32B Reasoning", parameters: "32B", context_length: 32768, category: "general" as const, description: "Alibaba's advanced thinking and reasoning model competing with DeepSeek-R1 and o1-mini" },
 
   // ── Coding & Technical ──
   { id: "@cf/qwen/qwen2.5-coder-32b-instruct", name: "Qwen 2.5 Coder 32B Instruct", parameters: "32B", context_length: 32768, category: "coding" as const, description: "Premier open-source code generation, debugging, and multi-file architecture" },
@@ -218,11 +216,11 @@ export const DEFAULT_CLOUDFLARE_MODELS = [
   // ── Vision & Multimodal ──
   { id: "@cf/mistralai/mistral-small-3.1-24b-instruct", name: "Mistral Small 3.1 24B (Vision & Text)", parameters: "24B Vision", context_length: 131072, category: "vision" as const, description: "State-of-the-art vision understanding and 128k context without compromising text speed" },
 
-  // ── Fast, Light & Edge ──
+  // ── Fast, Light & High-Throughput (Ultra Low Neurons) ──
+  { id: "@cf/meta/llama-3.1-8b-instruct-fast", name: "Llama 3.1 8B Instruct Fast", parameters: "8B Fast", context_length: 65536, category: "fast" as const, description: "Instant edge response optimized for speed, low latency, and minimal neuron consumption" },
+  { id: "@cf/meta/llama-3.1-8b-instruct-fp8", name: "Llama 3.1 8B (Fast FP8)", parameters: "8B FP8", context_length: 131072, category: "fast" as const, description: "Llama 3.1 8B quantized to FP8 precision for ultra-low latency edge responses" },
   { id: "@cf/meta/llama-3.2-3b-instruct", name: "Llama 3.2 3B Instruct", parameters: "3B", context_length: 131072, category: "fast" as const, description: "Ultra-fast low-latency agent execution and routine tasks" },
   { id: "@cf/meta/llama-3.2-1b-instruct", name: "Llama 3.2 1B Instruct", parameters: "1B", context_length: 131072, category: "fast" as const, description: "Instant sub-second edge response for quick status checks and summaries" },
-  { id: "@cf/meta/llama-3.1-8b-instruct-fast", name: "Llama 3.1 8B Instruct Fast", parameters: "8B Fast", context_length: 65536, category: "fast" as const, description: "High-throughput 8B model optimized for real-time conversation and edge latency" },
-  { id: "@cf/meta/llama-3.1-8b-instruct-fp8", name: "Llama 3.1 8B (Fast FP8)", parameters: "8B FP8", context_length: 131072, category: "fast" as const, description: "Llama 3.1 8B quantized to FP8 precision for ultra-low latency edge responses" },
 ];
 
 /** Models from the Cloudflare AI Worker with metadata. */

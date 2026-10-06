@@ -395,15 +395,15 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
         } catch (failoverErr) {
           throw failoverErr;
         }
-      } else if (isRateLimit && appModel !== "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast" && Boolean(cloudflareWorkerUrl())) {
-        console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Llama 3.3 70B Fast...`);
+      } else if (isRateLimit && appModel !== "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct" && Boolean(cloudflareWorkerUrl())) {
+        console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Meta Llama 4 Scout 17B...`);
         repo.addMessage({
           dotId: dot.id,
           role: "system",
           conversationId: convId,
-          text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 3.3 70B Fast on Cloudflare edge...`,
+          text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 4 Scout 17B on Cloudflare edge...`,
         });
-        const fallbackClient = clientFor("cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast");
+        const fallbackClient = clientFor("cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct");
         stream = await fallbackClient.client.responses.create(
           {
             model: fallbackClient.model,

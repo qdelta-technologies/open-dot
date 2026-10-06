@@ -473,12 +473,10 @@ const CATEGORIES: { id: ModelCategory; label: string; icon: typeof Brain }[] = [
 ];
 
 const CLOUDFLARE_CATALOG = [
-  // ── General Chat & Flagship Reasoning ──
-  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  // ── Flagship Reasoning & Multimodal Agent ──
   "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
-  "cloudflare:@cf/qwen/qwq-32b",
   "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
-  "cloudflare:@cf/meta/llama-3.1-70b-instruct",
+  "cloudflare:@cf/qwen/qwq-32b",
 
   // ── Coding & Technical ──
   "cloudflare:@cf/qwen/qwen2.5-coder-32b-instruct",

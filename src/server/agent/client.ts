@@ -150,11 +150,11 @@ async function resolve() {
   let mainDefault = process.env.DOTS_MODEL;
   let reviewDefault = process.env.DOTS_REVIEW_MODEL;
 
-  // Default to fast, verified, free edge model (Llama 3.3 70B FP8)
+  // Default to fast, verified, low-neuron edge model (Meta Llama 4 Scout 17B MoE)
   if (!mainDefault) {
     if (cf.length) mainDefault = preferredCloudflareModel(cf);
     else if (oa?.main) mainDefault = oa.main;
-    else mainDefault = "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+    else mainDefault = "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct";
   }
 
   if (!reviewDefault) {
@@ -226,7 +226,7 @@ export function knownModels(): { main: string; review: string; available: string
   }
   const cfUrl = cloudflareWorkerUrl();
   const r = g.__dotsResolved ?? {
-    main: process.env.DOTS_MODEL || (cfUrl ? "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast" : MAIN_PREFERENCE[0]),
+    main: process.env.DOTS_MODEL || (cfUrl ? "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct" : MAIN_PREFERENCE[0]),
     review: process.env.DOTS_REVIEW_MODEL || (cfUrl ? "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast" : REVIEW_PREFERENCE[0]),
     available: cfUrl ? DEFAULT_CLOUDFLARE_MODELS.map((m) => "cloudflare:" + m.id) : [],
     meta: {},
