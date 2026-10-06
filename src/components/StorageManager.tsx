@@ -16,7 +16,16 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { deleteAllUploadedFiles, deleteUploadedFile, getStorageInfo } from "@/app/actions";
+import {
+  connectApp,
+  deleteAllUploadedFiles,
+  deleteUploadedFile,
+  getStorageInfo,
+  refreshApps,
+  signInComposio,
+} from "@/app/actions";
+import { useStore } from "@/lib/store";
+import { openAfter } from "@/lib/popup";
 import type { StoredFile } from "@/server/files";
 
 function formatBytes(bytes: number): string {
@@ -57,7 +66,11 @@ export default function StorageManager() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const signedIn = useStore((s) => s.computer.composio);
 
   const loadData = () => {
     setLoading(true);
@@ -75,7 +88,29 @@ export default function StorageManager() {
 
   useEffect(() => {
     loadData();
+    const onFocus = () => {
+      void refreshApps().then(() => loadData());
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  const handleConnectGoogleDrive = () => {
+    setConnectError(null);
+    setConnecting(true);
+    startTransition(() => {
+      openAfter(
+        signedIn ? () => connectApp("googledrive") : signInComposio,
+        (err) => setConnectError(err)
+      )
+        .then(() => {
+          void refreshApps().then(() => loadData());
+        })
+        .finally(() => {
+          setConnecting(false);
+        });
+    });
+  };
 
   const handleDelete = (id: string) => {
     setDeletingId(id);
@@ -180,25 +215,55 @@ export default function StorageManager() {
 
           <p className="text-[12px] text-foreground/60 leading-relaxed mb-3">
             {googleDriveConnected
-              ? "Google Drive is connected via Composio. Your files can be stored directly in your 15 GB cloud Drive without consuming Railway's 500 MB disk."
-              : "Connect your Google Drive in the Apps section below to unlock 15 GB of free cloud storage and keep Railway's disk at 0 MB."}
+              ? "Google Drive is connected via Composio. Your files are stored directly in your 15 GB cloud Drive without consuming Railway's 500 MB disk."
+              : "Connect your Google Drive directly to unlock 15 GB of free cloud storage and keep Railway's container disk at 0 MB."}
           </p>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 pt-1">
             <span className="text-[11px] text-foreground/50">Provider: Composio MCP</span>
             {!googleDriveConnected ? (
-              <a
-                href="#apps"
-                className="text-[12px] font-medium text-brand hover:underline inline-flex items-center gap-1"
+              <button
+                type="button"
+                onClick={handleConnectGoogleDrive}
+                disabled={connecting || pending}
+                className="btn-primary h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1.5 disabled:opacity-60 cursor-pointer shadow-xs"
               >
-                Connect Google Drive <ExternalLink className="size-3" />
-              </a>
+                {connecting ? (
+                  <>
+                    <RefreshCw className="size-3 animate-spin" />
+                    Connecting…
+                  </>
+                ) : (
+                  <>
+                    Connect Google Drive
+                    <ExternalLink className="size-3" />
+                  </>
+                )}
+              </button>
             ) : (
-              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                Sync Enabled
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  Sync Enabled
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void refreshApps().then(() => loadData());
+                  }}
+                  className="text-[11px] text-foreground/45 hover:text-foreground underline decoration-dotted transition-colors"
+                  title="Check connection status"
+                >
+                  Verify
+                </button>
+              </div>
             )}
           </div>
+
+          {connectError && (
+            <p className="mt-2 text-[11px] text-destructive leading-tight bg-destructive/10 p-2 rounded-md">
+              {connectError}
+            </p>
+          )}
         </div>
       </div>
 
