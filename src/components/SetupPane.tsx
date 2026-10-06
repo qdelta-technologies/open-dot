@@ -9,6 +9,7 @@ import LookEditor from "./LookEditor";
 import { DotTriggers } from "./Triggers";
 import Dot3DLazy from "./Dot3DLazy";
 import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./SettingsKit";
+import ModelPicker from "./ModelPicker";
 import type { Dot } from "@/lib/types";
 
 const SCHEDULES = [
@@ -65,6 +66,13 @@ export default function SetupPane({ dot }: { dot: Dot }) {
                   placeholder="Tone, preferences, things to always or never do…"
                 />
               </label>
+              <div className="flex flex-col gap-2 rounded-xl border border-black/10 bg-popover/40 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                <div>
+                  <span className="text-[13px] font-medium text-foreground">AI Model</span>
+                  <p className="text-caption text-foreground/55">Which model {dot.name} uses to think, plan, and browse.</p>
+                </div>
+                <ModelPicker value={dot.model} onChange={(m) => start(() => actions.setDotModel(dot.id, m))} />
+              </div>
               <div className="pt-2">
                 <LookEditor look={look} onChange={setLook} />
               </div>

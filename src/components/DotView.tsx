@@ -38,7 +38,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
       <header className="relative flex h-14 shrink-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-4">
         <MenuButton />
         {/* Dot pill */}
-        <Link href={base} className="flex min-w-0 items-center gap-2 rounded-full bg-background py-1 pr-3.5 pl-1 transition-colors hover:bg-black/[0.06]">
+        <Link href={base} className="flex min-w-0 max-w-28 sm:max-w-none items-center gap-1.5 sm:gap-2 rounded-full bg-background py-1 pr-2.5 sm:pr-3.5 pl-1 transition-colors hover:bg-black/[0.06]">
           <DotOrb look={dot.look} status={dot.status} size={26} />
           <span className="truncate text-[14px] font-medium">{dot.name}</span>
           {dot.status !== "idle" && (
@@ -50,9 +50,9 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
         </Link>
 
         <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
-          <span className="hidden items-center sm:flex">
+          <span className="flex items-center">
             <ModelPicker compact value={dot.model} onChange={(m) => start(() => setDotModel(dot.id, m))} />
-            <span className="mx-1 h-5 w-px bg-black/[0.08]" />
+            <span className="mx-0.5 sm:mx-1 h-5 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
           </span>
           {tab === "chat" ? (
             <IconLink href={`${base}?c=new`} label="New chat">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Brain,
   Check,
@@ -543,6 +543,23 @@ export default function ModelPicker({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ModelCategory>("all");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [open]);
 
   const current = value ?? fallback;
   // Always include verified Cloudflare edge catalog by default alongside any OpenRouter free models
@@ -588,43 +605,44 @@ export default function ModelPicker({
   const currentParsed = current ? parseModelId(current) : null;
 
   return (
-    <div
-      className="relative"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-          setOpen(false);
-          setSearch("");
-        }
-      }}
-    >
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 rounded-lg border border-black/10 dark:border-white/10 bg-card hover:bg-popover font-mono tracking-wide text-foreground/80 transition-all hover:border-black/25 dark:hover:border-white/25 hover:text-foreground active:scale-[0.98] ${
-          compact ? "h-7.5 px-2.5 text-[11px]" : "h-9 px-3 text-[12px]"
+        className={`flex items-center gap-1 sm:gap-1.5 rounded-lg border border-black/10 dark:border-white/10 bg-card hover:bg-popover font-mono tracking-wide text-foreground/80 transition-all hover:border-black/25 dark:hover:border-white/25 hover:text-foreground active:scale-[0.98] ${
+          compact ? "h-7.5 px-1.5 sm:px-2.5 text-[11px]" : "h-9 px-3 text-[12px]"
         }`}
         aria-haspopup="listbox"
         aria-expanded={open}
         title="Choose model and capability profile"
       >
         <Cpu className="size-3.5 text-brand shrink-0" strokeWidth={1.75} />
-        {value === null && allowDefault ? <span className="text-foreground/45">Default ·</span> : null}
-        <span className="max-w-36 sm:max-w-44 truncate font-sans text-[12px] font-medium text-foreground/90">
+        {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
+        <span className="max-w-[70px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
         </span>
         <ChevronDown
-          className={`size-3.5 text-foreground/40 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          className={`size-3 text-foreground/40 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
           strokeWidth={1.75}
         />
       </button>
 
       {open && (
-        <div
-          role="listbox"
-          className={`surface absolute right-0 z-50 flex max-h-[min(480px,75vh)] w-88 sm:w-96 flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] ${
-            placement === "top" ? "bottom-full mb-2 origin-bottom-right" : "top-full mt-2 origin-top-right"
-          }`}
-        >
+        <>
+          {/* Mobile backdrop for tap-away dismissal */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] sm:hidden"
+            onClick={() => {
+              setOpen(false);
+              setSearch("");
+            }}
+          />
+          <div
+            role="listbox"
+            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(520px,80vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-96 ${
+              placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
+            }`}
+          >
           {/* Header & Search */}
           <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2.5 bg-popover/60 dark:bg-[#252525]">
             <div className="relative">
@@ -752,7 +770,8 @@ export default function ModelPicker({
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 }
