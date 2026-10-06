@@ -160,12 +160,6 @@ async function resolve() {
     meta: { ...cfData.meta, ...openData.meta },
   };
 
-  // Automatically migrate away from any defunct/test models (e.g. space-bunny)
-  try {
-    const conn = db();
-    conn.prepare("UPDATE dots SET model = NULL WHERE model LIKE '%space-bunny%'").run();
-    conn.prepare("UPDATE settings SET value = ? WHERE key = 'default_model' AND value LIKE '%space-bunny%'").run(mainDefault);
-  } catch {}
 
   g.__dotsResolved = resolved;
   console.log(`[dots] default ${resolved.main} (agent), ${resolved.review} (rule review); ${resolved.available.length} models available`);
@@ -206,9 +200,9 @@ export function models(): Promise<{ main: string; review: string; available: str
 /** The model a dot should run on right now. */
 export async function modelFor(dotModel: string | null): Promise<string> {
   const m = await models();
-  if (dotModel && m.available.includes(dotModel) && !dotModel.includes("space-bunny")) return dotModel;
+  if (dotModel) return dotModel;
   const def = getSetting("default_model");
-  if (def && m.available.includes(def) && !def.includes("space-bunny")) return def;
+  if (def) return def;
   return m.main;
 }
 
@@ -225,8 +219,7 @@ export function knownModels(): { main: string; review: string; available: string
     meta: {},
   };
   const def = getSetting("default_model");
-  const validDef = def && !def.includes("space-bunny") && (r.available.length === 0 || r.available.includes(def)) ? def : r.main;
-  return { ...r, defaultModel: validDef };
+  return { ...r, defaultModel: def || r.main };
 }
 
 /** gpt-5.x / gpt-6 / o-series accept `reasoning`; gpt-4.1 and friends reject it. */

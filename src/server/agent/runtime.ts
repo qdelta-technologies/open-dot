@@ -3,6 +3,7 @@ import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
+import { cloudflareWorkerUrl } from "./cloudflare";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
@@ -312,23 +313,53 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   // Stateless providers get the whole conversation every time; the app keeps it (trimmed) per chat.
   const history = stateless ? (repo.getHistory(dot.id) as ResponseInputItem[]) : [];
   repo.setActivity(dot.id, "Thinking");
-  const stream = await client.responses.create(
-    stateless
-      ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true }
-      : {
-          model,
+  let stream;
+  try {
+    stream = await client.responses.create(
+      stateless
+        ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true }
+        : {
+            model,
+            instructions: systemPrompt(dot, trigger),
+            input,
+            previous_response_id: prevId ?? undefined,
+            tools,
+            ...(isReasoningModel(model) ? { reasoning: { effort: "medium" as const } } : {}),
+            truncation: "auto",
+            parallel_tool_calls: false,
+            store: true,
+            stream: true,
+          },
+      { signal },
+    );
+  } catch (err) {
+    const isRateLimit = /429|rate limit|quota|busy/i.test(String(err));
+    const isNotDefault = appModel !== "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+    if (isRateLimit && isNotDefault && Boolean(cloudflareWorkerUrl())) {
+      console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Llama 3.3 70B Fast...`);
+      repo.addMessage({
+        dotId: dot.id,
+        role: "system",
+        conversationId: convId,
+        text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 3.3 70B Fast on Cloudflare edge...`,
+      });
+      const fallbackClient = clientFor("cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast");
+      stream = await fallbackClient.client.responses.create(
+        {
+          model: fallbackClient.model,
           instructions: systemPrompt(dot, trigger),
-          input,
-          previous_response_id: prevId ?? undefined,
+          input: [...history, ...input],
           tools,
-          ...(isReasoningModel(model) ? { reasoning: { effort: "medium" as const } } : {}),
-          truncation: "auto",
           parallel_tool_calls: false,
-          store: true,
+          store: false,
           stream: true,
         },
-    { signal },
-  );
+        { signal },
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const drafts = new Map<string, { id: string; text: string }>();
   let final: Response | null = null;

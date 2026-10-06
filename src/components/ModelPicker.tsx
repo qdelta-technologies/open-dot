@@ -168,6 +168,16 @@ function parseModelId(id: string): {
     };
   }
 
+  if (lower.includes("space-bunny")) {
+    return {
+      cleanId: raw,
+      name: "Space Bunny Alpha",
+      category: "general",
+      badge: "1M Ctx",
+      desc: "Stealth model with 1M context, high reasoning and tool calling",
+    };
+  }
+
   if (lower.includes("openrouter/free")) {
     return {
       cleanId: raw,
@@ -494,6 +504,31 @@ const CLOUDFLARE_CATALOG = [
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
 ];
 
+const BEST_MODELS_ORDER = [
+  // ── Flagship & High Intelligence ──
+  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "openrouter:stealth/space-bunny-alpha",
+  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
+  "openrouter:google/gemma-4-31b-it:free",
+  "openrouter:google/gemma-4-26b-a4b-it:free",
+
+  // ── Coding & Technical (Scraping, Apps, Tools) ──
+  "cloudflare:@cf/qwen/qwen2.5-coder-32b-instruct",
+  "openrouter:cohere/north-mini-code:free",
+
+  // ── Deep Reasoning & Problem Solving ──
+  "cloudflare:@cf/qwen/qwq-32b",
+  "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+
+  // ── Vision & Multimodal ──
+  "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct",
+
+  // ── Fast & High Throughput ──
+  "openrouter:nvidia/nemotron-3.5-lightning:free",
+  "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast",
+  "openrouter:openrouter/free",
+];
+
 /**
  * Enhanced Categorized Model Dropdown with responsive placement.
  */
@@ -536,8 +571,8 @@ export default function ModelPicker({
   }, [open]);
 
   const current = value ?? fallback;
-  // Always include verified Cloudflare edge catalog by default alongside any OpenRouter free models
-  const combinedList = [...new Set([...(models || []), ...CLOUDFLARE_CATALOG])];
+  // Put our verified best models first, followed by any other models on the user's keys
+  const combinedList = [...new Set([...BEST_MODELS_ORDER, ...(models || []), ...CLOUDFLARE_CATALOG])];
   const list = combinedList.length ? combinedList : fallback ? [fallback] : CLOUDFLARE_CATALOG;
 
   const parsedList = useMemo(() => {
