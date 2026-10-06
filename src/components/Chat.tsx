@@ -793,7 +793,7 @@ export const MessageRow = memo(function MessageRow({
   return (
     <div className="my-3 pr-2 sm:pr-6">
       {/* Title tag or Dot author name if needed */}
-      {(showName || m.title) && (
+      {(showName || (m.title && m.title.trim().toLowerCase() !== "null" && m.title.trim().toLowerCase() !== "undefined")) && (
         <div className="mb-2 flex items-center gap-2">
           {showName && (
             <div className="flex items-center gap-2">
@@ -801,7 +801,7 @@ export const MessageRow = memo(function MessageRow({
               <span className="text-[13px] font-medium text-foreground">{dot.name}</span>
             </div>
           )}
-          {m.title && (
+          {m.title && m.title.trim().toLowerCase() !== "null" && m.title.trim().toLowerCase() !== "undefined" && (
             <span className="inline-flex items-center gap-1.5 rounded-md bg-highlight px-2 py-0.5 font-mono text-[10px] tracking-wider text-highlight-foreground uppercase font-medium">
               <Sparkles className="size-3" strokeWidth={2} />
               {m.title}

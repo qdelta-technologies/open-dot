@@ -230,10 +230,11 @@ export const TOOLS: ToolDef[] = [
     name: "send_update",
     label: "Messaging you",
     description:
-      "Proactively message the user with a notification — for progress on long work, or to deliver results of background/routine work. Give finished deliverables a short title like 'Your research is ready'.",
-    parameters: obj({ title: nullableStr("Short notification title, or null"), text: str("The message (markdown)") }),
+      "Send a notification alert for async background tasks or finished routine work. NEVER use this tool for normal conversation, greetings, or immediate chat replies (just write text directly into the chat).",
+    parameters: obj({ title: nullableStr("Short notification title (e.g. 'Research Complete'). Leave null if none."), text: str("The message (markdown)") }),
     execute: async (a, ctx) => {
-      const title = (a.title as string | null) || null;
+      const rawTitle = a.title ? String(a.title).trim() : null;
+      const title = !rawTitle || rawTitle.toLowerCase() === "null" || rawTitle.toLowerCase() === "undefined" ? null : rawTitle;
       repo.addMessage({ dotId: ctx.dot.id, role: "dot", text: s(a.text), title });
       emit({ type: "notify", dotId: ctx.dot.id, title: title ?? ctx.dot.name, body: s(a.text).slice(0, 160) });
       return "Delivered to the user.";

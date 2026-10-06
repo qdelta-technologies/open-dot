@@ -179,7 +179,10 @@ export async function openUrl(dotId: string, url: string): Promise<string> {
   await p.goto(target, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await p.waitForTimeout(800);
   await screenshot(dotId);
-  return `Opened ${p.url()} — "${await p.title()}"`;
+  const title = await p.title().catch(() => "");
+  const text = await p.evaluate(() => document.body?.innerText ?? "").catch(() => "");
+  const clipped = text.replace(/\n{3,}/g, "\n\n").slice(0, 8_000);
+  return `Opened ${p.url()} — "${title}"\n\nPage content:\n${clipped || "(No text content)"}`;
 }
 
 export async function readPage(dotId: string): Promise<string> {

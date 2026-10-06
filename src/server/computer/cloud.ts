@@ -178,7 +178,9 @@ export async function openUrl(dotId: string, url: string): Promise<string> {
   const target = /^https?:\/\//.test(url) ? url : `https://${url}`;
   const r = await helper(dotId, `open ${JSON.stringify(target)}`);
   await screenshot(dotId);
-  return `Opened ${r.url ?? target} — "${r.title ?? ""}"`;
+  const textRes = await helper(dotId, "text").catch(() => null);
+  const text = String(textRes?.text ?? "").replace(/\n{3,}/g, "\n\n").slice(0, 8_000);
+  return `Opened ${r.url ?? target} — "${r.title ?? ""}"\n\nPage content:\n${text || "(No text content)"}`;
 }
 
 export async function readPage(dotId: string): Promise<string> {
