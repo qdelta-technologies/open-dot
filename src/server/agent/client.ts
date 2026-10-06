@@ -153,14 +153,12 @@ async function resolve() {
   // Default to fast, verified, free edge model (Llama 3.3 70B FP8)
   if (!mainDefault) {
     if (cf.length) mainDefault = preferredCloudflareModel(cf);
-    else if (open.length) mainDefault = preferredOpenModel(open);
     else if (oa?.main) mainDefault = oa.main;
     else mainDefault = "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
   }
 
   if (!reviewDefault) {
     if (cf.length) reviewDefault = smallCloudflareModel(cf);
-    else if (open.length) reviewDefault = smallOpenModel(open);
     else if (oa?.review) reviewDefault = oa.review;
     else reviewDefault = "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast";
   }
@@ -168,8 +166,8 @@ async function resolve() {
   const resolved = {
     main: mainDefault,
     review: reviewDefault,
-    available: [...(oa?.available ?? []), ...cf, ...open, ...groqIds],
-    meta: { ...cfData.meta, ...openData.meta, ...groqData.meta },
+    available: [...(oa?.available ?? []), ...cf],
+    meta: { ...cfData.meta },
   };
 
 
@@ -215,9 +213,9 @@ export function models(): Promise<{ main: string; review: string; available: str
 /** The model a dot should run on right now. */
 export async function modelFor(dotModel: string | null): Promise<string> {
   const m = await models();
-  if (dotModel) return dotModel;
+  if (dotModel && !dotModel.startsWith("openrouter:")) return dotModel;
   const def = getSetting("default_model");
-  if (def) return def;
+  if (def && !def.startsWith("openrouter:")) return def;
   return m.main;
 }
 

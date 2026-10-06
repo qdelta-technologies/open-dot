@@ -9,7 +9,6 @@ import {
   Code2,
   Cpu,
   Eye,
-  Globe,
   Search,
   Sparkles,
   Zap,
@@ -17,10 +16,8 @@ import {
 import { useStore } from "@/lib/store";
 
 const CF = "cloudflare:";
-const OPEN = "openrouter:";
 
 export type ModelCategory = "all" | "general" | "coding" | "vision" | "fast";
-export type ProviderTab = "cloudflare" | "openrouter";
 
 function parseModelId(id: string): {
   cleanId: string;
@@ -30,8 +27,7 @@ function parseModelId(id: string): {
   desc?: string;
 } {
   const isCf = id.startsWith(CF);
-  const isOpen = id.startsWith(OPEN);
-  const raw = isCf ? id.slice(CF.length) : isOpen ? id.slice(OPEN.length) : id;
+  const raw = isCf ? id.slice(CF.length) : id;
   const lower = raw.toLowerCase();
 
   // Categories & labels for Cloudflare Workers AI and common models
@@ -463,8 +459,8 @@ function parseModelId(id: string): {
     cleanId: raw,
     name: formatted || raw,
     category: "general",
-    badge: isCf ? "Edge" : isOpen ? "OpenRouter" : undefined,
-    desc: isCf ? "Cloudflare Workers AI model" : undefined,
+    badge: "Edge",
+    desc: "Cloudflare Workers AI model",
   };
 }
 
@@ -497,16 +493,8 @@ const CLOUDFLARE_CATALOG = [
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
 ];
 
-const OPENROUTER_DEFAULT_CATALOG = [
-  "openrouter:google/gemma-4-31b-it:free",
-  "openrouter:google/gemma-4-26b-a4b-it:free",
-  "openrouter:cohere/north-mini-code:free",
-  "openrouter:nvidia/nemotron-3.5-lightning:free",
-  "openrouter:openrouter/free",
-];
-
 /**
- * Enhanced Categorized Model Dropdown with responsive Cloudflare & OpenRouter tabs.
+ * Enhanced Categorized Model Dropdown for Cloudflare Workers AI models.
  */
 export default function ModelPicker({
   value,
@@ -526,25 +514,10 @@ export default function ModelPicker({
   const fallback = useStore((s) => s.computer.model);
   const current = value ?? fallback;
 
-  const [providerTab, setProviderTab] = useState<ProviderTab>(() => {
-    if (value?.startsWith(OPEN) || fallback?.startsWith(OPEN)) return "openrouter";
-    return "cloudflare";
-  });
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ModelCategory>("all");
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Sync tab with selected model when dropdown opens
-  useEffect(() => {
-    if (open) {
-      if (current?.startsWith(OPEN)) {
-        setProviderTab("openrouter");
-      } else if (current?.startsWith(CF)) {
-        setProviderTab("cloudflare");
-      }
-    }
-  }, [open, current]);
 
   useEffect(() => {
     if (!open) return;
@@ -562,26 +535,19 @@ export default function ModelPicker({
     };
   }, [open]);
 
-  const combinedList = useMemo(() => {
-    return [
-      ...new Set([
-        ...CLOUDFLARE_CATALOG,
-        ...OPENROUTER_DEFAULT_CATALOG,
-        ...(models || []).filter((m) => !m.startsWith("groq:")),
-      ]),
-    ];
+  const list = useMemo(() => {
+    const cfFromKey = (models || []).filter((m) => m.startsWith(CF));
+    return [...new Set([...CLOUDFLARE_CATALOG, ...cfFromKey])];
   }, [models]);
 
   const parsedList = useMemo(() => {
-    return combinedList.map((id) => {
+    return list.map((id) => {
       const parsed = parseModelId(id);
       const meta = modelMeta?.[id];
       const category = meta?.category || parsed.category;
       const desc = meta?.description || parsed.desc;
       const params = meta?.parameters;
       const ctx = meta?.contextFormatted;
-      const isCf = id.startsWith(CF);
-      const isOpen = id.startsWith(OPEN);
 
       return {
         id,
@@ -591,27 +557,13 @@ export default function ModelPicker({
         desc,
         params,
         ctx,
-        isCf,
-        isOpen,
       };
     });
-  }, [combinedList, modelMeta]);
-
-  const cloudflareList = useMemo(
-    () => parsedList.filter((m) => m.isCf),
-    [parsedList]
-  );
-
-  const openrouterList = useMemo(
-    () => parsedList.filter((m) => m.isOpen),
-    [parsedList]
-  );
-
-  const activeTabList = providerTab === "cloudflare" ? cloudflareList : openrouterList;
+  }, [list, modelMeta]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return activeTabList.filter((m) => {
+    return parsedList.filter((m) => {
       if (activeCategory !== "all" && m.category !== activeCategory) return false;
       if (!q) return true;
       return (
@@ -620,7 +572,7 @@ export default function ModelPicker({
         (m.desc && m.desc.toLowerCase().includes(q))
       );
     });
-  }, [activeTabList, search, activeCategory]);
+  }, [parsedList, search, activeCategory]);
 
   const currentParsed = current ? parseModelId(current) : null;
 
@@ -634,15 +586,9 @@ export default function ModelPicker({
         }`}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Choose model and capability profile"
+        title="Choose Cloudflare model"
       >
-        {current?.startsWith(CF) ? (
-          <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />
-        ) : current?.startsWith(OPEN) ? (
-          <Globe className="size-3.5 text-emerald-500 shrink-0" strokeWidth={1.75} />
-        ) : (
-          <Cpu className="size-3.5 text-brand shrink-0" strokeWidth={1.75} />
-        )}
+        <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />
         {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
         <span className="max-w-[70px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
@@ -669,59 +615,6 @@ export default function ModelPicker({
               placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
             }`}
           >
-            {/* Provider Tabs: Cloudflare vs OpenRouter */}
-            <div className="grid grid-cols-2 p-1.5 bg-black/[0.03] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/[0.08] gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setProviderTab("cloudflare");
-                  setActiveCategory("all");
-                }}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[12.5px] transition-all font-medium ${
-                  providerTab === "cloudflare"
-                    ? "bg-card dark:bg-[#252525] text-foreground shadow-xs font-semibold border border-black/10 dark:border-white/10"
-                    : "text-foreground/60 hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-                }`}
-              >
-                <Cloud className={`size-4 ${providerTab === "cloudflare" ? "text-amber-500" : "text-foreground/45"}`} />
-                <span>Cloudflare AI</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    providerTab === "cloudflare"
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold"
-                      : "bg-black/5 dark:bg-white/5 text-foreground/50"
-                  }`}
-                >
-                  {cloudflareList.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setProviderTab("openrouter");
-                  setActiveCategory("all");
-                }}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[12.5px] transition-all font-medium ${
-                  providerTab === "openrouter"
-                    ? "bg-card dark:bg-[#252525] text-foreground shadow-xs font-semibold border border-black/10 dark:border-white/10"
-                    : "text-foreground/60 hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-                }`}
-              >
-                <Globe className={`size-4 ${providerTab === "openrouter" ? "text-emerald-500" : "text-foreground/45"}`} />
-                <span>OpenRouter</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    providerTab === "openrouter"
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold"
-                      : "bg-black/5 dark:bg-white/5 text-foreground/50"
-                  }`}
-                >
-                  {openrouterList.length}
-                </span>
-              </button>
-            </div>
-
             {/* Header: Search & Category Filter Pills */}
             <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2.5 bg-popover/60 dark:bg-[#252525]">
               <div className="relative">
@@ -729,7 +622,7 @@ export default function ModelPicker({
                 <input
                   autoFocus
                   type="text"
-                  placeholder={`Search ${providerTab === "cloudflare" ? "Cloudflare" : "OpenRouter"} models (e.g. 70B, coder)…`}
+                  placeholder="Search Cloudflare models (e.g. 70B, coder, vision)…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="field h-8 bg-card dark:bg-[#1a1a1a] pl-8 pr-3 text-[12px]"
@@ -784,7 +677,7 @@ export default function ModelPicker({
                       </span>
                     </div>
                     <p className="mt-0.5 text-caption text-foreground/50">
-                      Uses system default ({fallback ? parseModelId(fallback).name : "Cloudflare Edge"})
+                      Uses system default ({fallback ? parseModelId(fallback).name : "Llama 3.3 70B Fast"})
                     </p>
                   </div>
                   {value === null && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
@@ -833,8 +726,7 @@ export default function ModelPicker({
                       </div>
                       {m.desc && <p className="mt-0.5 text-caption text-foreground/50 line-clamp-1">{m.desc}</p>}
                       <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-foreground/40">
-                        {m.isCf && <span className="text-amber-600 dark:text-amber-400">⚡ Cloudflare</span>}
-                        {m.isOpen && <span className="text-emerald-600 dark:text-emerald-400">🌐 OpenRouter</span>}
+                        <span className="text-amber-600 dark:text-amber-400">⚡ Cloudflare Workers AI</span>
                         {m.ctx && <span>· {m.ctx}</span>}
                       </div>
                     </div>
@@ -845,7 +737,7 @@ export default function ModelPicker({
 
               {!filtered.length && (
                 <div className="py-8 text-center text-caption text-foreground/45">
-                  No {providerTab === "cloudflare" ? "Cloudflare" : "OpenRouter"} models match “{search}”.
+                  No Cloudflare models match “{search}”.
                 </div>
               )}
             </div>

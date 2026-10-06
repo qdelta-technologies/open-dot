@@ -163,9 +163,8 @@ export default function SettingsView() {
 
         <AccessSecuritySection />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models come from your Cloudflare AI Worker, OpenRouter, or OpenAI.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (0 cost, fast edge inference) or OpenAI.">
           <CloudflareWorkerKey />
-          <OpenModelsKey />
           <ApiKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
