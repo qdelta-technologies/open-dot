@@ -568,7 +568,27 @@ async function processCalls(dot: Dot, pending: Pending, signal: AbortSignal): Pr
         });
       }
     }
-    pending.outputs.push({ type: "function_call_output", call_id: call.call_id, output: await execTool(dot, call, signal) });
+
+    // Anti-loop breaker: prevent model from executing the exact same tool call 3+ times in a row
+    const callSignature = `${call.name}:${call.arguments}`;
+    const recentOutputs = pending.outputs.slice(-2);
+    const isLooping =
+      recentOutputs.length >= 2 &&
+      recentOutputs.every((o) => o.type === "function_call_output" && (o as any).signature === callSignature);
+
+    if (isLooping) {
+      pending.outputs.push({
+        type: "function_call_output",
+        call_id: call.call_id,
+        output: "Loop breaker: You have executed this exact tool with identical arguments 2 times consecutively. Stop repeating this action. Try a different strategy, inspect previous results, or report your findings to the user.",
+      });
+      continue;
+    }
+
+    const toolResult = await execTool(dot, call, signal);
+    const outputItem = { type: "function_call_output" as const, call_id: call.call_id, output: toolResult };
+    (outputItem as any).signature = callSignature;
+    pending.outputs.push(outputItem);
   }
   savePending(dot.id, pending);
   return false;
@@ -587,7 +607,17 @@ async function execTool(dot: Dot, call: ResponseFunctionToolCall, signal: AbortS
   repo.setActivity(dot.id, def.label);
   activity(dot.id, def.label, summarize(args));
   try {
-    return await def.execute!(args, { dot, signal, depth: 0 });
+    // 35-second timeout guard: ensures network/browser tools never freeze automations indefinitely
+    let timeoutId: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`Tool ${def.name} timed out after 35s`)), 35_000);
+      signal.addEventListener("abort", () => clearTimeout(timeoutId), { once: true });
+    });
+
+    const executionPromise = def.execute!(args, { dot, signal, depth: 0 });
+    const result = await Promise.race([executionPromise, timeoutPromise]);
+    if (timeoutId) clearTimeout(timeoutId);
+    return result;
   } catch (err) {
     if (signal.aborted) throw err;
     return `Error: ${err instanceof Error ? err.message : String(err)}`;
