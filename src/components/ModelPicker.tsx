@@ -2,16 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Brain,
   Check,
   ChevronDown,
   Cloud,
-  Code2,
-  Cpu,
-  Eye,
   Search,
   Sparkles,
-  Zap,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 
