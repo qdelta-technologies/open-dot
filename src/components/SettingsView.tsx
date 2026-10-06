@@ -2,7 +2,23 @@
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Eye, EyeOff, KeyRound, Laptop, Lock, LogOut, Moon, Plus, RefreshCw, ShieldCheck, Sun } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  Download,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Laptop,
+  Lock,
+  LogOut,
+  Moon,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+  Sun,
+} from "lucide-react";
 import {
   checkAuthStatus,
   connectApp,
@@ -141,6 +157,8 @@ export default function SettingsView() {
         </Section>
 
         <AppearanceSection />
+
+        <InstallAppSection />
 
         <AccessSecuritySection />
 
@@ -852,6 +870,137 @@ function AccessSecuritySection() {
     </Section>
   );
 }
+
+function InstallAppSection() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if running as installed standalone app
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      Boolean((navigator as unknown as { standalone?: boolean }).standalone);
+    setIsStandalone(standalone);
+
+    // Detect iOS
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    setIsIOS(ios);
+
+    // Listen for install prompt on Android / Chrome / Edge
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setInstalled(true);
+      setDeferredPrompt(null);
+    }
+  };
+
+  return (
+    <Section
+      eyebrow="Mobile & Desktop App"
+      title="Install Open Dot"
+      description="Run Open Dot as a fast, full-screen standalone app on your phone, tablet, or desktop with no browser address bar."
+    >
+      <div className="surface p-4">
+        {isStandalone || installed ? (
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-success/30 bg-success/10 text-success">
+              <CheckCircle2 className="size-4.5" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] font-medium">Installed & Running Standalone</span>
+                <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">
+                  Active
+                </span>
+              </div>
+              <p className="mt-0.5 text-caption text-foreground/50">
+                Open Dot is running in native app mode on this device. Updates will load automatically.
+              </p>
+            </div>
+          </div>
+        ) : deferredPrompt ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-brand/30 bg-brand/10 text-brand">
+              <Download className="size-4.5" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-medium">Ready to install</div>
+              <p className="mt-0.5 text-caption text-foreground/50">
+                Install Open Dot to your home screen or desktop with one click for a native-like experience.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              className="btn-primary flex shrink-0 items-center gap-2 h-9 px-4 text-[13px]"
+            >
+              <Download className="size-3.5" strokeWidth={2} />
+              <span>Install App</span>
+            </button>
+          </div>
+        ) : isIOS ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-black/10 bg-popover text-foreground/70 dark:border-white/10">
+                <Smartphone className="size-4.5" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-medium">Add to iPhone / iPad Home Screen</div>
+                <p className="mt-0.5 text-caption text-foreground/50">
+                  Safari lets you install Open Dot without downloading from the App Store.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-md border border-black/[0.06] bg-popover/50 p-3.5 text-body-sm dark:border-white/[0.06]">
+              <ol className="list-decimal space-y-1.5 pl-4 text-foreground/75 text-[13px]">
+                <li>Tap the <strong className="text-foreground">Share</strong> icon in the Safari toolbar (at the bottom or top).</li>
+                <li>Scroll down and tap <strong className="text-foreground">&quot;Add to Home Screen&quot;</strong>.</li>
+                <li>Tap <strong className="text-foreground">Add</strong> in the top-right corner to launch Open Dot like any native app.</li>
+              </ol>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-black/10 bg-popover text-foreground/70 dark:border-white/10">
+              <Smartphone className="size-4.5" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-medium">Install from Browser Menu</div>
+              <p className="mt-0.5 text-caption text-foreground/50">
+                In Chrome, Edge, or Android: open the browser menu (⋮) and tap <strong className="text-foreground">&quot;Install Open Dot&quot;</strong> or <strong className="text-foreground">&quot;Add to Home screen&quot;</strong>.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 
 
 

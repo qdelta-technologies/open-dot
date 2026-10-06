@@ -12,8 +12,14 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = sessionCookie === expectedToken;
 
-  // If visiting /login, auth API, or Composio OAuth callback
-  if (pathname === "/login" || pathname.startsWith("/api/auth") || pathname === "/api/composio/oauth") {
+  // If visiting /login, auth API, Composio OAuth callback, or PWA assets
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/api/auth") ||
+    pathname === "/api/composio/oauth" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js"
+  ) {
     if (pathname === "/login" && isAuthenticated) {
       return NextResponse.redirect(new URL("/", request.url));
     }
@@ -37,6 +43,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ico|webmanifest)$).*)",
   ],
 };
