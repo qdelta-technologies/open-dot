@@ -464,13 +464,6 @@ function parseModelId(id: string): {
   };
 }
 
-const CATEGORIES: { id: ModelCategory; label: string; icon: typeof Brain }[] = [
-  { id: "all", label: "✨ All", icon: Sparkles },
-  { id: "general", label: "🧠 General", icon: Brain },
-  { id: "coding", label: "💻 Coding", icon: Code2 },
-  { id: "vision", label: "👁️ Vision", icon: Eye },
-  { id: "fast", label: "⚡ Fast", icon: Zap },
-];
 
 const CLOUDFLARE_CATALOG = [
   // ── Flagship Reasoning & Multimodal Agent ──
@@ -514,7 +507,6 @@ export default function ModelPicker({
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<ModelCategory>("all");
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -561,16 +553,15 @@ export default function ModelPicker({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    if (!q) return parsedList;
     return parsedList.filter((m) => {
-      if (activeCategory !== "all" && m.category !== activeCategory) return false;
-      if (!q) return true;
       return (
         m.name.toLowerCase().includes(q) ||
         m.id.toLowerCase().includes(q) ||
         (m.desc && m.desc.toLowerCase().includes(q))
       );
     });
-  }, [parsedList, search, activeCategory]);
+  }, [parsedList, search]);
 
   const currentParsed = current ? parseModelId(current) : null;
 
@@ -613,47 +604,24 @@ export default function ModelPicker({
               placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
             }`}
           >
-            {/* Header: Search & Category Filter Pills */}
-            <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2.5 bg-popover/60 dark:bg-[#252525]">
+            {/* Header: Search */}
+            <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2 bg-popover/60 dark:bg-[#252525]">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-foreground/40" />
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Search Cloudflare models (e.g. 70B, coder, vision)…"
+                  placeholder="Search models (e.g. coder, vision, fast)…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="field h-8 bg-card dark:bg-[#1a1a1a] pl-8 pr-3 text-[12px]"
                 />
               </div>
-
-              {/* Category Pills */}
-              <div className="mt-2 flex flex-wrap gap-1">
-                {CATEGORIES.map((cat) => {
-                  const Icon = cat.icon;
-                  const active = activeCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setActiveCategory(cat.id)}
-                      className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                        active
-                          ? "bg-foreground text-card"
-                          : "bg-black/[0.04] dark:bg-white/[0.06] text-foreground/65 hover:text-foreground hover:bg-black/[0.08] dark:hover:bg-white/[0.1]"
-                      }`}
-                    >
-                      <Icon className="size-3" />
-                      {cat.label}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             {/* Model Options List */}
             <div className="flex-1 overflow-y-auto p-1.5 space-y-1 divide-y divide-black/[0.03] dark:divide-white/[0.03]">
-              {allowDefault && !search && activeCategory === "all" && (
+              {allowDefault && !search && (
                 <button
                   type="button"
                   role="option"
@@ -675,7 +643,7 @@ export default function ModelPicker({
                       </span>
                     </div>
                     <p className="mt-0.5 text-caption text-foreground/50">
-                      Uses system default ({fallback ? parseModelId(fallback).name : "Llama 3.3 70B Fast"})
+                      Uses system default ({fallback ? parseModelId(fallback).name : "Meta Llama 4 Scout 17B"})
                     </p>
                   </div>
                   {value === null && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
