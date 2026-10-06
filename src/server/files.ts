@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { db, DATA_DIR, id } from "./db";
 import * as computer from "./computer";
+import { apps as composioApps, signedIn as composioSignedIn } from "./composio";
 import type { Attachment } from "@/lib/types";
 
 // Files that move between the user and a dot. The canonical copy lives in .data/files/<id>
@@ -65,3 +66,127 @@ export function get(fileId: string): (Attachment & { dotId: string; boxPath: str
 export function boxPathOf(fileId: string): string | null {
   return get(fileId)?.boxPath ?? null;
 }
+
+export type StoredFile = {
+  id: string;
+  dotId: string;
+  dotName?: string;
+  name: string;
+  mime: string;
+  size: number;
+  source: string;
+  boxPath: string | null;
+  createdAt: number;
+};
+
+/** List all files stored in the system, with associated dot name. */
+export function listFiles(): StoredFile[] {
+  try {
+    const rows = db()
+      .prepare(
+        `SELECT f.*, d.name as dot_name 
+         FROM files f 
+         LEFT JOIN dots d ON f.dot_id = d.id 
+         ORDER BY f.created_at DESC`
+      )
+      .all() as (Row & { dot_name?: string })[];
+    return rows.map((r) => ({
+      id: r.id,
+      dotId: r.dot_id,
+      dotName: r.dot_name,
+      name: r.name,
+      mime: r.mime,
+      size: r.size,
+      source: r.source,
+      boxPath: r.box_path,
+      createdAt: r.created_at,
+    }));
+  } catch (err) {
+    console.warn("[files] Failed to list files:", err);
+    return [];
+  }
+}
+
+/** Permanently delete a file from disk and database to reclaim storage space. */
+export async function deleteFile(fileId: string): Promise<boolean> {
+  const f = get(fileId);
+  if (!f) return false;
+
+  // 1. Delete canonical file from .data/files/<fileId>
+  try {
+    const filePath = path.join(DIR, fileId);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (err) {
+    console.warn(`[files] Failed to remove canonical file ${fileId}:`, err);
+  }
+
+  // 2. Delete copy from dot's workspace uploads folder
+  if (f.dotId && f.name) {
+    try {
+      await computer.runCommand(f.dotId, `rm -f "uploads/${f.name}"`).catch(() => null);
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Remove record from database
+  try {
+    db().prepare("DELETE FROM files WHERE id = ?").run(fileId);
+  } catch (err) {
+    console.warn(`[files] Failed to delete database record for ${fileId}:`, err);
+  }
+
+  return true;
+}
+
+/** Delete all files in the system to recover maximum Railway container storage. */
+export async function deleteAllFiles(): Promise<{ count: number; freedBytes: number }> {
+  const all = listFiles();
+  let totalBytes = 0;
+  for (const f of all) {
+    totalBytes += f.size;
+    await deleteFile(f.id);
+  }
+  return { count: all.length, freedBytes: totalBytes };
+}
+
+/** Get disk usage summary vs Railway 500 MB limit. */
+export function getStorageStats(): {
+  totalFiles: number;
+  totalBytes: number;
+  railwayLimitBytes: number;
+  percentUsed: number;
+} {
+  try {
+    const r = db()
+      .prepare("SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM files")
+      .get() as { count: number; total_size: number } | undefined;
+    const totalFiles = r?.count ?? 0;
+    const totalBytes = Number(r?.total_size ?? 0);
+    const railwayLimitBytes = 500 * 1024 * 1024; // 500 MB container disk limit
+    const percentUsed = Math.min(100, Math.round((totalBytes / railwayLimitBytes) * 100));
+    return { totalFiles, totalBytes, railwayLimitBytes, percentUsed };
+  } catch {
+    return { totalFiles: 0, totalBytes: 0, railwayLimitBytes: 500 * 1024 * 1024, percentUsed: 0 };
+  }
+}
+
+/** Check if user has connected Google Drive via Composio. */
+export function isGoogleDriveConnected(): boolean {
+  if (!composioSignedIn()) return false;
+  try {
+    const list = composioApps();
+    return list.some(
+      (a) =>
+        (a.slug.toLowerCase().includes("googledrive") ||
+          a.slug.toLowerCase().includes("google_drive") ||
+          a.name.toLowerCase().includes("drive")) &&
+        a.connected
+    );
+  } catch {
+    return false;
+  }
+}
+

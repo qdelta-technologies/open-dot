@@ -13,6 +13,7 @@ import { groqKey, saveGroqKey } from "@/server/agent/groq";
 import { cloudflareWorkerToken, cloudflareWorkerUrl, saveCloudflareConfig } from "@/server/agent/cloudflare";
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
+import * as files from "@/server/files";
 import * as voice from "@/server/voice";
 import { autoTitle } from "@/server/titles";
 import { cookies, headers } from "next/headers";
@@ -490,4 +491,28 @@ export async function lockApp(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(AUTH_COOKIE_NAME);
 }
+
+// ---------------------------------------------------------------- Files & Storage
+
+export async function getStorageInfo(): Promise<{
+  stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number };
+  googleDriveConnected: boolean;
+  files: files.StoredFile[];
+}> {
+  return {
+    stats: files.getStorageStats(),
+    googleDriveConnected: files.isGoogleDriveConnected(),
+    files: files.listFiles(),
+  };
+}
+
+export async function deleteUploadedFile(fileId: string): Promise<boolean> {
+  const ok = await files.deleteFile(fileId);
+  return ok;
+}
+
+export async function deleteAllUploadedFiles(): Promise<{ count: number; freedBytes: number }> {
+  return await files.deleteAllFiles();
+}
+
 

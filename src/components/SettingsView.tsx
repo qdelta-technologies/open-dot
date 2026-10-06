@@ -45,6 +45,7 @@ import { openAfter } from "@/lib/popup";
 import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./SettingsKit";
 import ModelPicker from "./ModelPicker";
 import { TriggersKey } from "./Triggers";
+import StorageManager from "./StorageManager";
 
 const noop = () => () => {};
 const notificationPermission = () => ("Notification" in window ? Notification.permission : "unsupported");
@@ -134,6 +135,15 @@ export default function SettingsView() {
           description="Let a dot act when something happens, like a new email or a GitHub issue. Triggers run through a Composio developer project, so they need its API key. Then add them from a dot's Setup page."
         >
           <TriggersKey />
+        </Section>
+
+        <Section
+          id="storage"
+          eyebrow="Storage & Files"
+          title="Cloud & Local Storage"
+          description="Manage files saved by your dots. Railway starter tier includes 500 MB container disk. Connect Google Drive via Composio for 15 GB free cloud storage without consuming Railway disk space."
+        >
+          <StorageManager />
         </Section>
 
         <Section eyebrow="Notifications" title="Desktop notifications" description={'Get notified when a dot finishes something or needs you, like "Your research is ready".'}>

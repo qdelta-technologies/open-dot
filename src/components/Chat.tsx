@@ -54,6 +54,7 @@ import { startCall } from "@/lib/voiceCall";
 import Dot3DLazy from "./Dot3DLazy";
 import DotOrb from "./DotOrb";
 import { ThinkingOrb, type OrbState } from "thinking-orbs";
+import { compressImageIfLarge } from "@/lib/imageCompression";
 import type { Attachment, Dot, Message } from "@/lib/types";
 
 function getOrbState(activity: string | null | undefined): OrbState {
@@ -262,7 +263,10 @@ type Upload = { key: string; name: string; state: "uploading" | "done" | "error"
 
 async function uploadFiles(dotId: string, list: File[]): Promise<{ files?: Attachment[]; error?: string }> {
   const form = new FormData();
-  for (const f of list) form.append("file", f);
+  for (const rawFile of list) {
+    const optimized = await compressImageIfLarge(rawFile).catch(() => rawFile);
+    form.append("file", optimized);
+  }
   const r = await fetch(`/api/dots/${dotId}/files`, { method: "POST", body: form });
   return r.json();
 }
