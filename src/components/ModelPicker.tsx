@@ -632,9 +632,6 @@ export default function ModelPicker({
                   <div className="flex items-center gap-2 min-w-0">
                     <Sparkles className="size-3.5 text-brand shrink-0" />
                     <span className="text-[13px] font-medium text-foreground">Default Model</span>
-                    <span className="rounded-xs bg-brand/10 dark:bg-brand/20 px-1.5 py-0.5 font-mono text-[9px] text-brand uppercase font-medium">
-                      Auto
-                    </span>
                     <span className="font-mono text-[10px] text-foreground/45 truncate">
                       ({fallback ? parseModelId(fallback).name : "Meta Llama 4 Scout 17B"})
                     </span>
