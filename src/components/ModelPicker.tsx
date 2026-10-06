@@ -625,21 +625,19 @@ export default function ModelPicker({
                     onChange(null);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors ${
+                  className={`flex w-full items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
                     value === null ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                   }`}
                 >
-                  <Sparkles className="size-4 text-brand mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-foreground">Default Model</span>
-                      <span className="rounded-xs bg-brand/10 dark:bg-brand/20 px-1.5 py-0.5 font-mono text-[9px] text-brand uppercase font-medium">
-                        Auto
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-caption text-foreground/50">
-                      Uses system default ({fallback ? parseModelId(fallback).name : "Meta Llama 4 Scout 17B"})
-                    </p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Sparkles className="size-3.5 text-brand shrink-0" />
+                    <span className="text-[13px] font-medium text-foreground">Default Model</span>
+                    <span className="rounded-xs bg-brand/10 dark:bg-brand/20 px-1.5 py-0.5 font-mono text-[9px] text-brand uppercase font-medium">
+                      Auto
+                    </span>
+                    <span className="font-mono text-[10px] text-foreground/45 truncate">
+                      ({fallback ? parseModelId(fallback).name : "Meta Llama 4 Scout 17B"})
+                    </span>
                   </div>
                   {value === null && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
                 </button>
@@ -657,41 +655,39 @@ export default function ModelPicker({
                       onChange(m.id);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors ${
+                    className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
                       selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
-                        {m.badge && (
-                          <span
-                            className={`rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
-                              m.category === "coding"
-                                ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                                : m.category === "vision"
-                                ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                                : m.category === "fast"
-                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                            }`}
-                          >
-                            {m.badge}
-                          </span>
-                        )}
-                        {m.params && (
-                          <span className="font-mono text-[10px] text-foreground/45">
-                            {m.params}
-                          </span>
-                        )}
-                      </div>
-                      {m.desc && <p className="mt-0.5 text-caption text-foreground/50 line-clamp-1">{m.desc}</p>}
-                      <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-foreground/40">
-                        <span className="text-amber-600 dark:text-amber-400">⚡ Cloudflare Workers AI</span>
-                        {m.ctx && <span>· {m.ctx}</span>}
-                      </div>
+                    <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                      <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
+                      {m.badge && (
+                        <span
+                          className={`rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
+                            m.category === "coding"
+                              ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                              : m.category === "vision"
+                              ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                              : m.category === "fast"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          }`}
+                        >
+                          {m.badge}
+                        </span>
+                      )}
+                      {m.params && (
+                        <span className="font-mono text-[10px] text-foreground/45">
+                          {m.params}
+                        </span>
+                      )}
+                      {m.ctx && (
+                        <span className="font-mono text-[10px] text-foreground/40">
+                          · {m.ctx}
+                        </span>
+                      )}
                     </div>
-                    {selected && <Check className="size-4 shrink-0 text-foreground mt-0.5" strokeWidth={2} />}
+                    {selected && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
                   </button>
                 );
               })}
