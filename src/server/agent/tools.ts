@@ -61,16 +61,27 @@ export const TOOLS: ToolDef[] = [
   {
     name: "read_file",
     label: "Reading a file",
-    description: "Read a text file from your workspace.",
+    description: "Read a text file or PDF document from your workspace.",
     parameters: obj({ path: str("Path relative to your workspace") }),
     execute: async (a, ctx) => {
       const filePath = s(a.path);
       const lower = filePath.toLowerCase();
-      if (lower.endsWith(".pdf") || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz") || lower.endsWith(".exe") || lower.endsWith(".bin")) {
-        return `[Binary file (${filePath}): read_file only supports plain text files (e.g. .txt, .md, .csv, .json, .js, .ts, .py, .html, .log). For PDFs or binary documents, use pdftotext or python in run_command to extract text first.]`;
+      if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif") || lower.endsWith(".webp") || lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz") || lower.endsWith(".exe") || lower.endsWith(".bin")) {
+        return `[Binary file (${filePath}): read_file only supports text files and PDFs (e.g. .pdf, .txt, .md, .csv, .json, .js, .ts, .py, .html, .log).]`;
       }
       const buf = await computer.readFile(ctx.dot.id, filePath).catch(() => null);
       if (!buf) return `No such file: ${filePath}`;
+      if (lower.endsWith(".pdf")) {
+        try {
+          const { extractText } = await import("unpdf");
+          const res = await extractText(new Uint8Array(buf), { mergePages: true });
+          const text = typeof res?.text === "string" ? res.text.trim() : "";
+          if (!text) return `[PDF file (${filePath}) contains no extractable text (it may be a scanned image).]`;
+          return text.length > 12_000 ? text.slice(0, 12_000) + `\n\n...[truncated: showing first 12,000 characters of ${text.length}]` : text;
+        } catch (err) {
+          return `Failed to extract text from PDF ${filePath}: ${err}`;
+        }
+      }
       const text = buf.toString("utf8");
       return text.length > 12_000 ? text.slice(0, 12_000) + `\n\n...[truncated: showing first 12,000 characters of ${text.length}]` : text;
     },

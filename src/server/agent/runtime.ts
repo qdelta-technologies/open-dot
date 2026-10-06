@@ -14,6 +14,7 @@ import { emit } from "../bus";
 import * as composio from "../composio";
 import type { AppTrigger, Attachment, CardData, Dot, Routine } from "@/lib/types";
 import * as files from "../files";
+import { extractText } from "unpdf";
 
 type Call = ResponseFunctionToolCall | ResponseComputerToolCall;
 type Pending = {
@@ -267,7 +268,7 @@ async function turn(dotId: string, text: string, trigger: Trigger, signal: Abort
   }
   const { stateless } = clientFor(await modelFor(dot.model));
   if (!fresh && (stateless ? !repo.getHistory(dotId).length : !thread)) input.unshift(...rebuildContext(dotId, text));
-  input.push(userInput(text, attachments, stateless));
+  input.push(await userInput(text, attachments, stateless));
   await drive(dot, thread, input, trigger, signal, conversationId);
 }
 
@@ -625,24 +626,61 @@ setConsult(async (target, message, from, _depth, signal) => {
 
 // ---------------------------------------------------------------- helpers
 
-/** A user turn with its attachments: images go as vision input; PDFs/files stay in workspace (preventing token blowup on stateless edge models). */
-function userInput(text: string, attachments: Attachment[], stateless = false): ResponseInputItem {
+/** A user turn with its attachments: images go as vision input; PDFs/text files get their text extracted and injected directly; all files remain saved in the workspace. */
+async function userInput(text: string, attachments: Attachment[], stateless = false): Promise<ResponseInputItem> {
   if (!attachments.length) return { role: "user", content: text };
   const note = `\n\n[Attached: ${attachments.map((a) => `${a.name} (saved in your workspace at ${files.boxPathOf(a.id) ?? `uploads/${a.name}`})`).join("; ")}]`;
-  const parts: ResponseInputContent[] = [{ type: "input_text", text: (text || "See the attached files.") + note }];
+  let combinedPrompt = (text || "See the attached files.") + note;
+  const parts: ResponseInputContent[] = [];
+
   for (const a of attachments) {
     const f = files.get(a.id);
     if (!f || f.size > 15 * 1024 * 1024) continue;
+
     // Images: send as visual input if under 4MB
     if (/^image\/(png|jpeg|gif|webp)$/.test(f.mime) && f.size < 4 * 1024 * 1024) {
       const b64 = f.data().toString("base64");
       parts.push({ type: "input_image", image_url: `data:${f.mime};base64,${b64}`, detail: "auto" });
-    } else if (!stateless && f.mime === "application/pdf") {
-      // Native PDF document parsing only for OpenAI models that support input_file
-      const b64 = f.data().toString("base64");
-      parts.push({ type: "input_file", filename: f.name, file_data: `data:application/pdf;base64,${b64}` });
+      continue;
+    }
+
+    // PDF documents: extract clean text directly so all models (Llama, GPT, Claude) can read them without token explosion
+    const isPdf = f.mime === "application/pdf" || a.name.toLowerCase().endsWith(".pdf");
+    if (isPdf) {
+      try {
+        const res = await extractText(new Uint8Array(f.data()), { mergePages: true });
+        const docText = typeof res?.text === "string" ? res.text.trim() : "";
+        if (docText) {
+          const preview = docText.length > 8000
+            ? docText.slice(0, 8000) + `\n\n...[truncated: showing first 8,000 characters of ${docText.length}. Use read_file to read more]`
+            : docText;
+          combinedPrompt += `\n\n--- Content of attached PDF "${a.name}" ---\n${preview}\n--- End of PDF ---`;
+        }
+      } catch (err) {
+        console.warn(`[agent] Failed to extract text from PDF attachment ${a.name}:`, err);
+      }
+      continue;
+    }
+
+    // Text / Code / Data files: extract text content up to 8,000 characters
+    const isTextLike = /^text\//.test(f.mime) ||
+      f.mime === "application/json" ||
+      /\.(txt|md|csv|json|py|js|ts|tsx|jsx|html|css|yaml|yml|xml|log|sh)$/i.test(a.name);
+    if (isTextLike) {
+      try {
+        const str = f.data().toString("utf8");
+        const preview = str.length > 8000
+          ? str.slice(0, 8000) + `\n\n...[truncated: showing first 8,000 characters of ${str.length}. Use read_file to read more]`
+          : str;
+        combinedPrompt += `\n\n--- Content of attached file "${a.name}" ---\n${preview}\n--- End of file ---`;
+      } catch (err) {
+        console.warn(`[agent] Failed to extract text from file attachment ${a.name}:`, err);
+      }
     }
   }
+
+  // Prepend text part before image parts
+  parts.unshift({ type: "input_text", text: combinedPrompt });
   return { role: "user", content: parts };
 }
 

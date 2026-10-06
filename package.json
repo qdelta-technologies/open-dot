@@ -32,6 +32,7 @@
     "server-only": "^0.0.1",
     "thinking-orbs": "^0.3.2",
     "three": "^0.186.1",
+    "unpdf": "^1.8.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
