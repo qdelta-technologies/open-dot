@@ -5,8 +5,7 @@ import { useSyncExternalStore } from "react";
 import { Mic, MicOff, PhoneOff, X } from "lucide-react";
 import { endCall, getCall, setMuted, subscribeCall } from "@/lib/voiceCall";
 import { useStore } from "@/lib/store";
-import Dot3DLazy from "./Dot3DLazy";
-import type { DotStatus } from "@/lib/types";
+import { ThinkingOrb, type OrbState } from "thinking-orbs";
 
 const LABEL = { connecting: "Calling…", listening: "Listening", speaking: "Speaking", ended: "Call ended", error: "Call failed" } as const;
 
@@ -16,15 +15,25 @@ export default function VoicePanel() {
   const dot = useStore((s) => (call ? s.dots.find((d) => d.id === call.dotId) : undefined));
   if (!call || !dot) return null;
 
-  // Map the call state onto the character's poses.
-  const pose: DotStatus = call.status === "speaking" ? "working" : call.status === "connecting" ? "waiting" : "idle";
+  // Derive Orb state based on active call phase
+  const orbState: OrbState =
+    call.status === "listening"
+      ? "listening"
+      : call.status === "speaking"
+      ? "composing"
+      : call.status === "connecting"
+      ? "connecting"
+      : "breathing";
+
   // The conversation itself is saved into the chat; the panel only shows hand-offs and problems.
   const lines = call.lines.filter((l) => l.who === "note").slice(-3);
 
   return (
     <div className="surface fixed right-3 bottom-3 left-3 z-50 overflow-hidden shadow-elevated sm:right-5 sm:bottom-5 sm:left-auto sm:w-[340px]">
       <div className="dot-grid flex items-center gap-3 border-b border-black/[0.06] bg-popover px-4 py-3">
-        <Dot3DLazy look={dot.look} status={pose} size={64} />
+        <div className="flex size-16 items-center justify-center shrink-0">
+          <ThinkingOrb state={orbState} size={64} />
+        </div>
         <div className="min-w-0 flex-1">
           <Link href={`/dots/${dot.id}?c=${call.conversationId}`} className="block truncate text-[15px] font-medium">
             {dot.name}

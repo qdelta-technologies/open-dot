@@ -53,7 +53,20 @@ import { mergeMessages, useStore } from "@/lib/store";
 import { startCall } from "@/lib/voiceCall";
 import Dot3DLazy from "./Dot3DLazy";
 import DotOrb from "./DotOrb";
+import { ThinkingOrb, type OrbState } from "thinking-orbs";
 import type { Attachment, Dot, Message } from "@/lib/types";
+
+function getOrbState(activity: string | null | undefined): OrbState {
+  if (!activity) return "solving";
+  const a = activity.toLowerCase();
+  if (a.includes("search") || a.includes("browse") || a.includes("google") || a.includes("find") || a.includes("web")) return "searching";
+  if (a.includes("connect") || a.includes("tool") || a.includes("app") || a.includes("integrat") || a.includes("api")) return "connecting";
+  if (a.includes("run") || a.includes("command") || a.includes("execut") || a.includes("terminal") || a.includes("bash")) return "working";
+  if (a.includes("read") || a.includes("analyz") || a.includes("inspect") || a.includes("fetch") || a.includes("scan")) return "weaving";
+  if (a.includes("writ") || a.includes("compos") || a.includes("draft") || a.includes("code") || a.includes("generat")) return "composing";
+  if (a.includes("think") || a.includes("reason") || a.includes("solv") || a.includes("plann")) return "solving";
+  return "working";
+}
 
 const SUGGESTIONS = [
   { label: "Research", text: "Research the best noise-cancelling headphones under $300 and give me a shortlist with sources" },
@@ -167,7 +180,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
             {workingHere && (
               <div className="flex items-center gap-2.5 py-3 pl-1 text-foreground/75">
-                <DotOrb look={dot.look} status="working" size={22} />
+                <ThinkingOrb state={getOrbState(dot.activity)} size={20} />
                 <span className="shimmer-text text-[14px] font-medium">{dot.activity ?? "Thinking"}…</span>
               </div>
             )}
@@ -424,7 +437,7 @@ function Composer({
         {isListening && (
           <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-red-500/10 dark:bg-red-500/15 px-3 py-1.5 text-[12px] font-medium text-red-500 dark:text-red-400">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-red-500 animate-ping" />
+              <ThinkingOrb state="listening" size={20} />
               <span>Listening to your voice... speak now (click Stop when done)</span>
             </div>
             <button

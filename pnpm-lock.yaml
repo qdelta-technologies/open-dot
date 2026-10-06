@@ -211,6 +211,9 @@ importers:
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
+      thinking-orbs:
+        specifier: ^0.3.2
+        version: 0.3.2(react@19.2.8)
       three:
         specifier: ^0.186.1
         version: 0.186.1
@@ -3591,6 +3594,11 @@ packages:
   temp@0.9.4:
     resolution: {integrity: sha512-yYrrsWnrXMcdsnu/7YMYAofM1ktpL5By7vZhf15CrXijWWrEYZks5AXBudalfSWJLlnen/QUJUB5aoB0kqZUGA==}
     engines: {node: '>=6.0.0'}
+
+  thinking-orbs@0.3.2:
+    resolution: {integrity: sha512-QZFeBaPEzqhjiZoXy961EvDgaXk2WgXacF3Rbz+Sj5IfzDzBvTC86vdREUHniBffYibJFKSwbfllxLUdI/Xv6g==}
+    peerDependencies:
+      react: '>=18.0.0'
 
   three-mesh-bvh@0.8.3:
     resolution: {integrity: sha512-4G5lBaF+g2auKX3P0yqx+MJC6oVt6sB5k+CchS6Ob0qvH0YIhuUk1eYr7ktsIpY+albCqE80/FVQGV190PmiAg==}
@@ -7886,6 +7894,10 @@ snapshots:
     dependencies:
       mkdirp: 0.5.6
       rimraf: 2.6.3
+
+  thinking-orbs@0.3.2(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   three-mesh-bvh@0.8.3(three@0.186.1):
     dependencies:

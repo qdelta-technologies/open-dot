@@ -6,6 +6,7 @@ import { ArrowUp, Crown, Hash, Trash2 } from "lucide-react";
 import { deleteChannel, sendChannelMessage } from "@/app/actions";
 import { useStore } from "@/lib/store";
 import DotOrb from "./DotOrb";
+import { ThinkingOrb } from "thinking-orbs";
 import { MessageRow } from "./Chat";
 import type { Dot } from "@/lib/types";
 
@@ -79,7 +80,7 @@ export default function ChannelView({ channelId }: { channelId: string }) {
             })}
             {working.map((d) => (
               <div key={d.id} className="flex items-center gap-3">
-                <DotOrb look={d.look} status="working" size={24} />
+                <ThinkingOrb state="working" size={20} />
                 <span className="shimmer-text text-body-sm">
                   {d.name} · {d.activity ?? "Working"}…
                 </span>
