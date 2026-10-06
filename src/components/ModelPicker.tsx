@@ -5,9 +5,11 @@ import {
   Brain,
   Check,
   ChevronDown,
+  Cloud,
   Code2,
   Cpu,
   Eye,
+  Globe,
   Search,
   Sparkles,
   Zap,
@@ -16,9 +18,9 @@ import { useStore } from "@/lib/store";
 
 const CF = "cloudflare:";
 const OPEN = "openrouter:";
-const GROQ = "groq:";
 
 export type ModelCategory = "all" | "general" | "coding" | "vision" | "fast";
+export type ProviderTab = "cloudflare" | "openrouter";
 
 function parseModelId(id: string): {
   cleanId: string;
@@ -29,56 +31,8 @@ function parseModelId(id: string): {
 } {
   const isCf = id.startsWith(CF);
   const isOpen = id.startsWith(OPEN);
-  const isGroq = id.startsWith(GROQ);
-  const raw = isCf ? id.slice(CF.length) : isOpen ? id.slice(OPEN.length) : isGroq ? id.slice(GROQ.length) : id;
+  const raw = isCf ? id.slice(CF.length) : isOpen ? id.slice(OPEN.length) : id;
   const lower = raw.toLowerCase();
-
-  // Groq LPU ultra-fast models
-  if (isGroq) {
-    if (lower.includes("llama-3.3-70b")) {
-      return {
-        cleanId: raw,
-        name: "Llama 3.3 70B Versatile",
-        category: "general",
-        badge: "⚡ Groq 300t/s",
-        desc: "Meta's flagship 70B running at 300+ tokens/sec on Groq LPUs",
-      };
-    }
-    if (lower.includes("qwen-2.5-coder")) {
-      return {
-        cleanId: raw,
-        name: "Qwen 2.5 Coder 32B",
-        category: "coding",
-        badge: "⚡ Groq Code",
-        desc: "Alibaba's premier coding model at extreme speed on Groq hardware",
-      };
-    }
-    if (lower.includes("deepseek-r1")) {
-      return {
-        cleanId: raw,
-        name: "DeepSeek R1 Distill 70B",
-        category: "general",
-        badge: "⚡ Groq R1",
-        desc: "DeepSeek chain-of-thought reasoning running at blazing speed",
-      };
-    }
-    if (lower.includes("llama-3.1-8b")) {
-      return {
-        cleanId: raw,
-        name: "Llama 3.1 8B Instant",
-        category: "fast",
-        badge: "⚡ Groq 800t/s",
-        desc: "Instantaneous 800+ tokens/sec inference for sub-second responses",
-      };
-    }
-    return {
-      cleanId: raw,
-      name: raw,
-      category: "general",
-      badge: "⚡ Groq",
-      desc: "Ultra-fast Groq LPU model",
-    };
-  }
 
   // Categories & labels for Cloudflare Workers AI and common models
   if (lower.includes("llama-4-scout")) {
@@ -509,8 +463,8 @@ function parseModelId(id: string): {
     cleanId: raw,
     name: formatted || raw,
     category: "general",
-    badge: isGroq ? "Groq" : isCf ? "Edge" : isOpen ? "OpenRouter" : undefined,
-    desc: isGroq ? "Ultra-fast Groq LPU model" : isCf ? "Cloudflare Workers AI model" : undefined,
+    badge: isCf ? "Edge" : isOpen ? "OpenRouter" : undefined,
+    desc: isCf ? "Cloudflare Workers AI model" : undefined,
   };
 }
 
@@ -543,36 +497,16 @@ const CLOUDFLARE_CATALOG = [
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
 ];
 
-const BEST_MODELS_ORDER = [
-  // ── Flagship & High Intelligence (Groq + Cloudflare) ──
-  "groq:llama-3.3-70b-versatile",
-  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
+const OPENROUTER_DEFAULT_CATALOG = [
   "openrouter:google/gemma-4-31b-it:free",
   "openrouter:google/gemma-4-26b-a4b-it:free",
-
-  // ── Coding & Technical (Scraping, Apps, Tools) ──
-  "groq:qwen-2.5-coder-32b",
-  "cloudflare:@cf/qwen/qwen2.5-coder-32b-instruct",
   "openrouter:cohere/north-mini-code:free",
-
-  // ── Deep Reasoning & Problem Solving ──
-  "groq:deepseek-r1-distill-llama-70b",
-  "cloudflare:@cf/qwen/qwq-32b",
-  "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
-
-  // ── Vision & Multimodal ──
-  "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct",
-
-  // ── Fast & High Throughput (Up to 800 tokens/sec) ──
-  "groq:llama-3.1-8b-instant",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
-  "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast",
   "openrouter:openrouter/free",
 ];
 
 /**
- * Enhanced Categorized Model Dropdown with responsive placement.
+ * Enhanced Categorized Model Dropdown with responsive Cloudflare & OpenRouter tabs.
  */
 export default function ModelPicker({
   value,
@@ -590,11 +524,27 @@ export default function ModelPicker({
   const models = useStore((s) => s.computer.models);
   const modelMeta = useStore((s) => s.computer.modelMeta);
   const fallback = useStore((s) => s.computer.model);
-  const cloudflareConnected = useStore((s) => Boolean(s.computer.cloudflare));
+  const current = value ?? fallback;
+
+  const [providerTab, setProviderTab] = useState<ProviderTab>(() => {
+    if (value?.startsWith(OPEN) || fallback?.startsWith(OPEN)) return "openrouter";
+    return "cloudflare";
+  });
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ModelCategory>("all");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync tab with selected model when dropdown opens
+  useEffect(() => {
+    if (open) {
+      if (current?.startsWith(OPEN)) {
+        setProviderTab("openrouter");
+      } else if (current?.startsWith(CF)) {
+        setProviderTab("cloudflare");
+      }
+    }
+  }, [open, current]);
 
   useEffect(() => {
     if (!open) return;
@@ -612,13 +562,18 @@ export default function ModelPicker({
     };
   }, [open]);
 
-  const current = value ?? fallback;
-  // Put our verified best models first, followed by any other models on the user's keys
-  const combinedList = [...new Set([...BEST_MODELS_ORDER, ...(models || []), ...CLOUDFLARE_CATALOG])];
-  const list = combinedList.length ? combinedList : fallback ? [fallback] : CLOUDFLARE_CATALOG;
+  const combinedList = useMemo(() => {
+    return [
+      ...new Set([
+        ...CLOUDFLARE_CATALOG,
+        ...OPENROUTER_DEFAULT_CATALOG,
+        ...(models || []).filter((m) => !m.startsWith("groq:")),
+      ]),
+    ];
+  }, [models]);
 
   const parsedList = useMemo(() => {
-    return list.map((id) => {
+    return combinedList.map((id) => {
       const parsed = parseModelId(id);
       const meta = modelMeta?.[id];
       const category = meta?.category || parsed.category;
@@ -626,6 +581,7 @@ export default function ModelPicker({
       const params = meta?.parameters;
       const ctx = meta?.contextFormatted;
       const isCf = id.startsWith(CF);
+      const isOpen = id.startsWith(OPEN);
 
       return {
         id,
@@ -636,13 +592,26 @@ export default function ModelPicker({
         params,
         ctx,
         isCf,
+        isOpen,
       };
     });
-  }, [list, modelMeta]);
+  }, [combinedList, modelMeta]);
+
+  const cloudflareList = useMemo(
+    () => parsedList.filter((m) => m.isCf),
+    [parsedList]
+  );
+
+  const openrouterList = useMemo(
+    () => parsedList.filter((m) => m.isOpen),
+    [parsedList]
+  );
+
+  const activeTabList = providerTab === "cloudflare" ? cloudflareList : openrouterList;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return parsedList.filter((m) => {
+    return activeTabList.filter((m) => {
       if (activeCategory !== "all" && m.category !== activeCategory) return false;
       if (!q) return true;
       return (
@@ -651,7 +620,7 @@ export default function ModelPicker({
         (m.desc && m.desc.toLowerCase().includes(q))
       );
     });
-  }, [parsedList, search, activeCategory]);
+  }, [activeTabList, search, activeCategory]);
 
   const currentParsed = current ? parseModelId(current) : null;
 
@@ -667,7 +636,13 @@ export default function ModelPicker({
         aria-expanded={open}
         title="Choose model and capability profile"
       >
-        <Cpu className="size-3.5 text-brand shrink-0" strokeWidth={1.75} />
+        {current?.startsWith(CF) ? (
+          <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />
+        ) : current?.startsWith(OPEN) ? (
+          <Globe className="size-3.5 text-emerald-500 shrink-0" strokeWidth={1.75} />
+        ) : (
+          <Cpu className="size-3.5 text-brand shrink-0" strokeWidth={1.75} />
+        )}
         {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
         <span className="max-w-[70px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
@@ -690,139 +665,193 @@ export default function ModelPicker({
           />
           <div
             role="listbox"
-            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(520px,80vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-96 ${
+            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(540px,82vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-96 ${
               placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
             }`}
           >
-          {/* Header & Search */}
-          <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2.5 bg-popover/60 dark:bg-[#252525]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-foreground/40" />
-              <input
-                autoFocus
-                type="text"
-                placeholder="Search models (e.g. 70B, coder, vision)…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="field h-8 bg-card dark:bg-[#1a1a1a] pl-8 pr-3 text-[12px]"
-              />
-            </div>
-
-            {/* Category Pills */}
-            <div className="mt-2 flex flex-wrap gap-1">
-              {CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const active = activeCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setActiveCategory(cat.id)}
-                    className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                      active
-                        ? "bg-foreground text-card"
-                        : "bg-black/[0.04] dark:bg-white/[0.06] text-foreground/65 hover:text-foreground hover:bg-black/[0.08] dark:hover:bg-white/[0.1]"
-                    }`}
-                  >
-                    <Icon className="size-3" />
-                    {cat.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Model Options Stream */}
-          <div className="flex-1 overflow-y-auto p-1.5 space-y-1 divide-y divide-black/[0.03] dark:divide-white/[0.03]">
-            {allowDefault && !search && activeCategory === "all" && (
+            {/* Provider Tabs: Cloudflare vs OpenRouter */}
+            <div className="grid grid-cols-2 p-1.5 bg-black/[0.03] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/[0.08] gap-1.5">
               <button
                 type="button"
-                role="option"
-                aria-selected={value === null}
                 onClick={() => {
-                  onChange(null);
-                  setOpen(false);
+                  setProviderTab("cloudflare");
+                  setActiveCategory("all");
                 }}
-                className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors ${
-                  value === null ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[12.5px] transition-all font-medium ${
+                  providerTab === "cloudflare"
+                    ? "bg-card dark:bg-[#252525] text-foreground shadow-xs font-semibold border border-black/10 dark:border-white/10"
+                    : "text-foreground/60 hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                 }`}
               >
-                <Sparkles className="size-4 text-brand mt-0.5 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium text-foreground">Default Model</span>
-                    <span className="rounded-xs bg-brand/10 dark:bg-brand/20 px-1.5 py-0.5 font-mono text-[9px] text-brand uppercase font-medium">
-                      Auto
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-caption text-foreground/50">
-                    Uses system default ({fallback ? parseModelId(fallback).name : "Cloudflare Edge"})
-                  </p>
-                </div>
-                {value === null && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
+                <Cloud className={`size-4 ${providerTab === "cloudflare" ? "text-amber-500" : "text-foreground/45"}`} />
+                <span>Cloudflare AI</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    providerTab === "cloudflare"
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold"
+                      : "bg-black/5 dark:bg-white/5 text-foreground/50"
+                  }`}
+                >
+                  {cloudflareList.length}
+                </span>
               </button>
-            )}
 
-            {filtered.map((m) => {
-              const selected = m.id === value || (value === null && m.id === fallback);
-              return (
+              <button
+                type="button"
+                onClick={() => {
+                  setProviderTab("openrouter");
+                  setActiveCategory("all");
+                }}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[12.5px] transition-all font-medium ${
+                  providerTab === "openrouter"
+                    ? "bg-card dark:bg-[#252525] text-foreground shadow-xs font-semibold border border-black/10 dark:border-white/10"
+                    : "text-foreground/60 hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                }`}
+              >
+                <Globe className={`size-4 ${providerTab === "openrouter" ? "text-emerald-500" : "text-foreground/45"}`} />
+                <span>OpenRouter</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    providerTab === "openrouter"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold"
+                      : "bg-black/5 dark:bg-white/5 text-foreground/50"
+                  }`}
+                >
+                  {openrouterList.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Header: Search & Category Filter Pills */}
+            <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2.5 bg-popover/60 dark:bg-[#252525]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-foreground/40" />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder={`Search ${providerTab === "cloudflare" ? "Cloudflare" : "OpenRouter"} models (e.g. 70B, coder)…`}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="field h-8 bg-card dark:bg-[#1a1a1a] pl-8 pr-3 text-[12px]"
+                />
+              </div>
+
+              {/* Category Pills */}
+              <div className="mt-2 flex flex-wrap gap-1">
+                {CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const active = activeCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                        active
+                          ? "bg-foreground text-card"
+                          : "bg-black/[0.04] dark:bg-white/[0.06] text-foreground/65 hover:text-foreground hover:bg-black/[0.08] dark:hover:bg-white/[0.1]"
+                      }`}
+                    >
+                      <Icon className="size-3" />
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Model Options List */}
+            <div className="flex-1 overflow-y-auto p-1.5 space-y-1 divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+              {allowDefault && !search && activeCategory === "all" && (
                 <button
-                  key={m.id}
                   type="button"
                   role="option"
-                  aria-selected={selected}
+                  aria-selected={value === null}
                   onClick={() => {
-                    onChange(m.id);
+                    onChange(null);
                     setOpen(false);
                   }}
                   className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors ${
-                    selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                    value === null ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                   }`}
                 >
+                  <Sparkles className="size-4 text-brand mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
-                      {m.badge && (
-                        <span
-                          className={`rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
-                            m.category === "coding"
-                              ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                              : m.category === "vision"
-                              ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                              : m.category === "fast"
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          }`}
-                        >
-                          {m.badge}
-                        </span>
-                      )}
-                      {m.params && (
-                        <span className="font-mono text-[10px] text-foreground/45">
-                          {m.params}
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-foreground">Default Model</span>
+                      <span className="rounded-xs bg-brand/10 dark:bg-brand/20 px-1.5 py-0.5 font-mono text-[9px] text-brand uppercase font-medium">
+                        Auto
+                      </span>
                     </div>
-                    {m.desc && <p className="mt-0.5 text-caption text-foreground/50 line-clamp-1">{m.desc}</p>}
-                    <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-foreground/40">
-                      {m.isCf && <span className="text-brand">Cloudflare Edge</span>}
-                      {m.ctx && <span>· {m.ctx}</span>}
-                    </div>
+                    <p className="mt-0.5 text-caption text-foreground/50">
+                      Uses system default ({fallback ? parseModelId(fallback).name : "Cloudflare Edge"})
+                    </p>
                   </div>
-                  {selected && <Check className="size-4 shrink-0 text-foreground mt-0.5" strokeWidth={2} />}
+                  {value === null && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
                 </button>
-              );
-            })}
+              )}
 
-            {!filtered.length && (
-              <div className="p-4 text-center text-caption text-foreground/45">
-                No models match “{search}”.
-              </div>
-            )}
+              {filtered.map((m) => {
+                const selected = m.id === value || (value === null && m.id === fallback);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => {
+                      onChange(m.id);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors ${
+                      selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
+                        {m.badge && (
+                          <span
+                            className={`rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
+                              m.category === "coding"
+                                ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                                : m.category === "vision"
+                                ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                                : m.category === "fast"
+                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            }`}
+                          >
+                            {m.badge}
+                          </span>
+                        )}
+                        {m.params && (
+                          <span className="font-mono text-[10px] text-foreground/45">
+                            {m.params}
+                          </span>
+                        )}
+                      </div>
+                      {m.desc && <p className="mt-0.5 text-caption text-foreground/50 line-clamp-1">{m.desc}</p>}
+                      <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-foreground/40">
+                        {m.isCf && <span className="text-amber-600 dark:text-amber-400">⚡ Cloudflare</span>}
+                        {m.isOpen && <span className="text-emerald-600 dark:text-emerald-400">🌐 OpenRouter</span>}
+                        {m.ctx && <span>· {m.ctx}</span>}
+                      </div>
+                    </div>
+                    {selected && <Check className="size-4 shrink-0 text-foreground mt-0.5" strokeWidth={2} />}
+                  </button>
+                );
+              })}
+
+              {!filtered.length && (
+                <div className="py-8 text-center text-caption text-foreground/45">
+                  No {providerTab === "cloudflare" ? "Cloudflare" : "OpenRouter"} models match “{search}”.
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </>
-    )}
-  </div>
-);
+        </>
+      )}
+    </div>
+  );
 }
