@@ -56,6 +56,7 @@ import DotOrb from "./DotOrb";
 import { ThinkingOrb, type OrbState } from "thinking-orbs";
 import { compressImageIfLarge } from "@/lib/imageCompression";
 import { StreamingMarkdown } from "./StreamingMarkdown";
+import { VoiceWaveform, ListeningMicButton } from "./VoiceWaveform";
 import type { Attachment, Dot, Message } from "@/lib/types";
 
 function getOrbState(activity: string | null | undefined): OrbState {
@@ -445,19 +446,30 @@ function Composer({
         }`}
       >
         {isListening && (
-          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-red-500/10 dark:bg-red-500/15 px-3 py-1.5 text-[12px] font-medium text-red-500 dark:text-red-400">
-            <div className="flex items-center gap-2">
-              <ThinkingOrb state="listening" size={20} />
-              <span>Listening to your voice... speak now (click Stop when done)</span>
-            </div>
-            <button
-              type="button"
-              onClick={toggleListening}
-              className="text-[11px] font-semibold text-red-600 dark:text-red-300 underline underline-offset-2 hover:opacity-80"
-            >
-              Stop & Keep Text
-            </button>
-          </div>
+          <VoiceWaveform
+            isListening={isListening}
+            transcript={text}
+            onStop={() => {
+              if (recognitionRef.current) {
+                try {
+                  recognitionRef.current.stop();
+                } catch {}
+              }
+              setIsListening(false);
+            }}
+            onSubmit={() => {
+              submit();
+            }}
+            onCancel={() => {
+              if (recognitionRef.current) {
+                try {
+                  recognitionRef.current.abort();
+                } catch {}
+              }
+              setIsListening(false);
+              setText(baseTextRef.current || "");
+            }}
+          />
         )}
 
         {uploads.length > 0 && (
@@ -543,15 +555,7 @@ function Composer({
               <Square className="size-3.5 fill-current" />
             </button>
           ) : isListening ? (
-            <button
-              type="button"
-              className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-md animate-pulse transition-all hover:bg-red-600 active:scale-95"
-              onClick={toggleListening}
-              aria-label="Stop speaking and keep text"
-              title="Stop speaking (text will stay in box)"
-            >
-              <Square className="size-3.5 fill-current" />
-            </button>
+            <ListeningMicButton onClick={toggleListening} />
           ) : text.trim() || ready.length || busy ? (
             <div className="flex items-center gap-1">
               <button
