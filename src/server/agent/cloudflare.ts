@@ -27,6 +27,8 @@ const SMALL_PREFERENCE = [
 
 const g = globalThis as unknown as {
   __dotsCloudflare?: { url: string; token?: string; client: OpenAI };
+  __dotsCloudflareClients?: Map<string, OpenAI>;
+  __dotsCloudflareExhausted?: Map<string, number>;
   __dotsCloudflareModels?: { at: number; ids: string[]; meta: Record<string, ModelMeta> };
 };
 
@@ -40,11 +42,41 @@ function envToken(): string | null {
   return process.env.CLOUDFLARE_WORKER_TOKEN || null;
 }
 
+/** Parses configured worker URLs into a clean array. Supports comma or newline separated URLs. */
+export function cloudflareWorkerUrls(): string[] {
+  const raw = getSetting(URL_SETTING) || envUrl() || DEFAULT_WORKER_URL;
+  if (!raw) return [DEFAULT_WORKER_URL];
+  const list = raw
+    .split(/[\n,]+/)
+    .map((u) => u.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+  return list.length ? list : [DEFAULT_WORKER_URL];
+}
+
+/** Check which workers are still available (not marked exhausted within the last 12 hours). */
+export function getAvailableWorkerUrls(): string[] {
+  const all = cloudflareWorkerUrls();
+  const exhausted = (g.__dotsCloudflareExhausted ??= new Map());
+  const now = Date.now();
+  // Clear entries older than 12 hours (daily reset window)
+  for (const [u, ts] of exhausted.entries()) {
+    if (now - ts > 12 * 60 * 60 * 1000) exhausted.delete(u);
+  }
+  const available = all.filter((u) => !exhausted.has(u));
+  return available.length ? available : all;
+}
+
+/** Mark a specific worker URL as exhausted (e.g. 10,000 neurons daily limit reached). */
+export function markWorkerExhausted(url: string, reason?: string) {
+  const clean = url.trim().replace(/\/+$/, "");
+  const exhausted = (g.__dotsCloudflareExhausted ??= new Map());
+  exhausted.set(clean, Date.now());
+  console.warn(`[cloudflare] Marked worker ${clean} as exhausted (${reason ?? "quota"}). Remaining active workers: ${getAvailableWorkerUrls().length}`);
+}
+
 export function cloudflareWorkerUrl(): string | null {
-  const raw = getSetting(URL_SETTING);
-  if (raw && raw.trim()) return raw.trim();
-  if (envUrl()) return envUrl();
-  return DEFAULT_WORKER_URL;
+  const available = getAvailableWorkerUrls();
+  return available[0] ?? DEFAULT_WORKER_URL;
 }
 
 export function cloudflareWorkerToken(): string | null {
@@ -68,51 +100,57 @@ export const isCloudflareModel = (model: string) =>
 export const cloudflareId = (model: string) =>
   model.startsWith(CLOUDFLARE_PREFIX) ? model.slice(CLOUDFLARE_PREFIX.length) : model;
 
-export function cloudflare(): OpenAI {
-  const url = cloudflareWorkerUrl();
-  if (!url) throw new Error("No Cloudflare Worker URL set. Add one in Settings.");
+export function cloudflareForUrl(url: string): OpenAI {
   const token = cloudflareWorkerToken() || "dummy-token";
-
-  // Clean baseURL to ensure it has /v1
   const cleanUrl = url.replace(/\/+$/, "");
   const baseURL = cleanUrl.endsWith("/v1") ? cleanUrl : `${cleanUrl}/v1`;
 
-  if (!g.__dotsCloudflare || g.__dotsCloudflare.url !== url || g.__dotsCloudflare.token !== token) {
-    g.__dotsCloudflare = {
-      url,
-      token,
-      client: new OpenAI({
-        apiKey: token,
-        baseURL,
-      }),
-    };
+  const clients = (g.__dotsCloudflareClients ??= new Map());
+  let client = clients.get(cleanUrl);
+  if (!client) {
+    client = new OpenAI({
+      apiKey: token,
+      baseURL,
+    });
+    clients.set(cleanUrl, client);
   }
-  return g.__dotsCloudflare.client;
+  return client;
 }
 
-/** Check the worker URL and token by listing models. Returns error string or null. */
+export function cloudflare(): OpenAI {
+  const url = cloudflareWorkerUrl();
+  if (!url) throw new Error("No Cloudflare Worker URL set. Add one in Settings.");
+  return cloudflareForUrl(url);
+}
+
+/** Check the worker URL and token by listing models. Supports comma-separated multiple URLs. */
 export async function saveCloudflareConfig(urlInput: string, tokenInput?: string): Promise<string | null> {
-  const url = urlInput.trim();
+  const rawUrls = urlInput.split(/[\n,]+/).map((u) => u.trim()).filter(Boolean);
   const token = tokenInput ? tokenInput.trim() : "";
 
-  if (!url) {
+  if (!rawUrls.length) {
     setSetting(URL_SETTING, null);
     setSetting(TOKEN_SETTING, null);
     g.__dotsCloudflare = undefined;
+    g.__dotsCloudflareClients = undefined;
+    g.__dotsCloudflareExhausted = undefined;
     g.__dotsCloudflareModels = undefined;
     (globalThis as any).__dotsResetModels?.();
     return null;
   }
 
-  // Validate format
-  try {
-    new URL(url);
-  } catch {
-    return "Please enter a valid URL (e.g. https://opendot-worker.yourname.workers.dev).";
+  // Validate format of each URL
+  for (const u of rawUrls) {
+    try {
+      new URL(u);
+    } catch {
+      return `Please enter a valid URL: "${u}"`;
+    }
   }
 
-  const cleanUrl = url.replace(/\/+$/, "");
-  const checkUrl = cleanUrl.endsWith("/v1") ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`;
+  // Test the first URL to verify endpoint connectivity
+  const testUrl = rawUrls[0].replace(/\/+$/, "");
+  const checkUrl = testUrl.endsWith("/v1") ? `${testUrl}/models` : `${testUrl}/v1/models`;
 
   try {
     const headers: Record<string, string> = {};
@@ -130,9 +168,12 @@ export async function saveCloudflareConfig(urlInput: string, tokenInput?: string
     return `Couldn't connect to Cloudflare Worker: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  setSetting(URL_SETTING, cleanUrl);
+  const cleaned = rawUrls.map((u) => u.replace(/\/+$/, "")).join(", ");
+  setSetting(URL_SETTING, cleaned);
   setSetting(TOKEN_SETTING, token ? seal(token) : null);
   g.__dotsCloudflare = undefined;
+  g.__dotsCloudflareClients = undefined;
+  g.__dotsCloudflareExhausted = undefined;
   g.__dotsCloudflareModels = undefined;
   (globalThis as any).__dotsResetModels?.();
   return null;

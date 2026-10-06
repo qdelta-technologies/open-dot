@@ -3,7 +3,7 @@ import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
-import { cloudflareWorkerUrl } from "./cloudflare";
+import { cloudflareForUrl, cloudflareWorkerUrl, getAvailableWorkerUrls, markWorkerExhausted } from "./cloudflare";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
@@ -357,9 +357,42 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
         throw retryErr;
       }
     } else {
+      const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(String(err));
       const isRateLimit = /429|rate limit|quota|busy/i.test(String(err));
-      const isNotDefault = appModel !== "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-      if (isRateLimit && isNotDefault && Boolean(cloudflareWorkerUrl())) {
+
+      // 1. Check if we have multiple Cloudflare worker URLs configured and can failover to a backup worker
+      const currentWorker = cloudflareWorkerUrl();
+      const availableWorkers = getAvailableWorkerUrls();
+      const nextWorker = availableWorkers.find((u) => u !== currentWorker);
+
+      if ((isNeuronExhausted || isRateLimit) && currentWorker && nextWorker) {
+        markWorkerExhausted(currentWorker, isNeuronExhausted ? "10,000 daily neurons limit reached" : "Rate limit");
+        console.warn(`[dots] Worker ${currentWorker} exhausted. Failing over to ${nextWorker}...`);
+        repo.addMessage({
+          dotId: dot.id,
+          role: "system",
+          conversationId: convId,
+          text: `⚡ Cloudflare Worker (${currentWorker.replace(/^https?:\/\//, "")}) ${isNeuronExhausted ? "daily free 10k neuron limit reached" : "temporarily busy"}. Switching automatically to backup worker (${nextWorker.replace(/^https?:\/\//, "")})...`,
+        });
+        const fallbackClient = cloudflareForUrl(nextWorker);
+        try {
+          stream = await fallbackClient.responses.create(
+            {
+              model,
+              instructions: systemPrompt(dot, trigger),
+              input: [...history, ...input],
+              tools,
+              parallel_tool_calls: false,
+              store: false,
+              stream: true,
+              max_output_tokens: 2048,
+            },
+            { signal },
+          );
+        } catch (failoverErr) {
+          throw failoverErr;
+        }
+      } else if (isRateLimit && appModel !== "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast" && Boolean(cloudflareWorkerUrl())) {
         console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Llama 3.3 70B Fast...`);
         repo.addMessage({
           dotId: dot.id,

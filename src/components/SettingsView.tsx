@@ -574,8 +574,8 @@ function CloudflareWorkerKey() {
               : computer.cloudflare?.source === "default"
                 ? `Connected to default Cloudflare Workers AI edge proxy${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
               : saved
-                ? `Connected to ${computer.cloudflare?.url}${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
-                : "Connect your opendot-worker URL to run dots on fast edge models (Llama 3.3 70B, Llama 4 Scout, DeepSeek R1 32B, Qwen 2.5 Coder) with zero rate limits."}
+                ? `Connected to ${computer.cloudflare?.url}${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}. Multi-worker failover active.`
+                : "Connect one or more opendot-worker URLs (comma-separated). When a worker reaches Cloudflare's daily 10k neuron limit, OpenDot automatically switches to the next worker."}
           </div>
         </div>
         {saved && !editing && (
@@ -601,7 +601,7 @@ function CloudflareWorkerKey() {
             <input
               className="field font-mono text-[13px] flex-1"
               type="text"
-              placeholder="https://opendot-worker.yourname.workers.dev (or http://localhost:8787)"
+              placeholder="https://worker1.workers.dev, https://worker2.workers.dev (comma-separated for failover)"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               autoComplete="off"
