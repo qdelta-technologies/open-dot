@@ -16,6 +16,7 @@ import { useStore } from "@/lib/store";
 
 const CF = "cloudflare:";
 const OPEN = "openrouter:";
+const GROQ = "groq:";
 
 export type ModelCategory = "all" | "general" | "coding" | "vision" | "fast";
 
@@ -28,8 +29,56 @@ function parseModelId(id: string): {
 } {
   const isCf = id.startsWith(CF);
   const isOpen = id.startsWith(OPEN);
-  const raw = isCf ? id.slice(CF.length) : isOpen ? id.slice(OPEN.length) : id;
+  const isGroq = id.startsWith(GROQ);
+  const raw = isCf ? id.slice(CF.length) : isOpen ? id.slice(OPEN.length) : isGroq ? id.slice(GROQ.length) : id;
   const lower = raw.toLowerCase();
+
+  // Groq LPU ultra-fast models
+  if (isGroq) {
+    if (lower.includes("llama-3.3-70b")) {
+      return {
+        cleanId: raw,
+        name: "Llama 3.3 70B Versatile",
+        category: "general",
+        badge: "⚡ Groq 300t/s",
+        desc: "Meta's flagship 70B running at 300+ tokens/sec on Groq LPUs",
+      };
+    }
+    if (lower.includes("qwen-2.5-coder")) {
+      return {
+        cleanId: raw,
+        name: "Qwen 2.5 Coder 32B",
+        category: "coding",
+        badge: "⚡ Groq Code",
+        desc: "Alibaba's premier coding model at extreme speed on Groq hardware",
+      };
+    }
+    if (lower.includes("deepseek-r1")) {
+      return {
+        cleanId: raw,
+        name: "DeepSeek R1 Distill 70B",
+        category: "general",
+        badge: "⚡ Groq R1",
+        desc: "DeepSeek chain-of-thought reasoning running at blazing speed",
+      };
+    }
+    if (lower.includes("llama-3.1-8b")) {
+      return {
+        cleanId: raw,
+        name: "Llama 3.1 8B Instant",
+        category: "fast",
+        badge: "⚡ Groq 800t/s",
+        desc: "Instantaneous 800+ tokens/sec inference for sub-second responses",
+      };
+    }
+    return {
+      cleanId: raw,
+      name: raw,
+      category: "general",
+      badge: "⚡ Groq",
+      desc: "Ultra-fast Groq LPU model",
+    };
+  }
 
   // Categories & labels for Cloudflare Workers AI and common models
   if (lower.includes("llama-4-scout")) {
@@ -470,8 +519,8 @@ function parseModelId(id: string): {
     cleanId: raw,
     name: formatted || raw,
     category: "general",
-    badge: isCf ? "Edge" : isOpen ? "OpenRouter" : undefined,
-    desc: isCf ? "Cloudflare Workers AI model" : undefined,
+    badge: isGroq ? "Groq" : isCf ? "Edge" : isOpen ? "OpenRouter" : undefined,
+    desc: isGroq ? "Ultra-fast Groq LPU model" : isCf ? "Cloudflare Workers AI model" : undefined,
   };
 }
 
@@ -505,7 +554,8 @@ const CLOUDFLARE_CATALOG = [
 ];
 
 const BEST_MODELS_ORDER = [
-  // ── Flagship & High Intelligence ──
+  // ── Flagship & High Intelligence (Groq + Cloudflare + Space Bunny Alpha) ──
+  "groq:llama-3.3-70b-versatile",
   "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
   "openrouter:stealth/space-bunny-alpha",
   "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
@@ -513,17 +563,20 @@ const BEST_MODELS_ORDER = [
   "openrouter:google/gemma-4-26b-a4b-it:free",
 
   // ── Coding & Technical (Scraping, Apps, Tools) ──
+  "groq:qwen-2.5-coder-32b",
   "cloudflare:@cf/qwen/qwen2.5-coder-32b-instruct",
   "openrouter:cohere/north-mini-code:free",
 
   // ── Deep Reasoning & Problem Solving ──
+  "groq:deepseek-r1-distill-llama-70b",
   "cloudflare:@cf/qwen/qwq-32b",
   "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
 
   // ── Vision & Multimodal ──
   "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct",
 
-  // ── Fast & High Throughput ──
+  // ── Fast & High Throughput (Up to 800 tokens/sec) ──
+  "groq:llama-3.1-8b-instant",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast",
   "openrouter:openrouter/free",

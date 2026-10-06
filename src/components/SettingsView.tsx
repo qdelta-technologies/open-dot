@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sun,
+  Zap,
 } from "lucide-react";
 import {
   checkAuthStatus,
@@ -25,6 +26,7 @@ import {
   deletePassword,
   getCloudflareConfig,
   getCloudKey,
+  getGroqKey,
   getOpenAIKey,
   getOpenRouterKey,
   lockApp,
@@ -33,6 +35,7 @@ import {
   setCloudflareWorker,
   setCloudKey,
   setDefaultModel,
+  setGroqKey,
   setOpenAIKey,
   setOpenRouterKey,
   signInComposio,
@@ -162,8 +165,9 @@ export default function SettingsView() {
 
         <AccessSecuritySection />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models come from your Cloudflare AI Worker, OpenRouter, or OpenAI.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models come from Groq, Cloudflare AI Worker, OpenRouter, or OpenAI.">
           <CloudflareWorkerKey />
+          <GroqKey />
           <OpenModelsKey />
           <ApiKey />
           <CloudKey />
@@ -714,6 +718,119 @@ function OpenModelsKey() {
               className="field font-mono text-[13px] pr-9 w-full"
               type={showKey ? "text" : "password"}
               placeholder="sk-or-..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+                setShowKey(false);
+              }}
+            >
+              Cancel
+            </button>
+          )}
+          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
+            {pending ? "Checking…" : "Save"}
+          </button>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Groq API key: adds ultra-fast LPU inference (Llama 3.3 70B, Qwen 2.5 Coder 32B, DeepSeek R1 70B, Llama 3.1 8B Instant). */
+function GroqKey() {
+  const computer = useStore((s) => s.computer);
+  const groqCount = computer.models.filter((m) => m.startsWith("groq:")).length;
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.groq !== null && computer.groq !== undefined;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const existing = await getGroqKey();
+      if (existing) setKey(existing);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getGroqKey().then((existing) => {
+        if (existing) setKey(existing);
+      });
+    }
+  }, [editing]);
+
+  const save = (value: string) =>
+    start(async () => {
+      const err = await setGroqKey(value);
+      setError(err);
+      if (!err) {
+        setKey("");
+        setEditing(false);
+        setShowKey(false);
+      }
+    });
+
+  return (
+    <div id="groq-models" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[14px]">
+            Groq LPU <span className="rounded-xs bg-amber-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-amber-600 dark:text-amber-400 uppercase">⚡ 500-800 t/s Free</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.groq === "env"
+              ? `Connected from GROQ_API_KEY${groqCount ? ` · ${groqCount} ultra-fast models active` : ""}.`
+              : saved
+                ? `Connected${groqCount ? ` · ${groqCount} ultra-fast models in the model picker` : ""}. Stored encrypted on this computer.`
+                : "Free key from console.groq.com. Runs Llama 3.3 70B, Qwen 2.5 Coder, and DeepSeek R1 at up to 800 tokens/sec with generous rate limits."}
+          </div>
+        </div>
+        {saved && !editing && (
+          <div className="flex items-center gap-2">
+            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
+              Remove
+            </button>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
+              Change
+            </button>
+          </div>
+        )}
+      </div>
+      {(editing || !saved) && (
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save(key);
+          }}
+        >
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="gsk_..."
               value={key}
               onChange={(e) => setKey(e.target.value)}
               autoComplete="off"

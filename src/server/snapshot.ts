@@ -7,6 +7,7 @@ import { COMPUTER_ENABLED } from "./agent/tools";
 import { skyInstalled } from "./computer/sky";
 import { cloudKeySource } from "./computer/cloud";
 import { openRouterSource } from "./agent/openrouter";
+import { groqSource } from "./agent/groq";
 import { cloudflareSource, cloudflareWorkerUrl, cloudflareWorkerToken } from "./agent/cloudflare";
 import { triggersKeySource } from "./triggers";
 import { apps, signedIn } from "./composio";
@@ -27,6 +28,7 @@ export function computerInfo(): ComputerInfo {
     keySource: keySource(),
     cloudKey: cloudKeySource(),
     openRouter: openRouterSource(),
+    groq: groqSource(),
     cloudflare: cfSource
       ? {
           url: cloudflareWorkerUrl(),

@@ -21,6 +21,13 @@ import {
   preferredOpenModel,
   smallOpenModel,
 } from "./openrouter";
+import {
+  groq,
+  groqId,
+  groqKey,
+  groqModelsAndMeta,
+  isGroqModel,
+} from "./groq";
 import type { ModelMeta } from "@/lib/types";
 
 // Models are chosen from what the configured providers can actually use. Precedence:
@@ -118,9 +125,9 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
   };
 }
 
-/** OpenAI models (with an OpenAI key), Cloudflare Worker models, and OpenRouter models. */
+/** OpenAI models, Cloudflare Worker models, OpenRouter models, and Groq LPU models. */
 async function resolve() {
-  const [oa, cfData, openData] = await Promise.all([
+  const [oa, cfData, openData, groqData] = await Promise.all([
     resolveOpenAI(),
     cloudflareModelsAndMeta().catch((err) => {
       console.warn("[dots] couldn't list Cloudflare models:", err instanceof Error ? err.message : err);
@@ -130,10 +137,15 @@ async function resolve() {
       console.warn("[dots] couldn't list OpenRouter models:", err instanceof Error ? err.message : err);
       return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
     }),
+    groqModelsAndMeta().catch((err) => {
+      console.warn("[dots] couldn't list Groq models:", err instanceof Error ? err.message : err);
+      return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
+    }),
   ]);
 
   const cf = cfData.ids;
   const open = openData.ids;
+  const groqIds = groqData.ids;
 
   let mainDefault = process.env.DOTS_MODEL;
   let reviewDefault = process.env.DOTS_REVIEW_MODEL;
@@ -156,8 +168,8 @@ async function resolve() {
   const resolved = {
     main: mainDefault,
     review: reviewDefault,
-    available: [...(oa?.available ?? []), ...cf, ...open],
-    meta: { ...cfData.meta, ...openData.meta },
+    available: [...(oa?.available ?? []), ...cf, ...open, ...groqIds],
+    meta: { ...cfData.meta, ...openData.meta, ...groqData.meta },
   };
 
 
@@ -178,15 +190,18 @@ export function clientFor(model: string): { client: OpenAI; model: string; state
   if (isCloudflareModel(model)) {
     return { client: cloudflare(), model: cloudflareId(model), stateless: true };
   }
+  if (isGroqModel(model)) {
+    return { client: groq(), model: groqId(model), stateless: true };
+  }
   if (isOpenRouterModel(model)) {
     return { client: openrouter(), model: openRouterId(model), stateless: true };
   }
   return { client: openai(), model, stateless: false };
 }
 
-/** True when any model provider is set up (Cloudflare, OpenAI, or OpenRouter). */
+/** True when any model provider is set up (Cloudflare, OpenAI, OpenRouter, or Groq). */
 export function canThink(): boolean {
-  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey());
+  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey()) || Boolean(groqKey());
 }
 
 export function models(): Promise<{ main: string; review: string; available: string[]; meta: Record<string, ModelMeta> }> {
@@ -208,7 +223,7 @@ export async function modelFor(dotModel: string | null): Promise<string> {
 
 /** Best-known model info for display, without blocking. */
 export function knownModels(): { main: string; review: string; available: string[]; defaultModel: string; meta: Record<string, ModelMeta> } {
-  if (!g.__dotsResolved && (cloudflareWorkerUrl() || openRouterKey() || hasKey())) {
+  if (!g.__dotsResolved && (cloudflareWorkerUrl() || openRouterKey() || groqKey() || hasKey())) {
     void resolve();
   }
   const cfUrl = cloudflareWorkerUrl();

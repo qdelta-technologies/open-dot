@@ -9,6 +9,7 @@ import { emit } from "@/server/bus";
 import { computerInfo } from "@/server/snapshot";
 import { apiKey, models, resetModels, saveApiKey } from "@/server/agent/client";
 import { openRouterKey, saveOpenRouterKey } from "@/server/agent/openrouter";
+import { groqKey, saveGroqKey } from "@/server/agent/groq";
 import { cloudflareWorkerToken, cloudflareWorkerUrl, saveCloudflareConfig } from "@/server/agent/cloudflare";
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
@@ -227,6 +228,20 @@ export async function setOpenRouterKey(key: string): Promise<string | null> {
 
 export async function getOpenRouterKey(): Promise<string> {
   return openRouterKey() || "";
+}
+
+/** Paste a Groq API key in Settings to add ultra-fast LPU models (empty removes it). */
+export async function setGroqKey(key: string): Promise<string | null> {
+  const err = await saveGroqKey(key.trim());
+  if (err) return err;
+  resetModels();
+  emit({ type: "computer", data: computerInfo() });
+  void models().then(() => emit({ type: "computer", data: computerInfo() })).catch(() => {});
+  return null;
+}
+
+export async function getGroqKey(): Promise<string> {
+  return groqKey() || "";
 }
 
 export async function getCloudKey(): Promise<string> {
