@@ -2,7 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
-// Tiny UI state shared across the layout: whether the sidebar drawer is open (phones / narrow windows).
+// Tiny UI state shared across the layout:
+// 1. Mobile drawer: whether the sidebar drawer is open on small screens (<768px)
 let open = false;
 const listeners = new Set<() => void>();
 
@@ -17,6 +18,39 @@ export function useSidebarOpen(): boolean {
     (l) => (listeners.add(l), () => listeners.delete(l)),
     () => open,
     () => false,
+  );
+}
+
+// 2. Desktop sidebar: whether the sidebar is expanded on desktop (>=768px)
+let desktopOpen = true;
+if (typeof window !== "undefined") {
+  try {
+    const saved = localStorage.getItem("opendot-sidebar-desktop");
+    if (saved === "closed") desktopOpen = false;
+  } catch {}
+}
+const desktopListeners = new Set<() => void>();
+
+export function setDesktopSidebarOpen(value: boolean) {
+  if (desktopOpen === value) return;
+  desktopOpen = value;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("opendot-sidebar-desktop", value ? "open" : "closed");
+    } catch {}
+  }
+  for (const l of desktopListeners) l();
+}
+
+export function toggleDesktopSidebar() {
+  setDesktopSidebarOpen(!desktopOpen);
+}
+
+export function useDesktopSidebarOpen(): boolean {
+  return useSyncExternalStore(
+    (l) => (desktopListeners.add(l), () => desktopListeners.delete(l)),
+    () => desktopOpen,
+    () => true,
   );
 }
 

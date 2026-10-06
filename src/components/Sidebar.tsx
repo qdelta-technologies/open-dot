@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, LogOut, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
+import { LayoutGrid, LogOut, PanelLeftClose, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
 import { checkAuthStatus, deleteConversation, lockApp } from "@/app/actions";
 import { markRead, useStore } from "@/lib/store";
-import { setSidebarOpen, useSidebarOpen } from "@/lib/ui";
+import {
+  setDesktopSidebarOpen,
+  setSidebarOpen,
+  toggleDesktopSidebar,
+  useDesktopSidebarOpen,
+  useSidebarOpen,
+} from "@/lib/ui";
 import { statusDot, timeAgo } from "@/lib/status";
 import ThemeToggle from "./ThemeToggle";
 import DotOrb from "./DotOrb";
@@ -54,10 +60,27 @@ export default function Sidebar() {
   const [, start] = useTransition();
   const activeDot = pathname.match(/^\/dots\/([^/]+)/)?.[1];
   const drawerOpen = useSidebarOpen();
+  const desktopOpen = useDesktopSidebarOpen();
 
   useEffect(() => {
     checkAuthStatus().then((s) => setAuthEnabled(s.enabled));
   }, []);
+
+  // Keyboard shortcut: Ctrl+B or Cmd+B to toggle sidebar
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        if (typeof window !== "undefined" && window.innerWidth < 768) {
+          setSidebarOpen(!drawerOpen);
+        } else {
+          toggleDesktopSidebar();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [drawerOpen]);
 
   const dotById = useMemo(() => new Map(dots.map((d) => [d.id, d])), [dots]);
 
@@ -91,12 +114,18 @@ export default function Sidebar() {
       {/* Phones / narrow windows: the sidebar is a drawer over a dimmed backdrop */}
       {drawerOpen && <div className="fixed inset-0 z-40 bg-black/25 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside
-        // Picking anything in the drawer closes it.
-        onClickCapture={(e) => (e.target as HTMLElement).closest("a") && setSidebarOpen(false)}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[300px] max-w-[85vw] shrink-0 flex-col bg-background shadow-2xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:shadow-none ${drawerOpen ? "translate-x-0" : "-translate-x-full"}`}
+        // Picking anything in the drawer closes it on mobile.
+        onClickCapture={(e) => {
+          if (typeof window !== "undefined" && window.innerWidth < 768 && (e.target as HTMLElement).closest("a")) {
+            setSidebarOpen(false);
+          }
+        }}
+        className={`fixed inset-y-0 left-0 z-50 flex w-[300px] max-w-[85vw] shrink-0 flex-col bg-background shadow-2xl transition-all duration-200 ease-in-out md:static md:z-auto md:shadow-none ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${desktopOpen ? "md:ml-0 md:opacity-100" : "md:-ml-[300px] md:opacity-0 md:pointer-events-none"}`}
       >
       {/* Header */}
-      <div className="flex h-14 shrink-0 items-center gap-1 px-4">
+      <div className="flex h-14 shrink-0 items-center gap-1.5 px-3 sm:px-4">
         <Link href="/" className="mr-auto">
           <Wordmark />
         </Link>
@@ -116,6 +145,26 @@ export default function Sidebar() {
         >
           <SquarePen className="size-4" strokeWidth={1.75} />
         </Link>
+
+        {/* Mobile close button: prominent 'X' button */}
+        <button
+          className="flex size-9 items-center justify-center rounded-full border border-black/10 text-foreground/70 transition-colors hover:border-black/25 hover:text-foreground md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          title="Close sidebar"
+          aria-label="Close sidebar"
+        >
+          <X className="size-4" strokeWidth={1.75} />
+        </button>
+
+        {/* Desktop collapse button: PanelLeftClose */}
+        <button
+          className="hidden md:flex size-9 items-center justify-center rounded-full border border-black/10 text-foreground/70 transition-colors hover:border-black/25 hover:text-foreground"
+          onClick={() => setDesktopSidebarOpen(false)}
+          title="Collapse sidebar (Ctrl+B)"
+          aria-label="Collapse sidebar"
+        >
+          <PanelLeftClose className="size-4" strokeWidth={1.75} />
+        </button>
       </div>
 
       {searching && (
