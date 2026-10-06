@@ -216,9 +216,12 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
     if (!s.abort.signal.aborted) {
       console.error("[dots] run failed", err);
       const msg = err instanceof Error ? err.message : String(err);
+      const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(msg);
       const is429 = /429|rate limit|quota|provider returned error/i.test(msg);
-      const friendlyMsg = is429
-        ? `The model provider is temporarily busy (429 rate limit). Please try again in a moment or switch to another free model (e.g. Google Gemma 4 or OpenRouter Free) in Setup.`
+      const friendlyMsg = isNeuronExhausted
+        ? `⚡ Cloudflare daily free limit reached (10,000 neurons). Connect your second opendot-worker in Settings to double your capacity, or wait for daily reset at 00:00 UTC (5:30 AM IST).`
+        : is429
+        ? `The model provider is temporarily busy (429 rate limit). Please try again in a moment or switch to another model in Settings.`
         : `Something went wrong: ${msg}`;
       repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }
