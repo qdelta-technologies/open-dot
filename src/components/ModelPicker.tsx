@@ -217,16 +217,6 @@ function parseModelId(id: string): {
     };
   }
 
-  if (lower.includes("space-bunny")) {
-    return {
-      cleanId: raw,
-      name: "Space Bunny Alpha",
-      category: "general",
-      badge: "1M Ctx",
-      desc: "Stealth model with 1M context, high reasoning and tool calling",
-    };
-  }
-
   if (lower.includes("openrouter/free")) {
     return {
       cleanId: raw,
@@ -554,10 +544,9 @@ const CLOUDFLARE_CATALOG = [
 ];
 
 const BEST_MODELS_ORDER = [
-  // ── Flagship & High Intelligence (Groq + Cloudflare + Space Bunny Alpha) ──
+  // ── Flagship & High Intelligence (Groq + Cloudflare) ──
   "groq:llama-3.3-70b-versatile",
   "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-  "openrouter:stealth/space-bunny-alpha",
   "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct",
   "openrouter:google/gemma-4-31b-it:free",
   "openrouter:google/gemma-4-26b-a4b-it:free",
