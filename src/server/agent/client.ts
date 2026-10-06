@@ -1,6 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
-import { getSetting, setSetting } from "../db";
+import { db, getSetting, setSetting } from "../db";
 import { seal, unseal } from "../vault";
 import {
   cloudflare,
@@ -160,6 +160,13 @@ async function resolve() {
     meta: { ...cfData.meta, ...openData.meta },
   };
 
+  // Automatically migrate away from any defunct/test models (e.g. space-bunny)
+  try {
+    const conn = db();
+    conn.prepare("UPDATE dots SET model = NULL WHERE model LIKE '%space-bunny%'").run();
+    conn.prepare("UPDATE settings SET value = ? WHERE key = 'default_model' AND value LIKE '%space-bunny%'").run(mainDefault);
+  } catch {}
+
   g.__dotsResolved = resolved;
   console.log(`[dots] default ${resolved.main} (agent), ${resolved.review} (rule review); ${resolved.available.length} models available`);
   return resolved;
@@ -199,8 +206,10 @@ export function models(): Promise<{ main: string; review: string; available: str
 /** The model a dot should run on right now. */
 export async function modelFor(dotModel: string | null): Promise<string> {
   const m = await models();
-  if (dotModel && m.available.includes(dotModel)) return dotModel;
-  return getSetting("default_model") ?? m.main;
+  if (dotModel && m.available.includes(dotModel) && !dotModel.includes("space-bunny")) return dotModel;
+  const def = getSetting("default_model");
+  if (def && m.available.includes(def) && !def.includes("space-bunny")) return def;
+  return m.main;
 }
 
 /** Best-known model info for display, without blocking. */
@@ -215,7 +224,9 @@ export function knownModels(): { main: string; review: string; available: string
     available: cfUrl ? DEFAULT_CLOUDFLARE_MODELS.map((m) => "cloudflare:" + m.id) : [],
     meta: {},
   };
-  return { ...r, defaultModel: getSetting("default_model") ?? r.main };
+  const def = getSetting("default_model");
+  const validDef = def && !def.includes("space-bunny") && (r.available.length === 0 || r.available.includes(def)) ? def : r.main;
+  return { ...r, defaultModel: validDef };
 }
 
 /** gpt-5.x / gpt-6 / o-series accept `reasoning`; gpt-4.1 and friends reject it. */

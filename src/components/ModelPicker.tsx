@@ -167,33 +167,7 @@ function parseModelId(id: string): {
       desc: "Liquid neural network architecture for ultra-fast edge inference",
     };
   }
-  if (lower.includes("apodex")) {
-    return {
-      cleanId: raw,
-      name: "Apodex 1.1 Mini",
-      category: "fast",
-      badge: "Mini",
-      desc: "Lightweight conversational agent model",
-    };
-  }
-  if (lower.includes("space-bunny")) {
-    return {
-      cleanId: raw,
-      name: "Space Bunny Alpha",
-      category: "general",
-      badge: "Alpha",
-      desc: "Experimental reasoning and instruction model",
-    };
-  }
-  if (lower.includes("dots-3-note")) {
-    return {
-      cleanId: raw,
-      name: "Dots 3 Note Preview",
-      category: "general",
-      badge: "Preview",
-      desc: "Dots Studio note and text synthesis model",
-    };
-  }
+
   if (lower.includes("openrouter/free")) {
     return {
       cleanId: raw,
