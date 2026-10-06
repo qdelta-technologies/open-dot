@@ -267,7 +267,7 @@ async function turn(dotId: string, text: string, trigger: Trigger, signal: Abort
   }
   const { stateless } = clientFor(await modelFor(dot.model));
   if (!fresh && (stateless ? !repo.getHistory(dotId).length : !thread)) input.unshift(...rebuildContext(dotId, text));
-  input.push(userInput(text, attachments));
+  input.push(userInput(text, attachments, stateless));
   await drive(dot, thread, input, trigger, signal, conversationId);
 }
 
@@ -625,17 +625,23 @@ setConsult(async (target, message, from, _depth, signal) => {
 
 // ---------------------------------------------------------------- helpers
 
-/** A user turn with its attachments: images and PDFs go to the model directly; every file is also in the workspace. */
-function userInput(text: string, attachments: Attachment[]): ResponseInputItem {
+/** A user turn with its attachments: images go as vision input; PDFs/files stay in workspace (preventing token blowup on stateless edge models). */
+function userInput(text: string, attachments: Attachment[], stateless = false): ResponseInputItem {
   if (!attachments.length) return { role: "user", content: text };
   const note = `\n\n[Attached: ${attachments.map((a) => `${a.name} (saved in your workspace at ${files.boxPathOf(a.id) ?? `uploads/${a.name}`})`).join("; ")}]`;
   const parts: ResponseInputContent[] = [{ type: "input_text", text: (text || "See the attached files.") + note }];
   for (const a of attachments) {
     const f = files.get(a.id);
     if (!f || f.size > 15 * 1024 * 1024) continue;
-    const b64 = f.data().toString("base64");
-    if (/^image\/(png|jpeg|gif|webp)$/.test(f.mime)) parts.push({ type: "input_image", image_url: `data:${f.mime};base64,${b64}`, detail: "auto" });
-    else if (f.mime === "application/pdf") parts.push({ type: "input_file", filename: f.name, file_data: `data:application/pdf;base64,${b64}` });
+    // Images: send as visual input if under 4MB
+    if (/^image\/(png|jpeg|gif|webp)$/.test(f.mime) && f.size < 4 * 1024 * 1024) {
+      const b64 = f.data().toString("base64");
+      parts.push({ type: "input_image", image_url: `data:${f.mime};base64,${b64}`, detail: "auto" });
+    } else if (!stateless && f.mime === "application/pdf") {
+      // Native PDF document parsing only for OpenAI models that support input_file
+      const b64 = f.data().toString("base64");
+      parts.push({ type: "input_file", filename: f.name, file_data: `data:application/pdf;base64,${b64}` });
+    }
   }
   return { role: "user", content: parts };
 }
