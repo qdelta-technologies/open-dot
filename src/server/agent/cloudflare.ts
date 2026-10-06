@@ -33,6 +33,10 @@ const g = globalThis as unknown as {
 };
 
 export const DEFAULT_WORKER_URL = "https://opendot-worker.qdelta-work.workers.dev";
+export const DEFAULT_WORKER_URLS = [
+  "https://opendot-worker.qdelta-work.workers.dev",
+  "https://opendot-worker.saiprabathn.workers.dev",
+];
 
 function envUrl(): string | null {
   return process.env.CLOUDFLARE_WORKER_URL || null;
@@ -44,13 +48,13 @@ function envToken(): string | null {
 
 /** Parses configured worker URLs into a clean array. Supports comma or newline separated URLs. */
 export function cloudflareWorkerUrls(): string[] {
-  const raw = getSetting(URL_SETTING) || envUrl() || DEFAULT_WORKER_URL;
-  if (!raw) return [DEFAULT_WORKER_URL];
+  const raw = getSetting(URL_SETTING) || envUrl();
+  if (!raw) return DEFAULT_WORKER_URLS;
   const list = raw
     .split(/[\n,]+/)
     .map((u) => u.trim().replace(/\/+$/, ""))
     .filter(Boolean);
-  return list.length ? list : [DEFAULT_WORKER_URL];
+  return list.length ? list : DEFAULT_WORKER_URLS;
 }
 
 /** Check which workers are still available (not marked exhausted within the last 12 hours). */
