@@ -317,7 +317,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   try {
     stream = await client.responses.create(
       stateless
-        ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true }
+        ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 2048 }
         : {
             model,
             instructions: systemPrompt(dot, trigger),
@@ -333,31 +333,56 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
       { signal },
     );
   } catch (err) {
-    const isRateLimit = /429|rate limit|quota|busy/i.test(String(err));
-    const isNotDefault = appModel !== "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-    if (isRateLimit && isNotDefault && Boolean(cloudflareWorkerUrl())) {
-      console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Llama 3.3 70B Fast...`);
-      repo.addMessage({
-        dotId: dot.id,
-        role: "system",
-        conversationId: convId,
-        text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 3.3 70B Fast on Cloudflare edge...`,
-      });
-      const fallbackClient = clientFor("cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast");
-      stream = await fallbackClient.client.responses.create(
-        {
-          model: fallbackClient.model,
-          instructions: systemPrompt(dot, trigger),
-          input: [...history, ...input],
-          tools,
-          parallel_tool_calls: false,
-          store: false,
-          stream: true,
-        },
-        { signal },
-      );
+    const isContextOverflow = /context length|maximum context|input_tokens|8007|reduce the length/i.test(String(err));
+    if (isContextOverflow && stateless && history.length > 0) {
+      console.warn(`[dots] Context limit reached for ${appModel}. Auto-pruning history and retrying...`);
+      const pruned = history.slice(-4);
+      repo.setHistory(dot.id, pruned);
+      try {
+        stream = await client.responses.create(
+          {
+            model,
+            instructions: systemPrompt(dot, trigger),
+            input: [...pruned, ...input],
+            tools,
+            parallel_tool_calls: false,
+            store: false,
+            stream: true,
+            max_output_tokens: 1500,
+          },
+          { signal },
+        );
+      } catch (retryErr) {
+        throw retryErr;
+      }
     } else {
-      throw err;
+      const isRateLimit = /429|rate limit|quota|busy/i.test(String(err));
+      const isNotDefault = appModel !== "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+      if (isRateLimit && isNotDefault && Boolean(cloudflareWorkerUrl())) {
+        console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Llama 3.3 70B Fast...`);
+        repo.addMessage({
+          dotId: dot.id,
+          role: "system",
+          conversationId: convId,
+          text: `⚡ Selected model (${appModel.replace(/^openrouter:|^cloudflare:/, "")}) hit a temporary provider rate limit. Continuing automatically with Meta Llama 3.3 70B Fast on Cloudflare edge...`,
+        });
+        const fallbackClient = clientFor("cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast");
+        stream = await fallbackClient.client.responses.create(
+          {
+            model: fallbackClient.model,
+            instructions: systemPrompt(dot, trigger),
+            input: [...history, ...input],
+            tools,
+            parallel_tool_calls: false,
+            store: false,
+            stream: true,
+            max_output_tokens: 2048,
+          },
+          { signal },
+        );
+      } else {
+        throw err;
+      }
     }
   }
 
@@ -423,7 +448,7 @@ function replayable(output: Response["output"]): ResponseInputItem[] {
 }
 
 /** Keep the replayed history bounded: drop the oldest turns, always cutting at a user message. */
-function trimHistory(items: ResponseInputItem[], maxItems = 80, maxChars = 160_000): ResponseInputItem[] {
+function trimHistory(items: ResponseInputItem[], maxItems = 24, maxChars = 32_000): ResponseInputItem[] {
   const size = (list: ResponseInputItem[]) => JSON.stringify(list).length;
   let start = 0;
   while (items.length - start > maxItems || size(items.slice(start)) > maxChars) {

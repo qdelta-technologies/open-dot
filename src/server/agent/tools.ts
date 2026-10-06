@@ -64,8 +64,15 @@ export const TOOLS: ToolDef[] = [
     description: "Read a text file from your workspace.",
     parameters: obj({ path: str("Path relative to your workspace") }),
     execute: async (a, ctx) => {
-      const buf = await computer.readFile(ctx.dot.id, s(a.path)).catch(() => null);
-      return buf ? buf.toString("utf8").slice(0, 30_000) : `No such file: ${s(a.path)}`;
+      const filePath = s(a.path);
+      const lower = filePath.toLowerCase();
+      if (lower.endsWith(".pdf") || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz") || lower.endsWith(".exe") || lower.endsWith(".bin")) {
+        return `[Binary file (${filePath}): read_file only supports plain text files (e.g. .txt, .md, .csv, .json, .js, .ts, .py, .html, .log). For PDFs or binary documents, use pdftotext or python in run_command to extract text first.]`;
+      }
+      const buf = await computer.readFile(ctx.dot.id, filePath).catch(() => null);
+      if (!buf) return `No such file: ${filePath}`;
+      const text = buf.toString("utf8");
+      return text.length > 12_000 ? text.slice(0, 12_000) + `\n\n...[truncated: showing first 12,000 characters of ${text.length}]` : text;
     },
   },
   {
