@@ -53,6 +53,26 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
 }
 
 /**
+ * Strips <think>...</think> reasoning blocks from DeepSeek R1 and reasoning models.
+ * While actively streaming inside an unclosed <think> tag, suppresses the raw reasoning text
+ * so the user only sees clean, finished output.
+ */
+function cleanThinkingBlock(text: string): { cleanText: string; isThinking: boolean } {
+  if (!text) return { cleanText: "", isThinking: false };
+
+  // 1. Remove all completed <think>...</think> blocks
+  let clean = text.replace(/<think>[\s\S]*?<\/think>\s*/gi, "");
+
+  // 2. Check if currently streaming inside an unclosed <think> tag
+  if (/<think>/i.test(clean)) {
+    clean = clean.replace(/<think>[\s\S]*$/gi, "");
+    return { cleanText: clean.trim(), isThinking: true };
+  }
+
+  return { cleanText: clean.trim(), isThinking: false };
+}
+
+/**
  * Balances incomplete markdown structures while streaming so the parser
  * doesn't flicker, break, or jump abruptly (e.g. unclosed code blocks).
  */
@@ -73,9 +93,18 @@ export const StreamingMarkdown = memo(function StreamingMarkdown({
   text: string;
   isStreaming?: boolean;
 }) {
+  const { cleanText, isThinking } = cleanThinkingBlock(text);
   // Use our smooth 60fps streaming interpolation hook
-  const rawStreamedText = useSmoothStream(text, isStreaming);
+  const rawStreamedText = useSmoothStream(cleanText, isStreaming);
   const balancedText = isStreaming ? balanceStreamingMarkdown(rawStreamedText) : rawStreamedText;
+
+  if (!balancedText && isThinking) {
+    return (
+      <div className="flex items-center gap-2 py-1.5 text-foreground/50 text-[13px] italic font-sans animate-pulse">
+        <span>Reasoning through response…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="dot-prose relative">

@@ -14,6 +14,30 @@ const CF = "cloudflare:";
 
 export type ModelCategory = "all" | "general" | "coding" | "vision" | "fast";
 
+export function inferModalityBadge(id: string): string {
+  const lower = id.toLowerCase();
+  // Models accepting Video, Photo, and Text
+  if (
+    lower.includes("llama-4-scout") ||
+    lower.includes("gpt-4o") ||
+    lower.includes("gemini")
+  ) {
+    return "Photo · Video · Text";
+  }
+  // Models accepting Photo and Text
+  if (
+    lower.includes("vision") ||
+    lower.includes("mistral-small") ||
+    lower.includes("claude-3-5") ||
+    lower.includes("claude-3-7") ||
+    lower.includes("pixtral")
+  ) {
+    return "Photo · Text";
+  }
+  // All other models are text only
+  return "Text";
+}
+
 function parseModelId(id: string): {
   cleanId: string;
   name: string;
@@ -538,7 +562,7 @@ export default function ModelPicker({
         id,
         name: parsed.name,
         category,
-        badge: parsed.badge,
+        badge: inferModalityBadge(id),
         desc,
         params,
         ctx,
@@ -661,13 +685,11 @@ export default function ModelPicker({
                       {m.badge && (
                         <span
                           className={`rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
-                            m.category === "coding"
-                              ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                              : m.category === "vision"
+                            m.badge.includes("Video")
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : m.badge.includes("Photo") || m.badge.includes("Vision")
                               ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                              : m.category === "fast"
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : "bg-black/[0.05] dark:bg-white/[0.08] text-foreground/60"
                           }`}
                         >
                           {m.badge}

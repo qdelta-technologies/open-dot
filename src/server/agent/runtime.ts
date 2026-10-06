@@ -446,7 +446,11 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
         case "response.output_item.done":
           if (ev.item.type === "message") {
             const d = drafts.get(ev.item.id);
-            if (d) repo.updateMessage(d.id, { text: d.text });
+            if (d) {
+              const clean = d.text.replace(/<think>[\s\S]*?<\/think>\s*/gi, "").trim();
+              d.text = clean;
+              repo.updateMessage(d.id, { text: clean });
+            }
           } else if (String(ev.item.type).includes("web_search")) {
             const action = (ev.item as { action?: { query?: string } }).action;
             activity(dot.id, "Searched the web", action?.query);
@@ -660,7 +664,10 @@ function rebuildContext(dotId: string, exclude: string): ResponseInputItem[] {
   return repo
     .conversationMessages(repo.currentConversation(dotId), 40)
     .filter((m) => (m.role === "user" || m.role === "dot") && m.text && m.text !== exclude)
-    .map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.text }));
+    .map((m) => ({
+      role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+      content: m.text.replace(/<think>[\s\S]*?<\/think>\s*/gi, "").trim(),
+    }));
 }
 
 // ---------------------------------------------------------------- dot-to-dot
@@ -681,7 +688,7 @@ setConsult(async (target, message, from, _depth, signal) => {
       },
       { signal },
     );
-    const reply = res.output_text || "(no reply)";
+    const reply = (res.output_text || "(no reply)").replace(/<think>[\s\S]*?<\/think>\s*/gi, "").trim();
     // In a channel the member answers in the channel (the user sees the team at work); otherwise in its own chat.
     repo.addMessage({ dotId: target.id, role: "dot", text: reply, from: `dot:${from.name}`, channelId });
     return `${target.name} replied: ${reply}`;
