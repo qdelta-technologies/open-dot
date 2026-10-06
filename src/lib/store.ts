@@ -180,16 +180,82 @@ function notify(dotId: string, title: string, body: string) {
   setTimeout(() => dismissToast(toast.id), 7000);
 }
 
-function connect() {
-  source = new EventSource("/api/events");
-  source.onmessage = (e) => apply(JSON.parse(e.data) as ServerEvent);
-  source.onerror = () => set({ connected: false }); // EventSource reconnects and receives a fresh snapshot
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function connect() {
+  if (typeof window === "undefined") return;
+  // Don't connect on login screen before authentication
+  if (window.location.pathname === "/login") return;
+
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  if (source) {
+    try {
+      source.close();
+    } catch {}
+    source = null;
+  }
+
+  try {
+    source = new EventSource("/api/events");
+
+    source.onmessage = (e) => {
+      try {
+        apply(JSON.parse(e.data) as ServerEvent);
+      } catch (err) {
+        console.error("Failed to parse SSE event", err);
+      }
+    };
+
+    source.onerror = () => {
+      set({ connected: false });
+      // When EventSource fails (e.g. 401 unauthenticated or network dropped),
+      // the browser marks it closed. Clean up and schedule auto-reconnection.
+      if (source) {
+        try {
+          source.close();
+        } catch {}
+        source = null;
+      }
+
+      if (!reconnectTimer && typeof window !== "undefined" && window.location.pathname !== "/login") {
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          if (listeners.size > 0 && !source && window.location.pathname !== "/login") {
+            connect();
+          }
+        }, 2000);
+      }
+    };
+  } catch {
+    set({ connected: false });
+  }
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  if (!source) connect();
+  if (!source && typeof window !== "undefined" && window.location.pathname !== "/login") {
+    connect();
+  }
   return () => listeners.delete(listener);
+}
+
+// Auto-reconnect when tab gains focus or network comes back online
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    if (!state.connected && window.location.pathname !== "/login") {
+      connect();
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !state.connected && window.location.pathname !== "/login") {
+      connect();
+    }
+  });
 }
 
 /** Merge older messages (e.g. a conversation's full history, loaded on open) into the store. */

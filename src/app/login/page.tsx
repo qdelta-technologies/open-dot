@@ -24,8 +24,7 @@ function LoginForm() {
       try {
         const res = await verifyAccessPassword(password.trim());
         if (res.success) {
-          router.replace(from);
-          router.refresh();
+          window.location.href = from;
         } else {
           setError(res.error || "Incorrect access password.");
         }
