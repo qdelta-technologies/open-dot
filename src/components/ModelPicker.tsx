@@ -703,13 +703,13 @@ export default function ModelPicker({
 
             {/* Provider tabs */}
             {tabs.length > 2 && (
-              <div className="flex gap-1 overflow-x-auto overscroll-x-contain px-2 pt-1.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-popover/40 dark:bg-[#222] border-b border-black/[0.05] dark:border-white/[0.05]">
+              <div className="flex shrink-0 flex-wrap gap-1.5 px-2 py-2 sm:gap-1 sm:pt-1.5 sm:pb-1 bg-popover/40 dark:bg-[#222] border-b border-black/[0.05] dark:border-white/[0.05]">
                 {tabs.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setTab(t.id)}
-                    className={`h-7 shrink-0 whitespace-nowrap rounded-md px-3 text-[12px] font-medium transition-colors sm:h-6 sm:px-2.5 sm:text-[11px] ${
+                    className={`h-8 whitespace-nowrap rounded-full px-3.5 text-[12px] font-medium transition-colors sm:h-6 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
                       tab === t.id
                         ? "bg-foreground/10 text-foreground"
                         : "text-foreground/45 hover:text-foreground/70 hover:bg-foreground/5"
