@@ -315,6 +315,35 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
+    name: "update_routine",
+    label: "Updating routine",
+    description: "Update an existing routine or automation when the user asks for changes (e.g. change time/schedule, modify instructions, or change name).",
+    parameters: obj(
+      {
+        routine: str("The routine id (e.g. rtn_...) or routine name to update"),
+        name: nullableStr("New name, or leave null to keep unchanged"),
+        instruction: nullableStr("New instruction, or leave null to keep unchanged"),
+        schedule: nullableStr("New 5-field cron schedule, or leave null to keep unchanged"),
+      },
+      ["routine"]
+    ),
+    describe: (a) => `update routine "${s(a.routine)}"`,
+    defaultDecision: () => "allow",
+    execute: async (a, ctx) => {
+      const target = repo.findRoutine(ctx.dot.id, s(a.routine));
+      if (!target) return `Routine "${s(a.routine)}" not found. Existing routines: ${repo.listRoutines(ctx.dot.id).map((r) => `${r.name} (${r.id})`).join(", ") || "none"}`;
+      const patch: { name?: string; instruction?: string; schedule?: string } = {};
+      if (a.name && s(a.name) !== "null" && s(a.name) !== "undefined") patch.name = s(a.name);
+      if (a.instruction && s(a.instruction) !== "null" && s(a.instruction) !== "undefined") patch.instruction = s(a.instruction);
+      if (a.schedule && s(a.schedule) !== "null" && s(a.schedule) !== "undefined") {
+        if (!repo.validSchedule(s(a.schedule))) return `Invalid cron expression: ${s(a.schedule)}`;
+        patch.schedule = s(a.schedule);
+      }
+      const updated = repo.updateRoutine(target.id, patch);
+      return `Routine "${updated?.name ?? target.name}" updated successfully. Schedule: ${updated?.schedule}.`;
+    },
+  },
+  {
     name: "delete_routine",
     label: "Updating routines",
     description: "Delete one of your routines.",

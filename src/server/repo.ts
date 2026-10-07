@@ -499,13 +499,32 @@ export function addRoutine(input: { dotId: string; name: string; instruction: st
   return routine;
 }
 
-export function updateRoutine(routineId: string, patch: { enabled?: boolean; lastRunAt?: number; lastError?: string | null }): Routine | null {
+export function updateRoutine(
+  routineId: string,
+  patch: {
+    name?: string;
+    instruction?: string;
+    schedule?: string;
+    enabled?: boolean;
+    lastRunAt?: number;
+    lastError?: string | null;
+  }
+): Routine | null {
+  if (patch.name !== undefined) db().prepare("UPDATE routines SET name = ? WHERE id = ?").run(patch.name, routineId);
+  if (patch.instruction !== undefined) db().prepare("UPDATE routines SET instruction = ? WHERE id = ?").run(patch.instruction, routineId);
+  if (patch.schedule !== undefined) db().prepare("UPDATE routines SET schedule = ? WHERE id = ?").run(patch.schedule, routineId);
   if (patch.enabled !== undefined) db().prepare("UPDATE routines SET enabled = ? WHERE id = ?").run(patch.enabled ? 1 : 0, routineId);
   if (patch.lastRunAt !== undefined) db().prepare("UPDATE routines SET last_run_at = ? WHERE id = ?").run(patch.lastRunAt, routineId);
   if (patch.lastError !== undefined) db().prepare("UPDATE routines SET last_error = ? WHERE id = ?").run(patch.lastError ?? null, routineId);
   const routine = getRoutine(routineId);
   if (routine) emit({ type: "routine", data: routine });
   return routine;
+}
+
+export function findRoutine(dotId: string, idOrName: string): Routine | null {
+  const all = listRoutines(dotId);
+  const clean = idOrName.trim().toLowerCase();
+  return all.find((r) => r.id.toLowerCase() === clean || r.name.toLowerCase() === clean || r.name.toLowerCase().includes(clean)) ?? null;
 }
 
 export function deleteRoutine(routineId: string) {
