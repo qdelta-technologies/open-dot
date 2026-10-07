@@ -101,6 +101,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   const router = useRouter();
   const all = useStore((s) => s.messages);
   const conversations = useStore((s) => s.conversations);
+  const liveDot = useStore((s) => s.dots.find((d) => d.id === dot.id)) ?? dot;
   const mine = useMemo(
     () => conversations.filter((c) => c.dotId === dot.id).sort((a, b) => b.updatedAt - a.updatedAt),
     [conversations, dot.id]
@@ -129,10 +130,10 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   }, [messages, pendingText]);
 
   useEffect(() => {
-    if (dot.status !== "working") {
+    if (liveDot.status !== "working") {
       setIsSending(false);
     }
-  }, [dot.status]);
+  }, [liveDot.status]);
 
   // A chat counts as started once you've written, or talked in voice mode.
   const fresh = !messages.some((m) => m.role === "user" || m.from === "voice") && !pendingText;
@@ -170,14 +171,14 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   const firstNew = shown.findIndex((m) => (m.role === "dot" || m.role === "card") && m.createdAt > readAt);
 
   // Dot is working in this conversation if actively routed here, or if this conversation is active / awaiting response
-  const isBoundToThisChat = dot.activeConversationId
-    ? dot.activeConversationId === convId
+  const isBoundToThisChat = liveDot.activeConversationId
+    ? liveDot.activeConversationId === convId
     : convId === mine[0]?.id || !convId || Boolean(pendingText) || isSending;
 
   const workingHere = Boolean(
     isSending ||
     Boolean(pendingText) ||
-    (dot.status === "working" && isBoundToThisChat)
+    (liveDot.status === "working" && isBoundToThisChat)
   );
 
   const send = (text: string, attachments: Attachment[] = []) => {
@@ -246,7 +247,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
                 {(i === 0 || m.createdAt - shown[i - 1].createdAt > 60 * 60_000) && <DateSeparator ts={m.createdAt} />}
                 <MessageRow
                   m={m}
-                  dot={dot}
+                  dot={liveDot}
                   isStreaming={Boolean(workingHere && i === shown.length - 1 && m.role === "dot")}
                   onRetry={() => send("Please continue or refine the previous answer.")}
                 />
@@ -255,8 +256,8 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
             {workingHere && (
               <div className="flex items-center gap-2.5 py-3 pl-1 text-foreground/75">
-                <ThinkingOrb state={getOrbState(dot.activity)} size={20} />
-                <span className="shimmer-text text-[14px] font-medium">{dot.activity ?? "Thinking"}…</span>
+                <ThinkingOrb state={getOrbState(liveDot.activity)} size={20} />
+                <span className="shimmer-text text-[14px] font-medium">{liveDot.activity ?? "Thinking"}…</span>
               </div>
             )}
           </div>
@@ -291,7 +292,18 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
             </span>
           </div>
         )}
-        <Composer key={convId ?? "new"} dot={dot} onSend={send} onVoice={voice} />
+        <Composer
+          key={convId ?? "new"}
+          dot={liveDot}
+          isWorking={workingHere || liveDot.status === "working"}
+          onStop={() => {
+            setIsSending(false);
+            setPendingText(null);
+            start(() => stopDot(dot.id));
+          }}
+          onSend={send}
+          onVoice={voice}
+        />
       </div>
     </div>
   );
@@ -347,10 +359,14 @@ async function uploadFiles(dotId: string, list: File[]): Promise<{ files?: Attac
 
 function Composer({
   dot,
+  isWorking,
+  onStop,
   onSend,
   onVoice,
 }: {
   dot: Dot;
+  isWorking?: boolean;
+  onStop?: () => void;
   onSend: (text: string, attachments: Attachment[]) => void;
   onVoice: () => void;
 }) {
@@ -660,10 +676,11 @@ function Composer({
             />
 
             {/* Voice / Stop / Send Action Button */}
-            {dot.status === "working" ? (
+            {isWorking || dot.status === "working" ? (
               <button
+                type="button"
                 className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:scale-105 active:scale-95"
-                onClick={() => start(() => stopDot(dot.id))}
+                onClick={onStop ? onStop : () => start(() => stopDot(dot.id))}
                 aria-label="Stop current task"
                 title="Stop task"
               >

@@ -70,7 +70,13 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             <SlidersHorizontal className="size-4" strokeWidth={1.75} />
           </IconLink>
           {dot.status === "working" && (
-            <button className="btn-quiet size-8 p-0" disabled={pending} onClick={() => start(() => stopDot(dot.id))} title="Stop" aria-label="Stop">
+            <button
+              className="flex size-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
+              disabled={pending}
+              onClick={() => start(() => stopDot(dot.id))}
+              title="Stop task"
+              aria-label="Stop task"
+            >
               <Square className="size-3.5 fill-current" />
             </button>
           )}

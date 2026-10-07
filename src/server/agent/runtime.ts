@@ -115,6 +115,12 @@ export function stop(dotId: string) {
   const s = state(dotId);
   s.inbox = [];
   s.abort?.abort();
+  repo.setActivity(dotId, null);
+  const dot = repo.getDot(dotId);
+  if (dot && dot.status === "working") {
+    repo.updateDot(dotId, { status: repo.pendingCards(dotId).length ? "waiting" : "idle" });
+    repo.addMessage({ dotId, role: "system", text: `${dot.name} was stopped.` });
+  }
 }
 
 export function pause(dotId: string) {
