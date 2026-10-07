@@ -53,8 +53,8 @@ export async function saveGoogleKey(key: string): Promise<string | null> {
     return null;
   }
   try {
-    const res = await fetch(`${BASE_URL}models`, { headers: { Authorization: `Bearer ${key}` } });
-    if (res.status === 401 || res.status === 403) return "Google AI didn't accept that key. Get one at aistudio.google.com.";
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+    if (res.status === 400 || res.status === 401 || res.status === 403) return "Google AI didn't accept that key. Get one at aistudio.google.com.";
     if (!res.ok) return `Couldn't verify the key (${res.status}).`;
   } catch (err) {
     return `Couldn't reach Google AI: ${err instanceof Error ? err.message : String(err)}`;
@@ -68,18 +68,19 @@ export async function saveGoogleKey(key: string): Promise<string | null> {
 
 // Display metadata for well-known models. Dynamically fetched model IDs may not be in this list.
 export const GOOGLE_MODELS = [
+  { id: "gemini-3.8-flash",       name: "Gemini 3.8 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Latest fast Gemini model — September 2026" },
+  { id: "gemini-3.7-flash",       name: "Gemini 3.7 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast Gemini model with strong performance" },
+  { id: "gemini-3.5-flash",       name: "Gemini 3.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast capable Gemini model — recommended by Google" },
+  { id: "gemini-3.5-flash-lite",  name: "Gemini 3.5 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight fast Gemini model, cost-efficient" },
+  { id: "gemini-3.1-flash-lite",  name: "Gemini 3.1 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Compact Gemini model for quick tasks" },
   { id: "gemini-2.5-pro",         name: "Gemini 2.5 Pro",         parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context, multimodal" },
   { id: "gemini-2.5-flash",       name: "Gemini 2.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" },
-  { id: "gemini-2.0-flash",       name: "Gemini 2.0 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Reliable free-tier model with tool calling, multimodal and 1M context" },
-  { id: "gemini-2.0-flash-lite",  name: "Gemini 2.0 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight free-tier model for quick tasks" },
-  { id: "gemini-1.5-flash",       name: "Gemini 1.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast model for routine tasks and scheduled automations" },
-  { id: "gemini-1.5-flash-8b",    name: "Gemini 1.5 Flash 8B",    parameters: "Flash", context_length:  1048576, category: "fast"    as const, description: "Smallest and fastest Gemini model" },
-  { id: "gemini-1.5-pro",         name: "Gemini 1.5 Pro",         parameters: "Pro",   context_length: 2097152, category: "general" as const, description: "Strong reasoning with 2M context window" },
+  { id: "gemini-2.5-flash-lite",  name: "Gemini 2.5 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight Gemini 2.5 model for quick tasks" },
 ];
 const META_MAP = new Map(GOOGLE_MODELS.map((m) => [m.id, m]));
 
-// Sorted preference list for picking a default: most capable stable models first.
-const PREFERRED_IDS = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash"];
+// Sorted preference list for picking a default: newest stable models first.
+const PREFERRED_IDS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 export const preferredGoogleModel = (available?: string[]) => {
   if (available) {
@@ -89,7 +90,7 @@ export const preferredGoogleModel = (available?: string[]) => {
     }
     if (available.length) return available[0];
   }
-  return GOOGLE_PREFIX + "gemini-2.0-flash";
+  return GOOGLE_PREFIX + "gemini-2.5-flash";
 };
 export const smallGoogleModel = (available?: string[]) => preferredGoogleModel(available);
 
@@ -102,15 +103,25 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
   if (g2.__dotsGoogleModels?.key === key) return g2.__dotsGoogleModels.result;
 
   try {
-    const res = await fetch(`${BASE_URL}models`, { headers: { Authorization: `Bearer ${key}` } });
+    // Use the standard Gemini REST endpoint — the OpenAI-compat /v1beta/openai/models returns 401.
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`
+    );
     if (!res.ok) throw new Error(`${res.status}`);
     const json: any = await res.json();
-    const rawIds: string[] = (json.data ?? []).map((m: any) => String(m.id)).filter(Boolean);
-    // Filter to chat-capable Gemini models (skip embedding, tuned, etc.)
+
+    // Standard endpoint: { models: [{ name: "models/gemini-3.5-flash", supportedGenerationMethods: [...] }] }
+    const rawModels: any[] = json.models ?? json.data ?? [];
     const ids: string[] = [];
     const meta: Record<string, ModelMeta> = {};
-    for (const raw of rawIds) {
+    for (const m of rawModels) {
+      // Standard endpoint uses "name" field with "models/" prefix; openai compat uses "id"
+      const raw = String(m.id ?? m.name ?? "").replace(/^models\//, "");
       if (!raw.startsWith("gemini")) continue;
+      // Skip non-chat-capable models
+      if (raw.includes("embedding") || raw.includes("aqa") || raw.includes("text-")) continue;
+      if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes("generateContent")) continue;
+
       const fullId = GOOGLE_PREFIX + raw;
       ids.push(fullId);
       const known = META_MAP.get(raw);
@@ -133,9 +144,10 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
 
 function fallbackModelsAndMeta(): { ids: string[]; meta: Record<string, ModelMeta> } {
   // If the models endpoint is unreachable, offer a minimal safe set so the UI still works.
+  // Use gemini-2.5-flash (GA May 2026) and gemini-3.5-flash-lite (GA Jul 2026) as safe fallbacks.
   const ids: string[] = [];
   const meta: Record<string, ModelMeta> = {};
-  for (const m of [GOOGLE_MODELS[2], GOOGLE_MODELS[3]]) { // gemini-2.0-flash, gemini-2.0-flash-lite
+  for (const m of [GOOGLE_MODELS[5], GOOGLE_MODELS[6]]) { // gemini-2.5-pro, gemini-2.5-flash
     const fullId = GOOGLE_PREFIX + m.id;
     ids.push(fullId);
     meta[fullId] = { isFree: true, contextLength: m.context_length, contextFormatted: "1M ctx", parameters: m.parameters, category: m.category, description: m.description };
