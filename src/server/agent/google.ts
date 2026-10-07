@@ -72,8 +72,6 @@ export async function saveGoogleKey(key: string): Promise<string | null> {
 // Display metadata for well-known models. Dynamically fetched model IDs may not be in this list.
 export const GOOGLE_MODELS = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context" },
-  { id: "gemini-3.8-flash",       name: "Gemini 3.8 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Latest fast Gemini model — September 2026" },
-  { id: "gemini-3.7-flash",       name: "Gemini 3.7 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast Gemini model with strong performance" },
   { id: "gemini-3.5-flash",       name: "Gemini 3.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast capable Gemini model — recommended by Google" },
   { id: "gemini-3.5-flash-lite",  name: "Gemini 3.5 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight fast Gemini model, cost-efficient" },
   { id: "gemini-3.1-flash-lite",  name: "Gemini 3.1 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Compact Gemini model for quick tasks" },
@@ -83,7 +81,14 @@ export const GOOGLE_MODELS = [
 const META_MAP = new Map(GOOGLE_MODELS.map((m) => [m.id, m]));
 
 // Sorted preference list for picking a default: newest stable models first.
-const PREFERRED_IDS = ["gemini-3.1-pro-preview", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const PREFERRED_IDS = [
+  "gemini-3.1-pro-preview",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+];
 
 export const preferredGoogleModel = (available?: string[]) => {
   if (available) {
@@ -106,46 +111,37 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
   if (g2.__dotsGoogleModels?.key === key) return g2.__dotsGoogleModels.result;
 
   try {
-    // Use the standard Gemini REST endpoint — the OpenAI-compat /v1beta/openai/models returns 401.
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`
     );
     if (!res.ok) throw new Error(`${res.status}`);
     const json: any = await res.json();
 
-    // Standard endpoint: { models: [{ name: "models/gemini-3.5-flash", supportedGenerationMethods: [...] }] }
     const rawModels: any[] = json.models ?? json.data ?? [];
+    const availableSet = new Set<string>();
+    for (const m of rawModels) {
+      const raw = String(m.id ?? m.name ?? "").replace(/^models\//, "");
+      availableSet.add(raw);
+    }
+
     const ids: string[] = [];
     const meta: Record<string, ModelMeta> = {};
-    for (const m of rawModels) {
-      // Standard endpoint uses "name" field with "models/" prefix; openai compat uses "id"
-      const raw = String(m.id ?? m.name ?? "").replace(/^models\//, "");
-      if (!raw.startsWith("gemini")) continue;
-      // Skip non-chat-capable models (TTS, audio, embedding, image-gen, legacy)
-      if (raw.includes("embedding") || raw.includes("aqa") || raw.includes("text-") ||
-          raw.includes("-tts") || raw.includes("audio") || raw.includes("imagen") ||
-          raw.includes("-image")) continue;
-      if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes("generateContent")) continue;
-      // Skip unversioned aliases (gemini-flash-latest) — no X.X version in name
-      if (!/gemini-\d/.test(raw)) continue;
-      // Skip deprecated models that return 404 for new users
-      if (raw === "gemini-2.5-pro") continue;
-      // Skip versioned pins (-001), -latest/-exp aliases, and date-versioned previews (-preview-05-20)
-      if (/-\d{3}(-|$)/.test(raw) || raw.endsWith("-latest") || raw.endsWith("-exp")) continue;
-      if (/-\d{2}-\d{2}/.test(raw)) continue;
 
-      const fullId = GOOGLE_PREFIX + raw;
+    for (const m of GOOGLE_MODELS) {
+      // If models were returned from Google, verify the model is listed; otherwise keep the verified model
+      if (availableSet.size > 0 && !availableSet.has(m.id)) continue;
+      const fullId = GOOGLE_PREFIX + m.id;
       ids.push(fullId);
-      const known = META_MAP.get(raw);
       meta[fullId] = {
         isFree: true,
-        contextLength: known?.context_length ?? 1048576,
+        contextLength: m.context_length,
         contextFormatted: "1M ctx",
-        parameters: known?.parameters ?? (raw.includes("pro") ? "Pro" : "Flash"),
-        category: known?.category ?? (raw.includes("pro") ? "general" : "fast"),
-        description: known?.description ?? `Gemini model: ${raw}`,
+        parameters: m.parameters,
+        category: m.category,
+        description: m.description,
       };
     }
+
     const result = ids.length ? { ids, meta } : fallbackModelsAndMeta();
     g2.__dotsGoogleModels = { key, result };
     return result;
@@ -155,13 +151,19 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
 }
 
 function fallbackModelsAndMeta(): { ids: string[]; meta: Record<string, ModelMeta> } {
-  // If the models endpoint is unreachable, offer a minimal safe set so the UI still works.
   const ids: string[] = [];
   const meta: Record<string, ModelMeta> = {};
-  for (const m of [GOOGLE_MODELS[0], GOOGLE_MODELS[6]]) { // gemini-3.1-pro-preview, gemini-2.5-flash
+  for (const m of GOOGLE_MODELS) {
     const fullId = GOOGLE_PREFIX + m.id;
     ids.push(fullId);
-    meta[fullId] = { isFree: true, contextLength: m.context_length, contextFormatted: "1M ctx", parameters: m.parameters, category: m.category, description: m.description };
+    meta[fullId] = {
+      isFree: true,
+      contextLength: m.context_length,
+      contextFormatted: "1M ctx",
+      parameters: m.parameters,
+      category: m.category,
+      description: m.description,
+    };
   }
   return { ids, meta };
 }

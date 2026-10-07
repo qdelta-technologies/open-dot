@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -452,23 +452,23 @@ function parseModelId(id: string): {
     };
   }
   // Google Gemini models — specific first (most specific match before less specific)
-  if (lower.includes("gemini-2.5-pro")) {
-    return { cleanId: raw, name: "Gemini 2.5 Pro", category: "general", badge: "Gemini", desc: "Google's most capable model — advanced reasoning, 1M context, multimodal" };
+  if (lower.includes("gemini-3.1-pro")) {
+    return { cleanId: raw, name: "Gemini 3.1 Pro Preview", category: "general", badge: "Pro 1M", desc: "Google's most capable model — advanced reasoning, 1M context" };
+  }
+  if (lower.includes("gemini-3.5-flash-lite")) {
+    return { cleanId: raw, name: "Gemini 3.5 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Lightweight fast Gemini model, cost-efficient" };
+  }
+  if (lower.includes("gemini-3.5-flash")) {
+    return { cleanId: raw, name: "Gemini 3.5 Flash", category: "fast", badge: "Flash", desc: "Fast capable Gemini model — recommended by Google" };
+  }
+  if (lower.includes("gemini-3.1-flash-lite")) {
+    return { cleanId: raw, name: "Gemini 3.1 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Compact Gemini model for quick tasks" };
   }
   if (lower.includes("gemini-2.5-flash-lite")) {
-    return { cleanId: raw, name: "Gemini 2.5 Flash Lite", category: "fast", badge: "Flash", desc: "Lightweight Gemini 2.5 model for quick tasks" };
+    return { cleanId: raw, name: "Gemini 2.5 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Lightweight Gemini 2.5 model for quick tasks" };
   }
   if (lower.includes("gemini-2.5-flash")) {
     return { cleanId: raw, name: "Gemini 2.5 Flash", category: "fast", badge: "Flash", desc: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" };
-  }
-  if (lower.includes("gemini-2.0-flash")) {
-    return { cleanId: raw, name: "Gemini 2.0 Flash", category: "fast", badge: "Free Flash", desc: "Reliable free-tier model with tool calling, multimodal and 1M context" };
-  }
-  if (lower.includes("gemini-1.5-flash")) {
-    return { cleanId: raw, name: "Gemini 1.5 Flash", category: "fast", badge: "Flash", desc: "Proven fast model for routine tasks and scheduled automations" };
-  }
-  if (lower.includes("gemini-1.5-pro")) {
-    return { cleanId: raw, name: "Gemini 1.5 Pro", category: "general", badge: "Gemini", desc: "Google's capable 1M context model" };
   }
   // Generic formatter for newer Gemini models (3.x, etc.) not listed above
   if (lower.includes("gemini-")) {
