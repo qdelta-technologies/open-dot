@@ -36,6 +36,13 @@ import {
   isGoogleModel,
   preferredGoogleModel,
 } from "./google";
+import {
+  anthropicClient,
+  anthropicId,
+  anthropicKey,
+  anthropicModelsAndMeta,
+  isAnthropicModel,
+} from "./anthropic";
 import type { ModelMeta } from "@/lib/types";
 
 // Models are chosen from what the configured providers can actually use. Precedence:
@@ -135,7 +142,7 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
 
 /** OpenAI models, Cloudflare Worker models, OpenRouter models, Groq LPU models, and Google Gemini models. */
 async function resolve() {
-  const [oa, cfData, openData, groqData, googleData] = await Promise.all([
+  const [oa, cfData, openData, groqData, googleData, anthropicData] = await Promise.all([
     resolveOpenAI(),
     cloudflareModelsAndMeta().catch((err) => {
       console.warn("[dots] couldn't list Cloudflare models:", err instanceof Error ? err.message : err);
@@ -150,6 +157,7 @@ async function resolve() {
       return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
     }),
     Promise.resolve(googleModelsAndMeta()),
+    Promise.resolve(anthropicModelsAndMeta()),
   ]);
 
   const cf = cfData.ids;
@@ -174,8 +182,8 @@ async function resolve() {
   const resolved = {
     main: mainDefault,
     review: reviewDefault,
-    available: [...(oa?.available ?? []), ...cf, ...googleData.ids, ...openData.ids, ...groqData.ids],
-    meta: { ...cfData.meta, ...googleData.meta, ...openData.meta, ...groqData.meta },
+    available: [...(oa?.available ?? []), ...cf, ...googleData.ids, ...anthropicData.ids, ...openData.ids, ...groqData.ids],
+    meta: { ...cfData.meta, ...googleData.meta, ...anthropicData.meta, ...openData.meta, ...groqData.meta },
   };
 
 
@@ -202,6 +210,9 @@ export function clientFor(model: string): { client: OpenAI; model: string; state
   if (isGoogleModel(model)) {
     return { client: googleClient(), model: googleId(model), stateless: true };
   }
+  if (isAnthropicModel(model)) {
+    return { client: anthropicClient(), model: anthropicId(model), stateless: true };
+  }
   if (isOpenRouterModel(model)) {
     return { client: openrouter(), model: openRouterId(model), stateless: true };
   }
@@ -210,7 +221,7 @@ export function clientFor(model: string): { client: OpenAI; model: string; state
 
 /** True when any model provider is set up (Cloudflare, OpenAI, OpenRouter, Groq, or Google). */
 export function canThink(): boolean {
-  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey()) || Boolean(groqKey()) || Boolean(googleKey());
+  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey()) || Boolean(groqKey()) || Boolean(googleKey()) || Boolean(anthropicKey());
 }
 
 export function models(): Promise<{ main: string; review: string; available: string[]; meta: Record<string, ModelMeta> }> {

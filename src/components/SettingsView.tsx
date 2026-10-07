@@ -26,6 +26,7 @@ import {
   deletePassword,
   getCloudflareConfig,
   getCloudKey,
+  getAnthropicKey,
   getGoogleKey,
   getOpenAIKey,
   getOpenRouterKey,
@@ -35,6 +36,7 @@ import {
   setCloudflareWorker,
   setCloudKey,
   setDefaultModel,
+  setAnthropicKey,
   setGoogleKey,
   setOpenAIKey,
   setOpenRouterKey,
@@ -70,6 +72,7 @@ export default function SettingsView() {
           <CloudflareWorkerKey />
           <GoogleKey />
           <OpenModelsKey />
+          <AnthropicKey />
           <OpenAIKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
@@ -714,6 +717,95 @@ function OpenModelsKey() {
               className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
               title={showKey ? "Hide key" : "Show key"}
             >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button type="button" className="btn-secondary shrink-0"
+              onClick={() => { setEditing(false); setError(null); setShowKey(false); }}>
+              Cancel
+            </button>
+          )}
+          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
+            {pending ? "Checking…" : "Save"}
+          </button>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Optional Anthropic key: adds Claude Opus, Sonnet, and Haiku models to the model picker. */
+function AnthropicKey() {
+  const computer = useStore((s) => s.computer);
+  const claudeCount = computer.models.filter((m) => m.startsWith("claude:")).length;
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.anthropic !== null && computer.anthropic !== undefined;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const val = await getAnthropicKey();
+      if (val) setKey(val);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getAnthropicKey().then((val) => { if (val) setKey(val); });
+    }
+  }, [editing]);
+
+  const save = (value: string) =>
+    start(async () => {
+      const err = await setAnthropicKey(value);
+      setError(err);
+      if (!err) { setKey(""); setEditing(false); setShowKey(false); }
+    });
+
+  return (
+    <div id="anthropic-key" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[14px]">
+            Anthropic <span className="rounded-xs bg-violet-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-violet-600 dark:text-violet-400 uppercase">Claude Models</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.anthropic === "env"
+              ? `Connected from ANTHROPIC_API_KEY${claudeCount ? ` · ${claudeCount} Claude models in the model picker` : ""}.`
+              : saved
+                ? `Connected${claudeCount ? ` · ${claudeCount} Claude models in the model picker` : ""}. Stored encrypted.`
+                : "Paste an Anthropic API key (from console.anthropic.com) to run dots on Claude Opus, Sonnet, and Haiku models."}
+          </div>
+        </div>
+        {saved && !editing && (
+          computer.anthropic === "env"
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            : <div className="flex items-center gap-2">
+                <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
+                <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
+              </div>
+        )}
+      </div>
+      {(editing || !saved) && computer.anthropic !== "env" && (
+        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); save(key); }}>
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="sk-ant-..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button type="button" onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}>
               {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>

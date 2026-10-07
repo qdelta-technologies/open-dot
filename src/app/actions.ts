@@ -11,6 +11,7 @@ import { apiKey, models, resetModels, saveApiKey } from "@/server/agent/client";
 import { openRouterKey, saveOpenRouterKey } from "@/server/agent/openrouter";
 import { groqKey, saveGroqKey } from "@/server/agent/groq";
 import { googleKey, saveGoogleKey } from "@/server/agent/google";
+import { anthropicKey, saveAnthropicKey } from "@/server/agent/anthropic";
 import { cloudflareWorkerToken, cloudflareWorkerUrl, cloudflareWorkerUrls, saveCloudflareConfig } from "@/server/agent/cloudflare";
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
@@ -258,6 +259,20 @@ export async function setGoogleKey(key: string): Promise<string | null> {
 
 export async function getGoogleKey(): Promise<string> {
   return googleKey() || "";
+}
+
+/** Paste an Anthropic API key in Settings to add Claude models (empty removes it). */
+export async function setAnthropicKey(key: string): Promise<string | null> {
+  const err = await saveAnthropicKey(key.trim());
+  if (err) return err;
+  resetModels();
+  emit({ type: "computer", data: computerInfo() });
+  void models().then(() => emit({ type: "computer", data: computerInfo() })).catch(() => {});
+  return null;
+}
+
+export async function getAnthropicKey(): Promise<string> {
+  return anthropicKey() || "";
 }
 
 export async function getCloudKey(): Promise<string> {

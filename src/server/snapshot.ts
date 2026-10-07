@@ -9,6 +9,7 @@ import { cloudKeySource } from "./computer/cloud";
 import { openRouterSource } from "./agent/openrouter";
 import { groqSource } from "./agent/groq";
 import { googleSource } from "./agent/google";
+import { anthropicSource } from "./agent/anthropic";
 import { cloudflareSource, cloudflareWorkerUrl, cloudflareWorkerToken } from "./agent/cloudflare";
 import { triggersKeySource } from "./triggers";
 import { apps, signedIn } from "./composio";
@@ -31,6 +32,7 @@ export function computerInfo(): ComputerInfo {
     openRouter: openRouterSource(),
     groq: groqSource(),
     google: googleSource(),
+    anthropic: anthropicSource(),
     cloudflare: cfSource
       ? {
           url: cloudflareWorkerUrl(),
