@@ -30,9 +30,12 @@ export const googleSource = (): "env" | "settings" | null =>
 
 export const isGoogleModel = (model: string) => model.startsWith(GOOGLE_PREFIX);
 export const googleId = (model: string) => {
-  const id = model.slice(GOOGLE_PREFIX.length);
+  let id = model.slice(GOOGLE_PREFIX.length);
   // Strip legacy "models/" prefix that was briefly stored in the DB
-  return id.startsWith("models/") ? id.slice("models/".length) : id;
+  if (id.startsWith("models/")) id = id.slice("models/".length);
+  // Google retired gemini-2.5-pro for new API keys in favor of gemini-3.1-pro-preview
+  if (id === "gemini-2.5-pro") return "gemini-3.1-pro-preview";
+  return id;
 };
 
 export function googleClient(): OpenAI {
@@ -68,19 +71,19 @@ export async function saveGoogleKey(key: string): Promise<string | null> {
 
 // Display metadata for well-known models. Dynamically fetched model IDs may not be in this list.
 export const GOOGLE_MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context" },
   { id: "gemini-3.8-flash",       name: "Gemini 3.8 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Latest fast Gemini model — September 2026" },
   { id: "gemini-3.7-flash",       name: "Gemini 3.7 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast Gemini model with strong performance" },
   { id: "gemini-3.5-flash",       name: "Gemini 3.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast capable Gemini model — recommended by Google" },
   { id: "gemini-3.5-flash-lite",  name: "Gemini 3.5 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight fast Gemini model, cost-efficient" },
   { id: "gemini-3.1-flash-lite",  name: "Gemini 3.1 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Compact Gemini model for quick tasks" },
-  { id: "gemini-2.5-pro",         name: "Gemini 2.5 Pro",         parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context, multimodal" },
   { id: "gemini-2.5-flash",       name: "Gemini 2.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" },
   { id: "gemini-2.5-flash-lite",  name: "Gemini 2.5 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight Gemini 2.5 model for quick tasks" },
 ];
 const META_MAP = new Map(GOOGLE_MODELS.map((m) => [m.id, m]));
 
 // Sorted preference list for picking a default: newest stable models first.
-const PREFERRED_IDS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const PREFERRED_IDS = ["gemini-3.1-pro-preview", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 export const preferredGoogleModel = (available?: string[]) => {
   if (available) {
@@ -125,6 +128,8 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
       if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes("generateContent")) continue;
       // Skip unversioned aliases (gemini-flash-latest) — no X.X version in name
       if (!/gemini-\d/.test(raw)) continue;
+      // Skip deprecated models that return 404 for new users
+      if (raw === "gemini-2.5-pro") continue;
       // Skip versioned pins (-001), -latest/-exp aliases, and date-versioned previews (-preview-05-20)
       if (/-\d{3}(-|$)/.test(raw) || raw.endsWith("-latest") || raw.endsWith("-exp")) continue;
       if (/-\d{2}-\d{2}/.test(raw)) continue;
@@ -151,10 +156,9 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
 
 function fallbackModelsAndMeta(): { ids: string[]; meta: Record<string, ModelMeta> } {
   // If the models endpoint is unreachable, offer a minimal safe set so the UI still works.
-  // Use gemini-2.5-flash (GA May 2026) and gemini-3.5-flash-lite (GA Jul 2026) as safe fallbacks.
   const ids: string[] = [];
   const meta: Record<string, ModelMeta> = {};
-  for (const m of [GOOGLE_MODELS[5], GOOGLE_MODELS[6]]) { // gemini-2.5-pro, gemini-2.5-flash
+  for (const m of [GOOGLE_MODELS[0], GOOGLE_MODELS[6]]) { // gemini-3.1-pro-preview, gemini-2.5-flash
     const fullId = GOOGLE_PREFIX + m.id;
     ids.push(fullId);
     meta[fullId] = { isFree: true, contextLength: m.context_length, contextFormatted: "1M ctx", parameters: m.parameters, category: m.category, description: m.description };

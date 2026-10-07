@@ -222,10 +222,13 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
       const msg = err instanceof Error ? err.message : String(err);
       const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(msg);
       const is429 = /409|429|rate limit|quota|provider returned error|conflict/i.test(msg);
+      const isModelDeprecated = /no longer available to new users|is not found for API version/i.test(msg);
       const friendlyMsg = isNeuronExhausted
         ? `⚡ Cloudflare daily free limit reached (10,000 neurons). Connect your second opendot-worker in Settings to double your capacity, or wait for daily reset at 00:00 UTC (5:30 AM IST).`
         : is429
         ? `The model provider is temporarily busy (rate limit). Please try again in a moment or switch to another model in Settings.`
+        : isModelDeprecated
+        ? `⚠️ Google AI has retired this model for new API keys. Please select **Gemini 3.1 Pro Preview** or **Gemini 2.5 Flash** from the model dropdown in the top-right corner.`
         : `Something went wrong: ${msg}`;
       repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }
