@@ -1,5 +1,6 @@
 import "server-only";
 import * as repo from "../repo";
+import { getSetting } from "../db";
 import * as computer from "../computer";
 import { COMPUTER_ENABLED } from "./tools";
 import { apps as composioApps, signedIn as composioSignedIn } from "../composio";
@@ -12,9 +13,32 @@ export type Trigger =
   | { kind: "dot"; from: string }
   | { kind: "channel"; channelId: string; name: string };
 
+export const PROFILE_KEYS = { name: "profile_name", role: "profile_role", company: "profile_company" } as const;
+
+export const DEFAULT_COMPANY = `- **About QDelta**: QDelta is a premium digital agency and studio specializing in high-converting landing pages, digital sales experiences, flagship brand websites, motion/3D experiences, and e-commerce stores.
+- **Promise & Tagline**: "A website that actually grows your business. Designed to be remembered. Built to perform."
+- **Founding Team**: Qais (Founder — AI Strategy, Creative Direction & Product Thinking), Sai Prabath (Co-Founder — Full-Stack Development, Web Applications & Performance Architecture), Fazeel (Co-Founder — GenAI Development & UX Design).
+- **Core Packages**:
+  - *QDelta Digital* ("Built to convert"): Landing systems, digital sales funnels, lead generation systems, checkout integrations, CRM & webhooks.
+  - *QDelta Signature* ("Built to stand out"): Flagship multi-page websites, brand storytelling, motion design & micro-interactions, 3D/interactive web experiences, premium e-commerce.
+- **Ideal Client Profile (ICP)**: Fast-growing B2B SaaS companies, tech startup founders, funded ventures, and premium brands looking to elevate their digital brand and convert attention into revenue.
+- **Continuous Learning & Proactive Memory**: Whenever the user shares any new details about QDelta (campaign ideas, target niches, new offerings, client criteria, or pricing), **proactively call \`remember({ fact: "..." })\`** to store that fact permanently into your memory bank.
+- **Lead Qualification & Pitch Angle**: When finding or evaluating prospects for QDelta (from YC, Product Hunt, TechCrunch, Twitter/X, LinkedIn):
+  - **Diagnose Pain Points**: Look up their landing page, messaging clarity, and conversion flow.
+  - **Match QDelta Package**:
+    - If their landing page is slow, template-like, lacks social proof, or has weak conversion funnels → Target *QDelta Digital* (high-converting landing page & sales funnel in 7-14 days).
+    - If they recently raised capital or need a standout brand identity, 3D interactive experiences, or complete flagship overhaul → Target *QDelta Signature* (flagship website, motion/3D, brand narrative).
+  - **Actionable Pitch Notes**: In spreadsheet columns or digests, always provide a specific "QDelta Pitch Angle" detailing why they need QDelta and what exact hook to use.
+- In all lead generation routines and workflows, actively use this QDelta knowledge to identify, qualify, and recommend prospects that truly fit QDelta's services.`;
+
 const decisionText = { allow: "do it without asking", ask: "ask first (request_approval)", never: "never do it" } as const;
 
 export function systemPrompt(dot: Dot, trigger: Trigger): string {
+  const ownerName = getSetting(PROFILE_KEYS.name)?.trim() || "";
+  const ownerRole = getSetting(PROFILE_KEYS.role)?.trim() || "";
+  const company = getSetting(PROFILE_KEYS.company)?.trim() || DEFAULT_COMPANY;
+  const who = ownerName ? `**${ownerName}**${ownerRole ? ` (${ownerRole})` : ""}` : "the user";
+  const ownerLine = ownerName ? `You work for ${who}. Address them by name only when natural.` : "You work for the user. You do not know their name, so do not guess one.";
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const rules = repo.rulesFor(dot.id);
   const memories = repo.listMemories();
@@ -25,7 +49,7 @@ export function systemPrompt(dot: Dot, trigger: Trigger): string {
 
   const box = computer.describe(dot.id);
 
-  return `You are ${dot.name}, a "dot" — a dedicated AI agent that works on its own on behalf of your user, **Sai Prabath** (Co-Founder of QDelta).
+  return `You are ${dot.name}, a "dot" — a dedicated AI agent that works on its own on behalf of your user, ${who}.
 ${dot.purpose ? `\nYour job: ${dot.purpose}\n` : ""}${dot.instructions ? `\nHow the user wants you to work:\n${dot.instructions}\n` : ""}
 # Your computer
 You have your own computer: ${box}. Use the shell (run_command), files (read_file / write_file / share_file), and its browser, which keeps its logins (open_url, read_page${COMPUTER_ENABLED ? ", and the computer tool to see the screen and click/type" : ""}). Use the browser when you need to operate a site or look up online information.${dot.localAccess ? "\nYou also have access to the user's own computer (run_on_my_computer) — use it only when the task truly needs their machine." : ""}
@@ -106,23 +130,9 @@ ${
 # Passwords
 ${sites.length ? `Saved logins exist for: ${sites.join(", ")}. On the site's sign-in page, call sign_in — the password is typed for you and you never see it.` : "No saved logins yet."} Never ask the user to paste a password into chat; ask them to add it under Passwords instead.
 
-# Business Context & Agency Knowledge (QDelta)
-You serve as the dedicated AI business and growth partner for **QDelta** (QDelta Technologies) and **Sai Prabath** (Co-Founder).
-- **About QDelta**: QDelta is a premium digital agency and studio specializing in high-converting landing pages, digital sales experiences, flagship brand websites, motion/3D experiences, and e-commerce stores.
-- **Promise & Tagline**: "A website that actually grows your business. Designed to be remembered. Built to perform."
-- **Founding Team**: Qais (Founder — AI Strategy, Creative Direction & Product Thinking), Sai Prabath (Co-Founder — Full-Stack Development, Web Applications & Performance Architecture), Fazeel (Co-Founder — GenAI Development & UX Design).
-- **Core Packages**:
-  - *QDelta Digital* ("Built to convert"): Landing systems, digital sales funnels, lead generation systems, checkout integrations, CRM & webhooks.
-  - *QDelta Signature* ("Built to stand out"): Flagship multi-page websites, brand storytelling, motion design & micro-interactions, 3D/interactive web experiences, premium e-commerce.
-- **Ideal Client Profile (ICP)**: Fast-growing B2B SaaS companies, tech startup founders, funded ventures, and premium brands looking to elevate their digital brand and convert attention into revenue.
-- **Continuous Learning & Proactive Memory**: Whenever Sai Prabath shares any new details about QDelta (campaign ideas, target niches, new offerings, client criteria, or pricing), **proactively call \`remember({ fact: "..." })\`** to store that fact permanently into your memory bank.
-- **Lead Qualification & Pitch Angle**: When finding or evaluating prospects for QDelta (from YC, Product Hunt, TechCrunch, Twitter/X, LinkedIn):
-  - **Diagnose Pain Points**: Look up their landing page, messaging clarity, and conversion flow.
-  - **Match QDelta Package**:
-    - If their landing page is slow, template-like, lacks social proof, or has weak conversion funnels → Target *QDelta Digital* (high-converting landing page & sales funnel in 7-14 days).
-    - If they recently raised capital or need a standout brand identity, 3D interactive experiences, or complete flagship overhaul → Target *QDelta Signature* (flagship website, motion/3D, brand narrative).
-  - **Actionable Pitch Notes**: In spreadsheet columns or digests, always provide a specific "QDelta Pitch Angle" detailing why they need QDelta and what exact hook to use.
-- In all lead generation routines and workflows, actively use this QDelta knowledge to identify, qualify, and recommend prospects that truly fit QDelta's services.
+# About the user and their company
+${ownerLine}
+${company}
 
 # Memory
 ${memories.length ? memories.map((m) => `- [${m.id}] ${m.text}`).join("\n") : "(empty)"}
@@ -151,7 +161,7 @@ ${
       : trigger.kind === "dot"
       ? `This message is from another dot, ${trigger.from}. Reply to them directly and concisely.`
       : trigger.kind === "chat"
-      ? `You are in a live, direct chat with **Sai Prabath** (Co-Founder of QDelta). Respond directly in the chat with clear, articulate Markdown. Never call send_update in direct chat (send_update is strictly for background routines and triggers).`
+      ? `You are in a live, direct chat with ${who}. Respond directly in the chat with clear, articulate Markdown. Never call send_update in direct chat (send_update is strictly for background routines and triggers).`
       : ""
 }`;
 }

@@ -31,6 +31,8 @@ import {
   getGroqKey,
   getOpenAIKey,
   getOpenRouterKey,
+  getProfile,
+  saveProfile,
   lockApp,
   refreshApps,
   savePassword,
@@ -69,6 +71,8 @@ export default function SettingsView() {
     <div className="flex-1 overflow-y-auto">
       <div className="rails mx-auto min-h-full max-w-[1080px] px-4 sm:px-8 pb-16">
         <PageHeader eyebrow="Settings" title="Settings" description="Configure your AI engine, integrations, notifications, and workspace security." />
+
+        <ProfileSection />
 
         <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast), Google Gemini, OpenRouter, or OpenAI GPT models.">
           <CloudflareWorkerKey />
@@ -208,6 +212,58 @@ export default function SettingsView() {
         <InstallAppSection />
       </div>
     </div>
+  );
+}
+
+function ProfileSection() {
+  const [form, setForm] = useState({ name: "", role: "", company: "" });
+  const [loaded, setLoaded] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [pending, start] = useTransition();
+
+  useEffect(() => {
+    getProfile()
+      .then((p) => setForm({ name: p.name, role: p.role, company: p.company || p.defaultCompany }))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const set = (patch: Partial<typeof form>) => {
+    setSaved(false);
+    setForm((f) => ({ ...f, ...patch }));
+  };
+
+  return (
+    <Section
+      id="profile"
+      eyebrow="Profile"
+      title="About you & your company"
+      description="Your dots use this to know who they work for and what your business does. Leave your name empty and they will not guess one."
+    >
+      <div className="space-y-2.5">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input className="field" placeholder="Your name" value={form.name} disabled={!loaded} onChange={(e) => set({ name: e.target.value })} />
+          <input className="field" placeholder="Your role, e.g. Co-Founder" value={form.role} disabled={!loaded} onChange={(e) => set({ role: e.target.value })} />
+        </div>
+        <textarea
+          className="field min-h-40 resize-y"
+          placeholder="About your company: what you do, services, ideal clients, tone..."
+          value={form.company}
+          disabled={!loaded}
+          onChange={(e) => set({ company: e.target.value })}
+        />
+        <div className="flex items-center gap-3">
+          {saved && <span className="text-caption text-foreground/45">Saved</span>}
+          <button
+            className="btn-primary ml-auto h-8 px-3 text-[13px]"
+            disabled={pending || !loaded}
+            onClick={() => start(async () => { await saveProfile(form); setSaved(true); })}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </Section>
   );
 }
 

@@ -4,7 +4,8 @@ import * as repo from "@/server/repo";
 import * as runtime from "@/server/agent/runtime";
 import * as computer from "@/server/computer";
 import { savePassword as vaultSave } from "@/server/vault";
-import { setSetting } from "@/server/db";
+import { getSetting, setSetting } from "@/server/db";
+import { DEFAULT_COMPANY, PROFILE_KEYS } from "@/server/agent/prompt";
 import { emit } from "@/server/bus";
 import { computerInfo } from "@/server/snapshot";
 import { apiKey, models, resetModels, saveApiKey } from "@/server/agent/client";
@@ -231,6 +232,24 @@ export async function setOpenRouterKey(key: string): Promise<string | null> {
 
 export async function getOpenRouterKey(): Promise<string> {
   return openRouterKey() || "";
+}
+
+export type Profile = { name: string; role: string; company: string; defaultCompany: string };
+
+export async function getProfile(): Promise<Profile> {
+  return {
+    name: getSetting(PROFILE_KEYS.name) ?? "",
+    role: getSetting(PROFILE_KEYS.role) ?? "",
+    company: getSetting(PROFILE_KEYS.company) ?? "",
+    defaultCompany: DEFAULT_COMPANY,
+  };
+}
+
+/** Who the dots work for and what they should know about the business (empty company falls back to the default). */
+export async function saveProfile(p: { name: string; role: string; company: string }): Promise<void> {
+  setSetting(PROFILE_KEYS.name, p.name.trim().slice(0, 100) || null);
+  setSetting(PROFILE_KEYS.role, p.role.trim().slice(0, 100) || null);
+  setSetting(PROFILE_KEYS.company, p.company.trim().slice(0, 8000) || null);
 }
 
 /** Paste a Groq API key in Settings to add ultra-fast LPU models (empty removes it). */
