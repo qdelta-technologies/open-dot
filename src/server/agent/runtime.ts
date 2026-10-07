@@ -303,6 +303,18 @@ async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[]
         resp.output.push(...fallback);
         calls = fallback;
       } else {
+        // Auto-nudge if the model stopped prematurely with a "please wait" promise or empty placeholder template
+        const lastMsg = resp.output.findLast((o) => o.type === "message");
+        const msgText = lastMsg && "content" in lastMsg && Array.isArray(lastMsg.content)
+          ? lastMsg.content.map((c) => ("text" in c ? c.text : "")).join("")
+          : "";
+        const isStalledPromise =
+          /(?:please wait while I|let me proceed with|let me search for|searching for more information)/i.test(msgText) ||
+          /(?:\*\s*\*\*Founder\*\*:\s*$\s*\*\s*\*\*Website\*\*:\s*$)/m.test(msgText);
+        if (isStalledPromise && step < 10) {
+          input = [{ role: "user", content: "Proceed immediately. Execute web_search and your app tools right now to retrieve the actual details and update the sheet." }];
+          continue;
+        }
         return;
       }
     }

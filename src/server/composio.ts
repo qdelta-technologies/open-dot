@@ -245,7 +245,7 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
 
 // ---------- read vs write, for approvals ----------
 
-const READ_VERB = /_(GET|LIST|SEARCH|FETCH|FIND|READ|RETRIEVE|QUERY|DESCRIBE|LOOKUP|VIEW|CHECK|COUNT|EXPORT|DOWNLOAD)(_|$)/;
+const READ_VERB = /(?:^|_)(GET|LIST|SEARCH|FETCH|FIND|READ|RETRIEVE|QUERY|DESCRIBE|LOOKUP|VIEW|CHECK|COUNT|EXPORT|DOWNLOAD)(_|$)/i;
 type ExecItem = { tool_slug?: string; arguments?: unknown };
 
 export function executeItems(args: Record<string, unknown>): ExecItem[] {
@@ -255,15 +255,19 @@ export function executeItems(args: Record<string, unknown>): ExecItem[] {
 /** Reads run automatically; anything else (send, post, create, update, delete…) asks first. */
 export function executeDecision(args: Record<string, unknown>): RuleDecision {
   const items = executeItems(args);
-  return items.length && items.every((i) => READ_VERB.test(String(i.tool_slug ?? "").toUpperCase())) ? "allow" : "ask";
+  if (!items.length) return "allow";
+  return items.every((i) => READ_VERB.test(String(i.tool_slug ?? "").toUpperCase())) ? "allow" : "ask";
 }
 
 export function describeExecute(args: Record<string, unknown>): string {
   const items = executeItems(args);
-  const apps = [...new Set(items.map((i) => prettyName(String(i.tool_slug ?? "").split("_")[0].toLowerCase())))];
+  const apps = [...new Set(items.map((i) => prettyName(String(i.tool_slug ?? "").split("_")[0].toLowerCase())))].filter(Boolean);
   const actions = items.map((i) => String(i.tool_slug ?? "").split("_").slice(1).join(" ").toLowerCase()).filter(Boolean);
   const thought = typeof args.thought === "string" && args.thought.trim() ? args.thought.trim().replace(/\.$/, "") : null;
-  return thought ? `${thought.replace(/^./, (c) => c.toLowerCase())} (using ${apps.join(", ")})` : `use ${apps.join(", ")} to ${actions.join(", ")}`;
+  if (thought) return `${thought.replace(/^./, (c) => c.toLowerCase())}${apps.length ? ` (using ${apps.join(", ")})` : ""}`;
+  if (apps.length && actions.length) return `use ${apps.join(", ")} to ${actions.join(", ")}`;
+  if (apps.length) return `use ${apps.join(", ")}`;
+  return "run app action";
 }
 
 export function executeDetail(args: Record<string, unknown>): string {
