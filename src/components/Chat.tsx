@@ -735,7 +735,7 @@ function Composer({
 
 
 /** Assistant Action Bar (Copy, Thumbs Up/Down, Read Aloud, Regenerate) */
-function AssistantActions({ text, onRetry }: { text: string; onRetry?: () => void }) {
+function AssistantActions({ text, ts, onRetry }: { text: string; ts?: number; onRetry?: () => void }) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState<boolean | null>(null);
   const [speaking, setSpeaking] = useState(false);
@@ -811,7 +811,23 @@ function AssistantActions({ text, onRetry }: { text: string; onRetry?: () => voi
           <RotateCcw className="size-3.5" strokeWidth={1.75} />
         </button>
       )}
+      {ts ? <MessageTime ts={ts} className="ml-2" /> : null}
     </div>
+  );
+}
+
+/** Small timestamp: time only for today, date and time otherwise; full date on hover. */
+function MessageTime({ ts, className = "" }: { ts: number; className?: string }) {
+  const d = new Date(ts);
+  const today = new Date().toDateString() === d.toDateString();
+  const short = today
+    ? d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const full = d.toLocaleString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" });
+  return (
+    <time dateTime={d.toISOString()} title={full} suppressHydrationWarning className={`font-mono text-[11px] text-foreground/40 ${className}`}>
+      {short}
+    </time>
   );
 }
 
@@ -887,7 +903,7 @@ export const MessageRow = memo(function MessageRow({
   // ── USER MESSAGE (Pill on the right) ──
   if (m.role === "user") {
     return (
-      <div className="flex flex-col items-end my-2 pl-8 sm:pl-16">
+      <div className="group flex flex-col items-end my-2 pl-8 sm:pl-16">
         {m.from && <span className="eyebrow mb-1 mr-2">{m.from.replace(/^dot:/, "From ").replace(/^routine:/, "Routine · ")}</span>}
         {m.text && (
           <div className="max-w-full rounded-[24px] bg-black/[0.06] text-foreground dark:bg-white/[0.1] px-5 py-3 text-[15px] leading-[1.55] tracking-default whitespace-pre-wrap shadow-xs">
@@ -895,6 +911,7 @@ export const MessageRow = memo(function MessageRow({
           </div>
         )}
         {!!m.attachments?.length && <Attachments items={m.attachments} align="end" />}
+        <MessageTime ts={m.createdAt} className="mt-1 mr-2 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100" />
       </div>
     );
   }
@@ -981,7 +998,7 @@ function sanitizeAssistantText(text: string): string {
       {!!m.attachments?.length && <Attachments items={m.attachments} />}
 
       {/* Assistant Action Bar */}
-      <AssistantActions text={cleanText} onRetry={onRetry} />
+      <AssistantActions text={cleanText} ts={m.createdAt} onRetry={onRetry} />
     </div>
   );
 });
