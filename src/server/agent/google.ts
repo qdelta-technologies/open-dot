@@ -118,14 +118,16 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
       // Standard endpoint uses "name" field with "models/" prefix; openai compat uses "id"
       const raw = String(m.id ?? m.name ?? "").replace(/^models\//, "");
       if (!raw.startsWith("gemini")) continue;
-      // Skip non-chat-capable models (TTS, audio, embedding, legacy)
+      // Skip non-chat-capable models (TTS, audio, embedding, image-gen, legacy)
       if (raw.includes("embedding") || raw.includes("aqa") || raw.includes("text-") ||
-          raw.includes("-tts") || raw.includes("audio") || raw.includes("imagen")) continue;
+          raw.includes("-tts") || raw.includes("audio") || raw.includes("imagen") ||
+          raw.includes("-image")) continue;
       if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes("generateContent")) continue;
-      // Skip unversioned aliases (gemini-flash-latest, gemini-pro-latest) — no X.X version in name
+      // Skip unversioned aliases (gemini-flash-latest) — no X.X version in name
       if (!/gemini-\d/.test(raw)) continue;
-      // Skip versioned pins (-001, -002) and -latest/-exp aliases — keep canonical IDs only
+      // Skip versioned pins (-001), -latest/-exp aliases, and date-versioned previews (-preview-05-20)
       if (/-\d{3}(-|$)/.test(raw) || raw.endsWith("-latest") || raw.endsWith("-exp")) continue;
+      if (/-\d{2}-\d{2}/.test(raw)) continue;
 
       const fullId = GOOGLE_PREFIX + raw;
       ids.push(fullId);

@@ -450,9 +450,12 @@ function parseModelId(id: string): {
       desc: "Capable 8B model with wide knowledge base & fast latency",
     };
   }
-  // Google Gemini models
+  // Google Gemini models — specific first (most specific match before less specific)
   if (lower.includes("gemini-2.5-pro")) {
     return { cleanId: raw, name: "Gemini 2.5 Pro", category: "general", badge: "Gemini", desc: "Google's most capable model — advanced reasoning, 1M context, multimodal" };
+  }
+  if (lower.includes("gemini-2.5-flash-lite")) {
+    return { cleanId: raw, name: "Gemini 2.5 Flash Lite", category: "fast", badge: "Flash", desc: "Lightweight Gemini 2.5 model for quick tasks" };
   }
   if (lower.includes("gemini-2.5-flash")) {
     return { cleanId: raw, name: "Gemini 2.5 Flash", category: "fast", badge: "Flash", desc: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" };
@@ -465,6 +468,22 @@ function parseModelId(id: string): {
   }
   if (lower.includes("gemini-1.5-pro")) {
     return { cleanId: raw, name: "Gemini 1.5 Pro", category: "general", badge: "Gemini", desc: "Google's capable 1M context model" };
+  }
+  // Generic formatter for newer Gemini models (3.x, etc.) not listed above
+  if (lower.includes("gemini-")) {
+    const geminiId = raw.replace(/^google:/, "");
+    const parts = geminiId.replace(/^gemini-/, "").split("-").map((w) =>
+      /^\d/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)
+    );
+    const isPro = lower.includes("-pro");
+    const isPreview = lower.includes("preview") || lower.includes("-exp");
+    return {
+      cleanId: raw,
+      name: `Gemini ${parts.join(" ")}`,
+      category: isPro ? "general" : "fast",
+      badge: isPreview ? "Preview" : isPro ? "Gemini" : "Flash",
+      desc: "Google Gemini model",
+    };
   }
 
   if (lower.includes("gpt-4o-mini")) {
