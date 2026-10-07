@@ -228,17 +228,17 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
       console.error("[dots] run failed", err);
       const msg = err instanceof Error ? err.message : String(err);
       const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(msg);
-      const is429 = /409|429|rate limit|quota|provider returned error|conflict/i.test(msg);
+      const is429 = /409|429|413|rate limit|quota|provider returned error|conflict|tokens per minute|itpm|request too large/i.test(msg);
       const isModelDeprecated = /no longer available to new users|is not found for API version/i.test(msg);
       const isThoughtSigError = /thought_signature/i.test(msg);
       const friendlyMsg = isNeuronExhausted
         ? `⚡ Cloudflare daily free limit reached (10,000 neurons). Connect your second opendot-worker in Settings to double your capacity, or wait for daily reset at 00:00 UTC (5:30 AM IST).`
         : is429
-        ? `The model provider is temporarily busy (rate limit). Please try again in a moment or switch to another model in Settings.`
+        ? `⚡ Rate limit or input token limit reached (e.g. Groq free tier 7k ITPM). Please switch to **Gemini 3.5 Flash Lite** (1,000,000 token context) or Cloudflare in the model dropdown.`
         : isModelDeprecated
-        ? `⚠️ Google AI has retired older Gemini models for new API keys. Please select **Gemini 3.5 Flash** from the model dropdown in the top-right corner.`
+        ? `⚠️ Google AI has retired older Gemini models for new API keys. Please select **Gemini 3.5 Flash Lite** from the model dropdown in the top-right corner.`
         : isThoughtSigError
-        ? `⚠️ Tool execution signature required by Google. Please retry or switch to **Gemini 3.5 Flash** in the top-right model dropdown.`
+        ? `⚠️ Tool execution signature required by Google. Please retry or switch to **Gemini 3.5 Flash Lite** in the top-right model dropdown.`
         : `Something went wrong: ${msg}`;
       repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }
@@ -435,7 +435,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
 
       if (!stream) {
         const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(errMsg);
-        const isRateLimit = /409|429|rate limit|quota|busy|conflict/i.test(errMsg);
+        const isRateLimit = /409|429|413|rate limit|quota|busy|conflict|tokens per minute|itpm|request too large/i.test(errMsg);
 
         if (workerUrl && (isNeuronExhausted || isRateLimit) && workerIdx + 1 < candidateWorkers.length) {
           const nextWorker = candidateWorkers[workerIdx + 1]!;
@@ -537,7 +537,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
     if (streamFailed) {
       const sErrMsg = String(streamError);
       const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(sErrMsg);
-      const isRateLimit = /409|429|rate limit|quota|busy|conflict/i.test(sErrMsg);
+      const isRateLimit = /409|429|413|rate limit|quota|busy|conflict|tokens per minute|itpm|request too large/i.test(sErrMsg);
       const hasDeliveredText = Array.from(drafts.values()).some((d) => d.text.trim().length > 0);
 
       // If no text was delivered and this worker hit quota/rate limit, failover to the next worker!
@@ -688,7 +688,10 @@ async function processCalls(dot: Dot, pending: Pending, signal: AbortSignal): Pr
     }
 
     const toolResult = await execTool(dot, call, signal);
-    const outputItem = { type: "function_call_output" as const, call_id: call.call_id, output: toolResult };
+    const safeOutput = typeof toolResult === "string" && toolResult.length > 8_000
+      ? toolResult.slice(0, 8_000) + "\n\n[...output truncated to fit token limits...]"
+      : toolResult;
+    const outputItem = { type: "function_call_output" as const, call_id: call.call_id, output: safeOutput };
     (outputItem as any).signature = callSignature;
     pending.outputs.push(outputItem);
   }
