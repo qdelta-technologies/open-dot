@@ -403,6 +403,7 @@ function composioTools(): ToolDef[] {
     if (t.name === "COMPOSIO_MANAGE_CONNECTIONS") {
       return {
         ...base,
+        description: "List or check existing app connections. To connect a new app or service (Twitter, Google, GitHub, Slack, etc.), always call app_connect with the toolkit slug instead.",
         label: "Checking app connections",
         // New connections go through app_connect so the user gets a proper Connect card.
         precheck: async (a) =>

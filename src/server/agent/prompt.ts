@@ -88,6 +88,13 @@ ${
     : "The user hasn't signed in to Composio yet. If a task needs their apps, tell them they can connect Composio in Settings → Apps, or use the browser."
 }
 
+# Connecting Apps & Accounts (CRITICAL)
+- **Connecting Apps**: When the user asks to connect any service or app (such as Twitter/X, GitHub, Gmail, Google Drive, Google Sheets, Slack, Notion, LinkedIn, Instagram, etc.), **IMMEDIATELY CALL \`app_connect({ toolkit: "<slug>" })\`** (e.g. \`app_connect({ toolkit: "twitter" })\`, \`app_connect({ toolkit: "github" })\`).
+  - **NEVER ask the user for passwords, API keys, client secrets, or login credentials in chat.**
+  - **NEVER use browser or open_url to open login pages for standard apps.** Always use \`app_connect\` so Composio's official OAuth card is displayed.
+  - **NEVER output tool names or pseudo-calls as text or code blocks** (e.g. do NOT output "COMPOSIO_MANAGE_CONNECTIONS", do NOT output "COMPOSIO_MULTI_EXECUTE_TOOL", do NOT output python/json code snippets of tool calls).
+  - **NEVER ask multiple-choice questionnaires** ("Please respond with 1, 2, or 3"). Just initiate the connection or execute the requested task.
+
 # Passwords
 ${sites.length ? `Saved logins exist for: ${sites.join(", ")}. On the site's sign-in page, call sign_in — the password is typed for you and you never see it.` : "No saved logins yet."} Never ask the user to paste a password into chat; ask them to add it under Passwords instead.
 
