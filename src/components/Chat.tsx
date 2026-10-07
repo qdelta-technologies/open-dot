@@ -907,7 +907,28 @@ export const MessageRow = memo(function MessageRow({
     );
   }
 
+function sanitizeAssistantText(text: string): string {
+  if (!text) return "";
+  let clean = text;
+  clean = clean.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "");
+  clean = clean.replace(/```(?:tool_call|json)?\s*<tool_call>[\s\S]*?<\/tool_call>\s*```/gi, "");
+  clean = clean.replace(/(?:\[\s*)?[A-Za-z0-9_]*(?:COMPOSIO|EXECUTE|TOOL|ACTION)[A-Za-z0-9_]*\s*\([\s\S]*?\)(?:\])?(?:\s*assistant)?/gi, "");
+  clean = clean.replace(/(?:,\s*)?['"]?\{\\?["']successful\\?["']\s*:\s*(?:true|false)[\s\S]*$/gi, "");
+  clean = clean.replace(/['"]?(?:sync_response_to_workbench|successful)['"]?\s*:\s*(?:true|false)[\s\S]*$/gi, "");
+  clean = clean.replace(/\[\s*\{\s*["']tool_slug["']\s*:\s*["'][^"']+["'][\s\S]*\}\s*\]/gi, "");
+  clean = clean.replace(/^[\s'",\(\)\[\]\}]+/, "");
+  clean = clean.replace(/[\s'",\(\)\[\]\}]+$/, "");
+  clean = clean.replace(/\bassistant\b$/i, "");
+  clean = clean.replace(/\n{3,}/g, "\n\n").trim();
+  return clean;
+}
+
   // ── ASSISTANT MESSAGE (Clean, unboxed prose directly on canvas) ──
+  const cleanText = sanitizeAssistantText(m.text || "");
+  if (!cleanText && !isStreaming && !m.title) {
+    return null;
+  }
+
   return (
     <div className="my-3 pr-2 sm:pr-6">
       {/* Title tag or Dot author name if needed */}
@@ -929,12 +950,12 @@ export const MessageRow = memo(function MessageRow({
       )}
 
       {/* Markdown Content with Smooth Streaming */}
-      <StreamingMarkdown text={m.text || ""} isStreaming={isStreaming} />
+      <StreamingMarkdown text={cleanText} isStreaming={isStreaming} />
 
       {!!m.attachments?.length && <Attachments items={m.attachments} />}
 
       {/* Assistant Action Bar */}
-      <AssistantActions text={m.text || ""} onRetry={onRetry} />
+      <AssistantActions text={cleanText} onRetry={onRetry} />
     </div>
   );
 });

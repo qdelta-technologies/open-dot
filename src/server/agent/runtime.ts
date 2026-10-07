@@ -991,6 +991,7 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
               arguments: JSON.stringify(parsedArgs),
             });
             part.text = part.text.replace(fullMatch, "").trim();
+            toolNameRegex.lastIndex = 0;
           }
 
           // 2. Check for <tool_call> JSON </tool_call>
@@ -1010,6 +1011,7 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
                   arguments: typeof args === "string" ? args : JSON.stringify(args),
                 });
                 part.text = part.text.replace(fullMatch, "").trim();
+                blockRegex.lastIndex = 0;
               }
             } catch {}
           }
@@ -1019,9 +1021,14 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
 
           // Update message in repo if stripped
           const cleanText = part.text.trim();
-          const lastMsg = repo.dotMessages(dot.id, 1)[0];
-          if (lastMsg && lastMsg.role === "dot" && (lastMsg.text.includes("[") || lastMsg.text.includes("COMPOSIO"))) {
-            repo.updateMessage(lastMsg.id, { text: cleanText });
+          const targetMsg = (item as any).id ? repo.getMessage((item as any).id) : null;
+          const lastMsg = targetMsg || repo.dotMessages(dot.id, 1)[0];
+          if (lastMsg && lastMsg.role === "dot") {
+            if (!cleanText) {
+              repo.deleteMessage(lastMsg.id);
+            } else {
+              repo.updateMessage(lastMsg.id, { text: cleanText });
+            }
           }
         }
       }

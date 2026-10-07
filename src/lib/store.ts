@@ -96,6 +96,8 @@ function apply(ev: ServerEvent) {
       if (ev.data.dotId === activeDotId() && document.visibilityState === "visible") markRead(ev.data.dotId);
       return;
     }
+    case "message_deleted":
+      return set({ messages: without(state.messages, ev.id) });
     case "message_delta": {
       const exists = state.messages.some((m) => m.id === ev.id);
       if (exists) {

@@ -325,6 +325,11 @@ export function updateMessage(messageId: string, patch: { text?: string; card?: 
   return msg;
 }
 
+export function deleteMessage(messageId: string) {
+  db().prepare("DELETE FROM messages WHERE id = ?").run(messageId);
+  emit({ type: "message_deleted", id: messageId });
+}
+
 export function pendingCards(dotId: string): Message[] {
   return db()
     .prepare("SELECT * FROM messages WHERE dot_id = ? AND role = 'card' AND json_extract(card, '$.status') = 'pending'")
