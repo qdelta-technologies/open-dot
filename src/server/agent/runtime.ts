@@ -296,8 +296,16 @@ async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[]
     }
     repo.setThread(dot.id, clientFor(await modelFor(dot.model)).stateless ? null : resp.id, null);
 
-    const calls = resp.output.filter((o): o is Call => o.type === "function_call" || o.type === "computer_call");
-    if (!calls.length) return;
+    let calls = resp.output.filter((o): o is Call => o.type === "function_call" || o.type === "computer_call");
+    if (!calls.length) {
+      const fallback = extractFallbackCalls(dot, resp);
+      if (fallback.length) {
+        resp.output.push(...fallback);
+        calls = fallback;
+      } else {
+        return;
+      }
+    }
     const pending: Pending = { responseId: resp.id, calls, outputs: [], index: 0, cardId: null, trigger };
     if (await processCalls(dot, pending, signal)) return; // waiting on the user
     prevId = resp.id;
@@ -840,3 +848,78 @@ function safeParse(raw: string): Record<string, unknown> {
 }
 
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
+  const dotTools = toolsForDot(dot);
+  const knownTools = new Set(dotTools.map((t) => t.name.toLowerCase()));
+  const extracted: Call[] = [];
+
+  for (const item of resp.output) {
+    if (item.type === "message" && Array.isArray(item.content)) {
+      for (const part of item.content) {
+        if ("text" in part && typeof part.text === "string" && part.text) {
+          // Check for [TOOL_NAME(...)]
+          const toolCallRegex = /\[([A-Za-z0-9_]+)\(([\s\S]*?)\)\]/g;
+          let match;
+          while ((match = toolCallRegex.exec(part.text)) !== null) {
+            const [fullMatch, name, rawArgs] = match;
+            if (knownTools.size > 0 && !knownTools.has(name.toLowerCase())) continue;
+
+            let parsedArgs: Record<string, unknown> = {};
+            const trimmedArgs = rawArgs.trim();
+
+            if (trimmedArgs.startsWith("{") && trimmedArgs.endsWith("}")) {
+              try { parsedArgs = JSON.parse(trimmedArgs); } catch {}
+            } else {
+              const kvRegex = /([a-zA-Z0-9_]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s\)]+))/g;
+              let kv;
+              while ((kv = kvRegex.exec(trimmedArgs)) !== null) {
+                const key = kv[1];
+                const val = kv[2] ?? kv[3] ?? kv[4];
+                parsedArgs[key] = val;
+              }
+            }
+
+            extracted.push({
+              type: "function_call",
+              call_id: `call_${crypto.randomUUID().slice(0, 8)}`,
+              name,
+              arguments: JSON.stringify(parsedArgs),
+            });
+            part.text = part.text.replace(fullMatch, "").trim();
+          }
+
+          // Check for <tool_call> JSON </tool_call>
+          const blockRegex = /(?:<tool_call>|```(?:tool_call|json)?\s*<tool_call>)([\s\S]*?)(?:<\/tool_call>|```)/gi;
+          let blockMatch;
+          while ((blockMatch = blockRegex.exec(part.text)) !== null) {
+            const [fullMatch, rawJson] = blockMatch;
+            try {
+              const parsed = JSON.parse(rawJson.trim());
+              const name = parsed.name || parsed.function?.name;
+              const args = parsed.arguments || parsed.parameters || parsed.function?.arguments || {};
+              if (name && (knownTools.size === 0 || knownTools.has(String(name).toLowerCase()))) {
+                extracted.push({
+                  type: "function_call",
+                  call_id: `call_${crypto.randomUUID().slice(0, 8)}`,
+                  name,
+                  arguments: typeof args === "string" ? args : JSON.stringify(args),
+                });
+                part.text = part.text.replace(fullMatch, "").trim();
+              }
+            } catch {}
+          }
+
+          // Update message in repo if stripped
+          const cleanText = part.text.trim();
+          const lastMsg = repo.dotMessages(dot.id, 1)[0];
+          if (lastMsg && lastMsg.role === "dot" && lastMsg.text.includes("[")) {
+            repo.updateMessage(lastMsg.id, { text: cleanText });
+          }
+        }
+      }
+    }
+  }
+
+  return extracted;
+}
