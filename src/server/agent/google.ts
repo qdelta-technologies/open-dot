@@ -118,8 +118,9 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
       // Standard endpoint uses "name" field with "models/" prefix; openai compat uses "id"
       const raw = String(m.id ?? m.name ?? "").replace(/^models\//, "");
       if (!raw.startsWith("gemini")) continue;
-      // Skip non-chat-capable models
-      if (raw.includes("embedding") || raw.includes("aqa") || raw.includes("text-")) continue;
+      // Skip non-chat-capable models (TTS, audio, embedding, legacy)
+      if (raw.includes("embedding") || raw.includes("aqa") || raw.includes("text-") ||
+          raw.includes("-tts") || raw.includes("audio") || raw.includes("imagen")) continue;
       if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes("generateContent")) continue;
 
       const fullId = GOOGLE_PREFIX + raw;
