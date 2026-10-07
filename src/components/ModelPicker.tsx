@@ -617,8 +617,8 @@ export default function ModelPicker({
     { id: "all", label: "All", color: "text-foreground/60" },
     { id: "cloudflare", label: "Cloudflare", color: "text-amber-500" },
     ...(googleConnected ? [{ id: "google" as ProviderTab, label: "Google", color: "text-blue-500" }] : []),
-    ...(anthropicConnected ? [{ id: "anthropic" as ProviderTab, label: "Claude", color: "text-violet-500" }] : []),
     ...(openRouterConnected ? [{ id: "openrouter" as ProviderTab, label: "OpenRouter", color: "text-emerald-500" }] : []),
+    ...(anthropicConnected ? [{ id: "anthropic" as ProviderTab, label: "Claude", color: "text-violet-500" }] : []),
     ...(openAIConnected ? [{ id: "openai" as ProviderTab, label: "OpenAI", color: "text-green-500" }] : []),
   ];
 
