@@ -861,6 +861,78 @@ function safeParse(raw: string): Record<string, unknown> {
 
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
+function parseLooseJson(text: string): any {
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      return (new Function("return (" + text + ")"))();
+    } catch {
+      return null;
+    }
+  }
+}
+
+function extractBalancedBracket(str: string, startFrom = 0): { text: string; start: number; end: number } | null {
+  const start = str.indexOf("[", startFrom);
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let quoteChar = "";
+  for (let i = start; i < str.length; i++) {
+    const char = str[i];
+    const prev = str[i - 1];
+    if ((char === '"' || char === "'") && prev !== "\\") {
+      if (!inString) {
+        inString = true;
+        quoteChar = char;
+      } else if (char === quoteChar) {
+        inString = false;
+      }
+    }
+    if (!inString) {
+      if (char === "[") depth++;
+      else if (char === "]") {
+        depth--;
+        if (depth === 0) {
+          return { text: str.slice(start, i + 1), start, end: i + 1 };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function extractBalancedParen(str: string, startFrom = 0): { text: string; start: number; end: number } | null {
+  const start = str.indexOf("(", startFrom);
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let quoteChar = "";
+  for (let i = start; i < str.length; i++) {
+    const char = str[i];
+    const prev = str[i - 1];
+    if ((char === '"' || char === "'") && prev !== "\\") {
+      if (!inString) {
+        inString = true;
+        quoteChar = char;
+      } else if (char === quoteChar) {
+        inString = false;
+      }
+    }
+    if (!inString) {
+      if (char === "(") depth++;
+      else if (char === ")") {
+        depth--;
+        if (depth === 0) {
+          return { text: str.slice(start + 1, i), start, end: i + 1 };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
   const dotTools = toolsForDot(dot);
   const knownTools = new Set(dotTools.map((t) => t.name.toLowerCase()));
@@ -870,34 +942,45 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
     if (item.type === "message" && Array.isArray(item.content)) {
       for (const part of item.content) {
         if ("text" in part && typeof part.text === "string" && part.text) {
-          // Check for [TOOL_NAME(...)]
-          const toolCallRegex = /\[([A-Za-z0-9_]+)\(([\s\S]*?)\)\]/g;
+          // 1. Balanced function call matching: [TOOL_NAME(...) or TOOL_NAME(...)
+          const toolNameRegex = /(?:\[\s*)?([A-Za-z0-9_]+)\s*\(/g;
           let match;
-          while ((match = toolCallRegex.exec(part.text)) !== null) {
-            const [fullMatch, name, rawArgs] = match;
-            if (knownTools.size > 0 && !knownTools.has(name.toLowerCase())) continue;
+          while ((match = toolNameRegex.exec(part.text)) !== null) {
+            const name = match[1];
+            if (!knownTools.has(name.toLowerCase())) continue;
 
+            const openParenIndex = match.index + match[0].length - 1;
+            const paren = extractBalancedParen(part.text, openParenIndex);
+            if (!paren) continue;
+
+            let fullStart = match.index;
+            let fullEnd = paren.end;
+            if (part.text[fullEnd] === "]") fullEnd++;
+            const fullMatch = part.text.slice(fullStart, fullEnd);
+
+            const inside = paren.text.trim();
             let parsedArgs: Record<string, unknown> = {};
-            const trimmedArgs = rawArgs.trim();
 
-            if (trimmedArgs.startsWith("{") && trimmedArgs.endsWith("}")) {
-              try { parsedArgs = JSON.parse(trimmedArgs); } catch {}
+            if (inside.startsWith("{") && inside.endsWith("}")) {
+              parsedArgs = parseLooseJson(inside) || {};
             } else {
+              const toolsKeyIdx = inside.search(/\btools["':=\s]/);
+              if (toolsKeyIdx !== -1) {
+                const bracket = extractBalancedBracket(inside, toolsKeyIdx);
+                if (bracket) {
+                  const parsedTools = parseLooseJson(bracket.text);
+                  if (parsedTools) parsedArgs.tools = parsedTools;
+                }
+              }
+
               const kvRegex = /([a-zA-Z0-9_]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s\)]+))/g;
               let kv;
-              while ((kv = kvRegex.exec(trimmedArgs)) !== null) {
-                const key = kv[1];
-                let val: any = kv[2] ?? kv[3] ?? kv[4];
-                if (typeof val === "string" && (val.trim().startsWith("[") || val.trim().startsWith("{"))) {
-                  try {
-                    val = JSON.parse(val.trim());
-                  } catch {
-                    try {
-                      val = JSON.parse(val.trim().replace(/'/g, '"'));
-                    } catch {}
-                  }
+              while ((kv = kvRegex.exec(inside)) !== null) {
+                const k = kv[1];
+                if (k !== "tools") {
+                  const v = kv[2] ?? kv[3] ?? kv[4];
+                  parsedArgs[k] = v === "true" ? true : v === "false" ? false : v;
                 }
-                parsedArgs[key] = val;
               }
             }
 
@@ -910,7 +993,7 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
             part.text = part.text.replace(fullMatch, "").trim();
           }
 
-          // Check for <tool_call> JSON </tool_call>
+          // 2. Check for <tool_call> JSON </tool_call>
           const blockRegex = /(?:<tool_call>|```(?:tool_call|json)?\s*<tool_call>)([\s\S]*?)(?:<\/tool_call>|```)/gi;
           let blockMatch;
           while ((blockMatch = blockRegex.exec(part.text)) !== null) {
@@ -931,10 +1014,13 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
             } catch {}
           }
 
+          // Strip leftover suffix words like "assistant" attached by greedy token completion
+          part.text = part.text.replace(/^assistant\s*/i, "").trim();
+
           // Update message in repo if stripped
           const cleanText = part.text.trim();
           const lastMsg = repo.dotMessages(dot.id, 1)[0];
-          if (lastMsg && lastMsg.role === "dot" && lastMsg.text.includes("[")) {
+          if (lastMsg && lastMsg.role === "dot" && (lastMsg.text.includes("[") || lastMsg.text.includes("COMPOSIO"))) {
             repo.updateMessage(lastMsg.id, { text: cleanText });
           }
         }
