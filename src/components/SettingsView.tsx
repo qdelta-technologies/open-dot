@@ -26,7 +26,6 @@ import {
   deletePassword,
   getCloudflareConfig,
   getCloudKey,
-  getOpenAIKey,
   getOpenRouterKey,
   lockApp,
   refreshApps,
@@ -34,7 +33,6 @@ import {
   setCloudflareWorker,
   setCloudKey,
   setDefaultModel,
-  setOpenAIKey,
   setOpenRouterKey,
   signInComposio,
   signOutComposio,
@@ -64,9 +62,9 @@ export default function SettingsView() {
       <div className="rails mx-auto min-h-full max-w-[1080px] px-4 sm:px-8 pb-16">
         <PageHeader eyebrow="Settings" title="Settings" description="Configure your AI engine, integrations, notifications, and workspace security." />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast) or OpenAI.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast) or open models via OpenRouter.">
           <CloudflareWorkerKey />
-          <ApiKey />
+          <OpenModelsKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
             <div className="flex-1">
@@ -77,8 +75,7 @@ export default function SettingsView() {
           </div>
           <dl className="surface divide-y divide-black/[0.06]">
             {[
-              ["Models on your key", computer.models.length ? `${computer.models.length} available` : "Loading…", true],
-              ["Computer use", computer.computerTool === "off" ? "Off (page tools only)" : "OpenAI computer tool", true],
+              ["Models available", computer.models.length ? `${computer.models.length} available` : "Loading…", true],
               ["Dot computers", computer.docker ? `Docker containers · ${computer.image}` : "Docker not available in this environment", computer.docker],
             ].map(([k, v, ok]) => (
               <div key={String(k)} className="flex items-center gap-4 px-4 py-2.5">
@@ -299,108 +296,6 @@ function AppsList() {
         </div>
       )}
       {error && <p className="text-caption text-destructive">{error}</p>}
-    </div>
-  );
-}
-
-/** The OpenAI key: paste it here (stored encrypted), unless it comes from OPENAI_API_KEY. */
-function ApiKey() {
-  const computer = useStore((s) => s.computer);
-  const [editing, setEditing] = useState(false);
-  const [key, setKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  const open = editing || !computer.hasKey;
-
-  const handleStartEdit = async () => {
-    setEditing(true);
-    try {
-      const val = await getOpenAIKey();
-      if (val) setKey(val);
-    } catch {}
-  };
-
-  useEffect(() => {
-    if (editing && !key) {
-      void getOpenAIKey().then((val) => {
-        if (val) setKey(val);
-      });
-    }
-  }, [editing]);
-
-  return (
-    <div id="api-key" className="surface mb-3 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <div className="text-[14px]">OpenAI API key</div>
-          <div className={`text-body-sm ${computer.hasKey ? "text-foreground/55" : "text-warning"}`}>
-            {computer.keySource === "env"
-              ? "Connected from OPENAI_API_KEY."
-              : computer.hasKey
-                ? "Connected. Stored encrypted on this server."
-                : "Your dots need one to think. Create one at platform.openai.com."}
-          </div>
-        </div>
-        {computer.hasKey && !editing && (
-          <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
-            Change
-          </button>
-        )}
-      </div>
-      {open && (
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            start(async () => {
-              const err = await setOpenAIKey(key);
-              setError(err);
-              if (!err) {
-                setKey("");
-                setEditing(false);
-                setShowKey(false);
-              }
-            });
-          }}
-        >
-          <div className="relative flex-1">
-            <input
-              className="field font-mono text-[13px] pr-9 w-full"
-              type={showKey ? "text" : "password"}
-              placeholder="sk-..."
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
-              title={showKey ? "Hide key" : "Show key"}
-            >
-              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-          {editing && (
-            <button
-              type="button"
-              className="btn-secondary shrink-0"
-              onClick={() => {
-                setEditing(false);
-                setError(null);
-                setShowKey(false);
-              }}
-            >
-              Cancel
-            </button>
-          )}
-          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
-            {pending ? "Checking…" : "Save"}
-          </button>
-        </form>
-      )}
-      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
     </div>
   );
 }
