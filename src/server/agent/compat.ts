@@ -35,11 +35,13 @@ function toMessages(instructions: string, input: any[]): any[] {
     } else if (item.type === "function_call") {
       // Merge into the preceding assistant message if possible, otherwise create one.
       const prev = msgs[msgs.length - 1];
-      const toolCall = {
+      const toolCall: any = {
         id: item.call_id,
         type: "function",
         function: { name: item.name, arguments: item.arguments },
       };
+      if ((item as any).extra_content) toolCall.extra_content = (item as any).extra_content;
+      if ((item as any).thought_signature) toolCall.thought_signature = (item as any).thought_signature;
       if (prev?.role === "assistant" && !prev.tool_calls) {
         prev.tool_calls = [toolCall];
         if (!prev.content) prev.content = null;
@@ -121,7 +123,9 @@ export async function responsesStreamCompat(
           if (!(idx in toolCalls)) {
             const id = tc.id ?? `call_${idx}_${Date.now()}`;
             const itemId = `fc_${id}`;
-            toolCalls[idx] = { id, name: tc.function?.name ?? "", arguments: "" };
+            const extraContent = (tc as any).extra_content ?? (choice.delta as any).extra_content;
+            const thoughtSig = (tc as any).thought_signature ?? (choice.delta as any).thought_signature ?? extraContent?.google?.thought_signature;
+            toolCalls[idx] = { id, name: tc.function?.name ?? "", arguments: "", extra_content: extraContent, thought_signature: thoughtSig } as any;
             toolItemIds[idx] = itemId;
             yield {
               type: "response.output_item.added",
@@ -129,6 +133,8 @@ export async function responsesStreamCompat(
             };
           }
           if (tc.function?.name && !toolCalls[idx].name) toolCalls[idx].name = tc.function.name;
+          if ((tc as any).extra_content) (toolCalls[idx] as any).extra_content = (tc as any).extra_content;
+          if ((tc as any).thought_signature) (toolCalls[idx] as any).thought_signature = (tc as any).thought_signature;
           if (tc.function?.arguments) {
             toolCalls[idx].arguments += tc.function.arguments;
             yield { type: "response.function_call_arguments.delta", item_id: toolItemIds[idx], delta: tc.function.arguments };
@@ -159,7 +165,16 @@ export async function responsesStreamCompat(
         type: "response.output_item.done",
         item: { type: "function_call", id: itemId, call_id: tc.id, name: tc.name, arguments: tc.arguments },
       };
-      output.push({ type: "function_call", id: itemId, call_id: tc.id, name: tc.name, arguments: tc.arguments, status: "completed" });
+      output.push({
+        type: "function_call",
+        id: itemId,
+        call_id: tc.id,
+        name: tc.name,
+        arguments: tc.arguments,
+        status: "completed",
+        extra_content: (tc as any).extra_content,
+        thought_signature: (tc as any).thought_signature,
+      } as any);
     }
 
     yield { type: "response.completed", response: { id: responseId, object: "response", status: "completed", output, output_text: fullText } };

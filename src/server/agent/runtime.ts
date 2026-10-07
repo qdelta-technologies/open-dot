@@ -223,12 +223,15 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
       const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(msg);
       const is429 = /409|429|rate limit|quota|provider returned error|conflict/i.test(msg);
       const isModelDeprecated = /no longer available to new users|is not found for API version/i.test(msg);
+      const isThoughtSigError = /thought_signature/i.test(msg);
       const friendlyMsg = isNeuronExhausted
         ? `⚡ Cloudflare daily free limit reached (10,000 neurons). Connect your second opendot-worker in Settings to double your capacity, or wait for daily reset at 00:00 UTC (5:30 AM IST).`
         : is429
         ? `The model provider is temporarily busy (rate limit). Please try again in a moment or switch to another model in Settings.`
         : isModelDeprecated
-        ? `⚠️ Google AI has retired this model for new API keys. Please select **Gemini 3.1 Pro Preview** or **Gemini 2.5 Flash** from the model dropdown in the top-right corner.`
+        ? `⚠️ Google AI has retired this model for new API keys. Please select **Gemini 2.5 Flash** from the model dropdown in the top-right corner.`
+        : isThoughtSigError
+        ? `⚠️ This Gemini 3 preview model requires thought signatures on tool execution. Please switch to **Gemini 2.5 Flash** in the top-right model dropdown for stable, rock-solid automation!`
         : `Something went wrong: ${msg}`;
       repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }
@@ -550,7 +553,14 @@ function replayable(output: Response["output"]): ResponseInputItem[] {
       const text = o.content.map((c) => ("text" in c ? c.text : "")).join("");
       if (text) items.push({ role: "assistant", content: text });
     } else if (o.type === "function_call") {
-      items.push({ type: "function_call", call_id: o.call_id, name: o.name, arguments: o.arguments });
+      items.push({
+        type: "function_call",
+        call_id: o.call_id,
+        name: o.name,
+        arguments: o.arguments,
+        extra_content: (o as any).extra_content,
+        thought_signature: (o as any).thought_signature,
+      } as any);
     }
   }
   return items;
