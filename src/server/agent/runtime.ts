@@ -235,9 +235,9 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
         : is429
         ? `The model provider is temporarily busy (rate limit). Please try again in a moment or switch to another model in Settings.`
         : isModelDeprecated
-        ? `⚠️ Google AI has retired this model for new API keys. Please select **Gemini 2.5 Flash** from the model dropdown in the top-right corner.`
+        ? `⚠️ Google AI has retired older Gemini models for new API keys. Please select **Gemini 3.5 Flash** from the model dropdown in the top-right corner.`
         : isThoughtSigError
-        ? `⚠️ This Gemini 3 preview model requires thought signatures on tool execution. Please switch to **Gemini 2.5 Flash** in the top-right model dropdown for stable, rock-solid automation!`
+        ? `⚠️ Tool execution signature required by Google. Please retry or switch to **Gemini 3.5 Flash** in the top-right model dropdown.`
         : `Something went wrong: ${msg}`;
       repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }

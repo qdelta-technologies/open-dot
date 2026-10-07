@@ -459,16 +459,10 @@ function parseModelId(id: string): {
     return { cleanId: raw, name: "Gemini 3.5 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Lightweight fast Gemini model, cost-efficient" };
   }
   if (lower.includes("gemini-3.5-flash")) {
-    return { cleanId: raw, name: "Gemini 3.5 Flash", category: "fast", badge: "Flash", desc: "Fast capable Gemini model — recommended by Google" };
+    return { cleanId: raw, name: "Gemini 3.5 Flash", category: "fast", badge: "Flash", desc: "Fast capable Gemini model — recommended by Google (Free 1M tokens/day)" };
   }
   if (lower.includes("gemini-3.1-flash-lite")) {
     return { cleanId: raw, name: "Gemini 3.1 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Compact Gemini model for quick tasks" };
-  }
-  if (lower.includes("gemini-2.5-flash-lite")) {
-    return { cleanId: raw, name: "Gemini 2.5 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Lightweight Gemini 2.5 model for quick tasks" };
-  }
-  if (lower.includes("gemini-2.5-flash")) {
-    return { cleanId: raw, name: "Gemini 2.5 Flash", category: "fast", badge: "Flash", desc: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" };
   }
   // Generic formatter for newer Gemini models (3.x, etc.) not listed above
   if (lower.includes("gemini-")) {

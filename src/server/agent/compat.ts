@@ -35,20 +35,41 @@ function toMessages(instructions: string, input: any[]): any[] {
     } else if (item.type === "function_call") {
       // Merge into the preceding assistant message if possible, otherwise create one.
       const prev = msgs[msgs.length - 1];
+      const thoughtSig = (item as any).thought_signature ?? (item as any).thoughtSignature;
+      const extraContent = (item as any).extra_content ?? (thoughtSig ? { google: { thought_signature: thoughtSig } } : undefined);
       const toolCall: any = {
         id: item.call_id,
         type: "function",
         function: { name: item.name, arguments: item.arguments },
       };
-      if ((item as any).extra_content) toolCall.extra_content = (item as any).extra_content;
-      if ((item as any).thought_signature) toolCall.thought_signature = (item as any).thought_signature;
+      if (extraContent) toolCall.extra_content = extraContent;
+      if (thoughtSig) {
+        toolCall.thought_signature = thoughtSig;
+        toolCall.thoughtSignature = thoughtSig;
+      }
       if (prev?.role === "assistant" && !prev.tool_calls) {
         prev.tool_calls = [toolCall];
         if (!prev.content) prev.content = null;
+        if (extraContent && !prev.extra_content) prev.extra_content = extraContent;
+        if (thoughtSig && !prev.thought_signature) {
+          prev.thought_signature = thoughtSig;
+          prev.thoughtSignature = thoughtSig;
+        }
       } else if (prev?.role === "assistant" && prev.tool_calls) {
         prev.tool_calls.push(toolCall);
+        if (extraContent && !prev.extra_content) prev.extra_content = extraContent;
+        if (thoughtSig && !prev.thought_signature) {
+          prev.thought_signature = thoughtSig;
+          prev.thoughtSignature = thoughtSig;
+        }
       } else {
-        msgs.push({ role: "assistant", content: null, tool_calls: [toolCall] });
+        const asstMsg: any = { role: "assistant", content: null, tool_calls: [toolCall] };
+        if (extraContent) asstMsg.extra_content = extraContent;
+        if (thoughtSig) {
+          asstMsg.thought_signature = thoughtSig;
+          asstMsg.thoughtSignature = thoughtSig;
+        }
+        msgs.push(asstMsg);
       }
     } else if (item.type === "function_call_output") {
       msgs.push({ role: "tool", content: item.output, tool_call_id: item.call_id });
@@ -104,13 +125,39 @@ export async function responsesStreamCompat(
     yield { type: "response.output_item.added", item: { type: "message", id: messageId, role: "assistant", content: [] } };
 
     let fullText = "";
-    const toolCalls: Record<number, { id: string; name: string; arguments: string }> = {};
+    let globalThoughtSig: string | null = null;
+    let globalExtraContent: any = null;
+    const toolCalls: Record<number, { id: string; name: string; arguments: string; extra_content?: any; thought_signature?: string }> = {};
     const toolItemIds: Record<number, string> = {};
 
     for await (const chunk of ccStream) {
       const choice = chunk.choices?.[0];
       if (!choice) continue;
       const delta = choice.delta ?? {};
+
+      // Check any part of chunk/choice/delta for thought_signature or reasoning
+      const chunkSig =
+        (chunk as any).thought_signature ??
+        (chunk as any).thoughtSignature ??
+        (choice as any).thought_signature ??
+        (choice as any).thoughtSignature ??
+        (delta as any).thought_signature ??
+        (delta as any).thoughtSignature ??
+        (delta as any).thought ??
+        (delta as any).reasoning ??
+        (delta as any).reasoning_content ??
+        (delta as any).extra_content?.google?.thought_signature ??
+        (choice as any).extra_content?.google?.thought_signature ??
+        (chunk as any).extra_content?.google?.thought_signature;
+
+      if (chunkSig && typeof chunkSig === "string") {
+        globalThoughtSig = chunkSig;
+      }
+
+      const chunkExtra = (delta as any).extra_content ?? (choice as any).extra_content ?? (chunk as any).extra_content;
+      if (chunkExtra) {
+        globalExtraContent = chunkExtra;
+      }
 
       if (delta.content) {
         fullText += delta.content;
@@ -120,12 +167,19 @@ export async function responsesStreamCompat(
       if (delta.tool_calls) {
         for (const tc of delta.tool_calls) {
           const idx: number = tc.index ?? 0;
+          const tcSig =
+            (tc as any).thought_signature ??
+            (tc as any).thoughtSignature ??
+            (tc as any).extra_content?.google?.thought_signature ??
+            chunkSig ??
+            globalThoughtSig;
+          if (tcSig && typeof tcSig === "string") globalThoughtSig = tcSig;
+          const tcExtra = (tc as any).extra_content ?? chunkExtra ?? globalExtraContent;
+
           if (!(idx in toolCalls)) {
             const id = tc.id ?? `call_${idx}_${Date.now()}`;
             const itemId = `fc_${id}`;
-            const extraContent = (tc as any).extra_content ?? (choice.delta as any).extra_content;
-            const thoughtSig = (tc as any).thought_signature ?? (choice.delta as any).thought_signature ?? extraContent?.google?.thought_signature;
-            toolCalls[idx] = { id, name: tc.function?.name ?? "", arguments: "", extra_content: extraContent, thought_signature: thoughtSig } as any;
+            toolCalls[idx] = { id, name: tc.function?.name ?? "", arguments: "", extra_content: tcExtra, thought_signature: tcSig } as any;
             toolItemIds[idx] = itemId;
             yield {
               type: "response.output_item.added",
@@ -133,13 +187,23 @@ export async function responsesStreamCompat(
             };
           }
           if (tc.function?.name && !toolCalls[idx].name) toolCalls[idx].name = tc.function.name;
-          if ((tc as any).extra_content) (toolCalls[idx] as any).extra_content = (tc as any).extra_content;
-          if ((tc as any).thought_signature) (toolCalls[idx] as any).thought_signature = (tc as any).thought_signature;
+          if (tcExtra) (toolCalls[idx] as any).extra_content = tcExtra;
+          if (tcSig) (toolCalls[idx] as any).thought_signature = tcSig;
           if (tc.function?.arguments) {
             toolCalls[idx].arguments += tc.function.arguments;
             yield { type: "response.function_call_arguments.delta", item_id: toolItemIds[idx], delta: tc.function.arguments };
           }
         }
+      }
+    }
+
+    // Ensure all tool calls carry the signature if one was discovered anywhere in the stream
+    for (const tc of Object.values(toolCalls)) {
+      if (!(tc as any).thought_signature && globalThoughtSig) {
+        (tc as any).thought_signature = globalThoughtSig;
+      }
+      if (!(tc as any).extra_content && (globalExtraContent || globalThoughtSig)) {
+        (tc as any).extra_content = globalExtraContent ?? { google: { thought_signature: globalThoughtSig } };
       }
     }
 
