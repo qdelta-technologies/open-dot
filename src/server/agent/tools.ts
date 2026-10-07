@@ -66,15 +66,12 @@ async function searchWeb(query: string): Promise<string> {
         const data = (await res.json()) as any;
         const parts: string[] = [];
         const box = data.answerBox;
-        if (box) parts.push(`**Answer**: ${box.answer || box.snippet || box.title || ""}${box.link ? `
-Source: ${box.link}` : ""}`);
+        if (box) parts.push(`**Answer**: ${box.answer || box.snippet || box.title || ""}${box.link ? `\nSource: ${box.link}` : ""}`);
         const items: any[] = [...(data.topStories ?? []).slice(0, 3), ...(data.organic ?? [])].slice(0, 8);
         items.forEach((r, i) => parts.push(`${i + 1}. **${r.title}**
    ${r.snippet ?? r.source ?? ""}${r.date ? ` (${r.date})` : ""}
    Source: ${r.link}`));
-        if (parts.length) return parts.join("
-
-");
+        if (parts.length) return parts.join("\n\n");
       }
     } catch (err) {
       console.warn("[web_search] Serper failed, falling back:", err);
@@ -98,9 +95,7 @@ Source: ${box.link}` : ""}`);
    ${String(r.content ?? "").slice(0, 400)}
    Source: ${r.url}`),
         );
-        if (parts.length) return parts.join("
-
-");
+        if (parts.length) return parts.join("\n\n");
       }
     } catch (err) {
       console.warn("[web_search] Tavily failed, falling back:", err);
