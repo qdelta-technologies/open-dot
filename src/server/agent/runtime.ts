@@ -220,11 +220,11 @@ async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>
       console.error("[dots] run failed", err);
       const msg = err instanceof Error ? err.message : String(err);
       const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(msg);
-      const is429 = /429|rate limit|quota|provider returned error/i.test(msg);
+      const is429 = /409|429|rate limit|quota|provider returned error|conflict/i.test(msg);
       const friendlyMsg = isNeuronExhausted
         ? `⚡ Cloudflare daily free limit reached (10,000 neurons). Connect your second opendot-worker in Settings to double your capacity, or wait for daily reset at 00:00 UTC (5:30 AM IST).`
         : is429
-        ? `The model provider is temporarily busy (429 rate limit). Please try again in a moment or switch to another model in Settings.`
+        ? `The model provider is temporarily busy (rate limit). Please try again in a moment or switch to another model in Settings.`
         : `Something went wrong: ${msg}`;
       repo.addMessage({ dotId, role: "system", text: friendlyMsg });
     }
@@ -384,7 +384,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
 
       if (!stream) {
         const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(errMsg);
-        const isRateLimit = /429|rate limit|quota|busy/i.test(errMsg);
+        const isRateLimit = /409|429|rate limit|quota|busy|conflict/i.test(errMsg);
 
         if (workerUrl && (isNeuronExhausted || isRateLimit) && workerIdx + 1 < candidateWorkers.length) {
           const nextWorker = candidateWorkers[workerIdx + 1]!;
@@ -399,7 +399,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
           continue;
         }
 
-        if (isRateLimit && appModel !== "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct" && Boolean(cloudflareWorkerUrl())) {
+        if (isRateLimit && !isCloudflareModel(appModel) && Boolean(cloudflareWorkerUrl())) {
           console.warn(`[dots] Model ${appModel} hit rate limit (429). Failing over to Cloudflare Meta Llama 4 Scout 17B...`);
           repo.addMessage({
             dotId: dot.id,
@@ -486,7 +486,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
     if (streamFailed) {
       const sErrMsg = String(streamError);
       const isNeuronExhausted = /4006|daily free allocation|10,000 neurons|neurons/i.test(sErrMsg);
-      const isRateLimit = /429|rate limit|quota|busy/i.test(sErrMsg);
+      const isRateLimit = /409|429|rate limit|quota|busy|conflict/i.test(sErrMsg);
       const hasDeliveredText = Array.from(drafts.values()).some((d) => d.text.trim().length > 0);
 
       // If no text was delivered and this worker hit quota/rate limit, failover to the next worker!
