@@ -634,11 +634,11 @@ export default function ModelPicker({
 
   const tabs: { id: ProviderTab; label: string; color: string }[] = [
     { id: "all", label: "All", color: "text-foreground/60" },
+    ...(groqConnected ? [{ id: "groq" as ProviderTab, label: "Groq", color: "text-orange-500" }] : []),
     { id: "cloudflare", label: "Cloudflare", color: "text-amber-500" },
     ...(googleConnected ? [{ id: "google" as ProviderTab, label: "Google", color: "text-blue-500" }] : []),
     ...(openRouterConnected ? [{ id: "openrouter" as ProviderTab, label: "OpenRouter", color: "text-emerald-500" }] : []),
     ...(anthropicConnected ? [{ id: "anthropic" as ProviderTab, label: "Claude", color: "text-violet-500" }] : []),
-    ...(groqConnected ? [{ id: "groq" as ProviderTab, label: "Groq", color: "text-orange-500" }] : []),
     ...(openAIConnected ? [{ id: "openai" as ProviderTab, label: "OpenAI", color: "text-green-500" }] : []),
   ];
 
@@ -682,7 +682,7 @@ export default function ModelPicker({
           />
           <div
             role="listbox"
-            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(560px,82vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-[440px] ${
+            className={`surface fixed inset-x-2 top-14 z-50 flex max-h-[min(560px,calc(100dvh-5rem))] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-[440px] ${
               placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
             }`}
           >
@@ -696,20 +696,20 @@ export default function ModelPicker({
                   placeholder="Search models (e.g. coder, vision, fast)…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="field h-8 bg-card dark:bg-[#1a1a1a] pl-8 pr-3 text-[12px]"
+                  className="field h-9 sm:h-8 bg-card dark:bg-[#1a1a1a] pl-8 pr-3 text-[16px] sm:text-[12px]"
                 />
               </div>
             </div>
 
             {/* Provider tabs */}
             {tabs.length > 2 && (
-              <div className="flex gap-1 px-2 pt-1.5 pb-1 bg-popover/40 dark:bg-[#222] border-b border-black/[0.05] dark:border-white/[0.05]">
+              <div className="flex gap-1 overflow-x-auto overscroll-x-contain px-2 pt-1.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-popover/40 dark:bg-[#222] border-b border-black/[0.05] dark:border-white/[0.05]">
                 {tabs.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setTab(t.id)}
-                    className={`h-6 rounded-md px-2.5 text-[11px] font-medium transition-colors ${
+                    className={`h-7 shrink-0 whitespace-nowrap rounded-md px-3 text-[12px] font-medium transition-colors sm:h-6 sm:px-2.5 sm:text-[11px] ${
                       tab === t.id
                         ? "bg-foreground/10 text-foreground"
                         : "text-foreground/45 hover:text-foreground/70 hover:bg-foreground/5"
@@ -753,7 +753,7 @@ export default function ModelPicker({
                     role="option"
                     aria-selected={selected}
                     onClick={() => { onChange(m.id); setOpen(false); }}
-                    className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+                    className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2.5 sm:py-2 text-left transition-colors ${
                       selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                     }`}
                   >
