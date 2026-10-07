@@ -122,6 +122,10 @@ export async function googleModelsAndMeta(): Promise<{ ids: string[]; meta: Reco
       if (raw.includes("embedding") || raw.includes("aqa") || raw.includes("text-") ||
           raw.includes("-tts") || raw.includes("audio") || raw.includes("imagen")) continue;
       if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes("generateContent")) continue;
+      // Skip unversioned aliases (gemini-flash-latest, gemini-pro-latest) — no X.X version in name
+      if (!/gemini-\d/.test(raw)) continue;
+      // Skip versioned pins (-001, -002) and -latest/-exp aliases — keep canonical IDs only
+      if (/-\d{3}(-|$)/.test(raw) || raw.endsWith("-latest") || raw.endsWith("-exp")) continue;
 
       const fullId = GOOGLE_PREFIX + raw;
       ids.push(fullId);
