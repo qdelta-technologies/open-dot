@@ -455,11 +455,14 @@ function parseModelId(id: string): {
   if (lower.includes("gemini-3.1-pro")) {
     return { cleanId: raw, name: "Gemini 3.1 Pro Preview", category: "general", badge: "Pro 1M", desc: "Google's most capable model — advanced reasoning, 1M context" };
   }
+  if (lower.includes("gemini-flash-lite-latest")) {
+    return { cleanId: raw, name: "Gemini Flash Lite (Latest)", category: "fast", badge: "Latest", desc: "Official Google auto-updating Flash Lite endpoint" };
+  }
   if (lower.includes("gemini-3.5-flash-lite")) {
-    return { cleanId: raw, name: "Gemini 3.5 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Lightweight fast Gemini model, cost-efficient" };
+    return { cleanId: raw, name: "Gemini 3.5 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Google Gemini 3.5 — 1M context, verified text, tool calling & image support" };
   }
   if (lower.includes("gemini-3.5-flash")) {
-    return { cleanId: raw, name: "Gemini 3.5 Flash", category: "fast", badge: "Flash", desc: "Fast capable Gemini model — recommended by Google (Free 1M tokens/day)" };
+    return { cleanId: raw, name: "Gemini 3.5 Flash", category: "fast", badge: "Flash", desc: "Fast capable Gemini model — recommended by Google" };
   }
   if (lower.includes("gemini-3.1-flash-lite")) {
     return { cleanId: raw, name: "Gemini 3.1 Flash Lite", category: "fast", badge: "Flash Lite", desc: "Compact Gemini model for quick tasks" };

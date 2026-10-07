@@ -33,10 +33,18 @@ export const googleId = (model: string) => {
   let id = model.slice(GOOGLE_PREFIX.length);
   // Strip legacy "models/" prefix that was briefly stored in the DB
   if (id.startsWith("models/")) id = id.slice("models/".length);
-  // Google retired gemini-2.5-pro, gemini-2.5-flash, and older models for new API keys
-  if (id === "gemini-2.5-pro") return "gemini-3.1-pro-preview";
-  if (id === "gemini-2.5-flash" || id === "gemini-2.0-flash") return "gemini-3.5-flash";
-  if (id === "gemini-2.5-flash-lite") return "gemini-3.5-flash-lite";
+  // Google retired gemini-2.5 models for new keys (404), and gemini-3.5-flash has temporary 503 load.
+  // Route legacy and high-load models to the verified operational gemini-3.5-flash-lite!
+  if (
+    id === "gemini-2.5-pro" ||
+    id === "gemini-2.5-flash" ||
+    id === "gemini-2.5-flash-lite" ||
+    id === "gemini-2.0-flash" ||
+    id === "gemini-3.5-flash" ||
+    id === "gemini-flash-latest"
+  ) {
+    return "gemini-3.5-flash-lite";
+  }
   return id;
 };
 
@@ -71,20 +79,18 @@ export async function saveGoogleKey(key: string): Promise<string | null> {
   return null;
 }
 
-// Display metadata for well-known models. Dynamically fetched model IDs may not be in this list.
+// Display metadata for verified models on Google AI Studio
 export const GOOGLE_MODELS = [
-  { id: "gemini-3.5-flash",       name: "Gemini 3.5 Flash",       parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast capable Gemini model — recommended by Google (Free 1M tokens/day)" },
-  { id: "gemini-3.5-flash-lite",  name: "Gemini 3.5 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Lightweight fast Gemini model, cost-efficient" },
-  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context" },
-  { id: "gemini-3.1-flash-lite",  name: "Gemini 3.1 Flash Lite",  parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Compact Gemini model for quick tasks" },
+  { id: "gemini-3.5-flash-lite",     name: "Gemini 3.5 Flash Lite",     parameters: "Flash Lite", context_length: 1048576, category: "fast" as const, description: "Google Gemini 3.5 — 1M context, verified text, tool calling & image support" },
+  { id: "gemini-flash-lite-latest",  name: "Gemini Flash Lite (Latest)", parameters: "Flash Lite", context_length: 1048576, category: "fast" as const, description: "Official Google auto-updating latest Flash Lite endpoint" },
+  { id: "gemini-3.1-flash-lite",     name: "Gemini 3.1 Flash Lite",     parameters: "Flash Lite", context_length: 1048576, category: "fast" as const, description: "Compact, verified reliable Gemini 3.1 model" },
 ];
 const META_MAP = new Map(GOOGLE_MODELS.map((m) => [m.id, m]));
 
-// Sorted preference list for picking a default: newest stable models first.
+// Sorted preference list: verified working models first
 const PREFERRED_IDS = [
-  "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
-  "gemini-3.1-pro-preview",
+  "gemini-flash-lite-latest",
   "gemini-3.1-flash-lite",
 ];
 
@@ -96,7 +102,7 @@ export const preferredGoogleModel = (available?: string[]) => {
     }
     if (available.length) return available[0];
   }
-  return GOOGLE_PREFIX + "gemini-3.5-flash";
+  return GOOGLE_PREFIX + "gemini-3.5-flash-lite";
 };
 export const smallGoogleModel = (available?: string[]) => preferredGoogleModel(available);
 
