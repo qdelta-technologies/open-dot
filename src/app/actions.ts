@@ -10,6 +10,7 @@ import { computerInfo } from "@/server/snapshot";
 import { apiKey, models, resetModels, saveApiKey } from "@/server/agent/client";
 import { openRouterKey, saveOpenRouterKey } from "@/server/agent/openrouter";
 import { groqKey, saveGroqKey } from "@/server/agent/groq";
+import { googleKey, saveGoogleKey } from "@/server/agent/google";
 import { cloudflareWorkerToken, cloudflareWorkerUrl, cloudflareWorkerUrls, saveCloudflareConfig } from "@/server/agent/cloudflare";
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
@@ -243,6 +244,20 @@ export async function setGroqKey(key: string): Promise<string | null> {
 
 export async function getGroqKey(): Promise<string> {
   return groqKey() || "";
+}
+
+/** Paste a Google AI Studio key in Settings to add Gemini models (empty removes it). */
+export async function setGoogleKey(key: string): Promise<string | null> {
+  const err = await saveGoogleKey(key.trim());
+  if (err) return err;
+  resetModels();
+  emit({ type: "computer", data: computerInfo() });
+  void models().then(() => emit({ type: "computer", data: computerInfo() })).catch(() => {});
+  return null;
+}
+
+export async function getGoogleKey(): Promise<string> {
+  return googleKey() || "";
 }
 
 export async function getCloudKey(): Promise<string> {

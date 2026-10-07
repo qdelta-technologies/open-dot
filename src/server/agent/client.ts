@@ -28,6 +28,14 @@ import {
   groqModelsAndMeta,
   isGroqModel,
 } from "./groq";
+import {
+  googleClient,
+  googleId,
+  googleKey,
+  googleModelsAndMeta,
+  isGoogleModel,
+  preferredGoogleModel,
+} from "./google";
 import type { ModelMeta } from "@/lib/types";
 
 // Models are chosen from what the configured providers can actually use. Precedence:
@@ -125,9 +133,9 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
   };
 }
 
-/** OpenAI models, Cloudflare Worker models, OpenRouter models, and Groq LPU models. */
+/** OpenAI models, Cloudflare Worker models, OpenRouter models, Groq LPU models, and Google Gemini models. */
 async function resolve() {
-  const [oa, cfData, openData, groqData] = await Promise.all([
+  const [oa, cfData, openData, groqData, googleData] = await Promise.all([
     resolveOpenAI(),
     cloudflareModelsAndMeta().catch((err) => {
       console.warn("[dots] couldn't list Cloudflare models:", err instanceof Error ? err.message : err);
@@ -141,24 +149,24 @@ async function resolve() {
       console.warn("[dots] couldn't list Groq models:", err instanceof Error ? err.message : err);
       return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
     }),
+    Promise.resolve(googleModelsAndMeta()),
   ]);
 
   const cf = cfData.ids;
-  const open = openData.ids;
-  const groqIds = groqData.ids;
 
   let mainDefault = process.env.DOTS_MODEL;
   let reviewDefault = process.env.DOTS_REVIEW_MODEL;
 
-  // Default to fast, verified, low-neuron edge model (Meta Llama 4 Scout 17B MoE)
   if (!mainDefault) {
     if (cf.length) mainDefault = preferredCloudflareModel(cf);
+    else if (googleData.ids.length) mainDefault = preferredGoogleModel();
     else if (oa?.main) mainDefault = oa.main;
     else mainDefault = "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct";
   }
 
   if (!reviewDefault) {
     if (cf.length) reviewDefault = smallCloudflareModel(cf);
+    else if (googleData.ids.length) reviewDefault = preferredGoogleModel();
     else if (oa?.review) reviewDefault = oa.review;
     else reviewDefault = "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast";
   }
@@ -166,8 +174,8 @@ async function resolve() {
   const resolved = {
     main: mainDefault,
     review: reviewDefault,
-    available: [...(oa?.available ?? []), ...cf],
-    meta: { ...cfData.meta },
+    available: [...(oa?.available ?? []), ...cf, ...googleData.ids, ...openData.ids, ...groqData.ids],
+    meta: { ...cfData.meta, ...googleData.meta, ...openData.meta, ...groqData.meta },
   };
 
 
@@ -191,15 +199,18 @@ export function clientFor(model: string): { client: OpenAI; model: string; state
   if (isGroqModel(model)) {
     return { client: groq(), model: groqId(model), stateless: true };
   }
+  if (isGoogleModel(model)) {
+    return { client: googleClient(), model: googleId(model), stateless: true };
+  }
   if (isOpenRouterModel(model)) {
     return { client: openrouter(), model: openRouterId(model), stateless: true };
   }
   return { client: openai(), model, stateless: false };
 }
 
-/** True when any model provider is set up (Cloudflare, OpenAI, OpenRouter, or Groq). */
+/** True when any model provider is set up (Cloudflare, OpenAI, OpenRouter, Groq, or Google). */
 export function canThink(): boolean {
-  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey()) || Boolean(groqKey());
+  return hasKey() || Boolean(cloudflareWorkerUrl()) || Boolean(openRouterKey()) || Boolean(groqKey()) || Boolean(googleKey());
 }
 
 export function models(): Promise<{ main: string; review: string; available: string[]; meta: Record<string, ModelMeta> }> {

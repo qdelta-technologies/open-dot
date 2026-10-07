@@ -169,6 +169,7 @@ export type ComputerInfo = {
   cloudKey: "env" | "settings" | null; // E2B key for cloud computers
   openRouter: "env" | "settings" | null; // OpenRouter key for open models
   groq?: "env" | "settings" | null; // Groq key for ultra-fast LPU inference
+  google?: "env" | "settings" | null; // Google AI Studio key for Gemini models
   cloudflare?: { url: string | null; source: "env" | "settings" | "default" | null; hasToken: boolean } | null; // Cloudflare AI Worker
   triggersKey: "env" | "settings" | null; // Composio API key for triggers
   sky: boolean; // OpenAI's Sky computer-use runtime is installed on this Mac

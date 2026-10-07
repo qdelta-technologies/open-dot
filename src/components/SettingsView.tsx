@@ -26,6 +26,7 @@ import {
   deletePassword,
   getCloudflareConfig,
   getCloudKey,
+  getGoogleKey,
   getOpenRouterKey,
   lockApp,
   refreshApps,
@@ -33,6 +34,7 @@ import {
   setCloudflareWorker,
   setCloudKey,
   setDefaultModel,
+  setGoogleKey,
   setOpenRouterKey,
   signInComposio,
   signOutComposio,
@@ -62,8 +64,9 @@ export default function SettingsView() {
       <div className="rails mx-auto min-h-full max-w-[1080px] px-4 sm:px-8 pb-16">
         <PageHeader eyebrow="Settings" title="Settings" description="Configure your AI engine, integrations, notifications, and workspace security." />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast) or open models via OpenRouter.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast), Google Gemini, or open models via OpenRouter.">
           <CloudflareWorkerKey />
+          <GoogleKey />
           <OpenModelsKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
@@ -535,6 +538,93 @@ function CloudflareWorkerKey() {
               {pending ? "Connecting…" : "Save"}
             </button>
           </div>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Google AI Studio key: adds Gemini 2.0/2.5 models — reliable free tier, great for night automations. */
+function GoogleKey() {
+  const computer = useStore((s) => s.computer);
+  const googleCount = computer.models.filter((m) => m.startsWith("google:")).length;
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.google !== null && computer.google !== undefined;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const val = await getGoogleKey();
+      if (val) setKey(val);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getGoogleKey().then((val) => { if (val) setKey(val); });
+    }
+  }, [editing]);
+
+  const save = (value: string) =>
+    start(async () => {
+      const err = await setGoogleKey(value);
+      setError(err);
+      if (!err) { setKey(""); setEditing(false); setShowKey(false); }
+    });
+
+  return (
+    <div id="google-key" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[14px]">
+            Google Gemini <span className="rounded-xs bg-blue-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-blue-600 dark:text-blue-400 uppercase">Free · Reliable</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.google === "env"
+              ? `Connected from GOOGLE_AI_API_KEY${googleCount ? ` · ${googleCount} Gemini models in the model picker` : ""}.`
+              : saved
+                ? `Connected${googleCount ? ` · ${googleCount} Gemini models in the model picker` : ""}. Stored encrypted.`
+                : "Paste a Google AI Studio key (from aistudio.google.com) — free tier gives 1M tokens/day on Gemini Flash. Great for night automation."}
+          </div>
+        </div>
+        {saved && !editing && (
+          <div className="flex items-center gap-2">
+            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
+          </div>
+        )}
+      </div>
+      {(editing || !saved) && (
+        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); save(key); }}>
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="AIza..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button type="button" onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}>
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button type="button" className="btn-secondary shrink-0"
+              onClick={() => { setEditing(false); setError(null); setShowKey(false); }}>
+              Cancel
+            </button>
+          )}
+          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
+            {pending ? "Checking…" : "Save"}
+          </button>
         </form>
       )}
       {error && <p className="mt-2 text-caption text-destructive">{error}</p>}

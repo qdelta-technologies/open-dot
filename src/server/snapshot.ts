@@ -8,6 +8,7 @@ import { skyInstalled } from "./computer/sky";
 import { cloudKeySource } from "./computer/cloud";
 import { openRouterSource } from "./agent/openrouter";
 import { groqSource } from "./agent/groq";
+import { googleSource } from "./agent/google";
 import { cloudflareSource, cloudflareWorkerUrl, cloudflareWorkerToken } from "./agent/cloudflare";
 import { triggersKeySource } from "./triggers";
 import { apps, signedIn } from "./composio";
@@ -29,6 +30,7 @@ export function computerInfo(): ComputerInfo {
     cloudKey: cloudKeySource(),
     openRouter: openRouterSource(),
     groq: groqSource(),
+    google: googleSource(),
     cloudflare: cfSource
       ? {
           url: cloudflareWorkerUrl(),

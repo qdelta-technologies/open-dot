@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -11,6 +11,8 @@ import {
 import { useStore } from "@/lib/store";
 
 const CF = "cloudflare:";
+const GOOGLE = "google:";
+const OR = "openrouter:";
 
 export type ModelCategory = "all" | "general" | "coding" | "vision" | "fast";
 
@@ -447,6 +449,23 @@ function parseModelId(id: string): {
       desc: "Capable 8B model with wide knowledge base & fast latency",
     };
   }
+  // Google Gemini models
+  if (lower.includes("gemini-2.5-pro")) {
+    return { cleanId: raw, name: "Gemini 2.5 Pro", category: "general", badge: "Gemini", desc: "Google's most capable model — advanced reasoning, 1M context, multimodal" };
+  }
+  if (lower.includes("gemini-2.5-flash")) {
+    return { cleanId: raw, name: "Gemini 2.5 Flash", category: "fast", badge: "Flash", desc: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" };
+  }
+  if (lower.includes("gemini-2.0-flash")) {
+    return { cleanId: raw, name: "Gemini 2.0 Flash", category: "fast", badge: "Free Flash", desc: "Reliable free-tier model with tool calling, multimodal and 1M context" };
+  }
+  if (lower.includes("gemini-1.5-flash")) {
+    return { cleanId: raw, name: "Gemini 1.5 Flash", category: "fast", badge: "Flash", desc: "Proven fast model for routine tasks and scheduled automations" };
+  }
+  if (lower.includes("gemini-1.5-pro")) {
+    return { cleanId: raw, name: "Gemini 1.5 Pro", category: "general", badge: "Gemini", desc: "Google's capable 1M context model" };
+  }
+
   if (lower.includes("gpt-4o-mini")) {
     return {
       cleanId: raw,
@@ -503,8 +522,10 @@ const CLOUDFLARE_CATALOG = [
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
 ];
 
+type ProviderTab = "all" | "cloudflare" | "google" | "openrouter";
+
 /**
- * Enhanced Categorized Model Dropdown for Cloudflare Workers AI models.
+ * Model picker with provider tabs: Cloudflare · Google · OpenRouter
  */
 export default function ModelPicker({
   value,
@@ -519,13 +540,16 @@ export default function ModelPicker({
   compact?: boolean;
   placement?: "top" | "bottom" | "auto";
 }) {
-  const models = useStore((s) => s.computer.models);
+  const storeModels = useStore((s) => s.computer.models);
   const modelMeta = useStore((s) => s.computer.modelMeta);
   const fallback = useStore((s) => s.computer.model);
+  const googleConnected = useStore((s) => Boolean(s.computer.google));
+  const openRouterConnected = useStore((s) => Boolean(s.computer.openRouter));
   const current = value ?? fallback;
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<ProviderTab>("all");
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -545,44 +569,57 @@ export default function ModelPicker({
   }, [open]);
 
   const list = useMemo(() => {
-    const cfFromKey = (models || []).filter((m) => m.startsWith(CF));
-    return [...new Set([...CLOUDFLARE_CATALOG, ...cfFromKey])];
-  }, [models]);
+    const cfFromKey = (storeModels || []).filter((m) => m.startsWith(CF));
+    const googleModels = (storeModels || []).filter((m) => m.startsWith(GOOGLE));
+    const orModels = (storeModels || []).filter((m) => m.startsWith(OR));
+    const cfAll = [...new Set([...CLOUDFLARE_CATALOG, ...cfFromKey])];
+    return [...cfAll, ...googleModels, ...orModels];
+  }, [storeModels]);
 
   const parsedList = useMemo(() => {
     return list.map((id) => {
       const parsed = parseModelId(id);
       const meta = modelMeta?.[id];
-      const category = meta?.category || parsed.category;
-      const desc = meta?.description || parsed.desc;
-      const params = meta?.parameters;
-      const ctx = meta?.contextFormatted;
-
       return {
         id,
         name: parsed.name,
-        category,
+        category: meta?.category || parsed.category,
         badge: inferModalityBadge(id),
-        desc,
-        params,
-        ctx,
+        desc: meta?.description || parsed.desc,
+        params: meta?.parameters,
+        ctx: meta?.contextFormatted,
+        provider: id.startsWith(GOOGLE) ? "google" : id.startsWith(OR) ? "openrouter" : "cloudflare",
       };
     });
   }, [list, modelMeta]);
 
   const filtered = useMemo(() => {
+    let base = parsedList;
+    if (tab !== "all") base = base.filter((m) => m.provider === tab);
     const q = search.trim().toLowerCase();
-    if (!q) return parsedList;
-    return parsedList.filter((m) => {
-      return (
-        m.name.toLowerCase().includes(q) ||
-        m.id.toLowerCase().includes(q) ||
-        (m.desc && m.desc.toLowerCase().includes(q))
-      );
-    });
-  }, [parsedList, search]);
+    if (!q) return base;
+    return base.filter((m) =>
+      m.name.toLowerCase().includes(q) ||
+      m.id.toLowerCase().includes(q) ||
+      (m.desc && m.desc.toLowerCase().includes(q))
+    );
+  }, [parsedList, search, tab]);
 
   const currentParsed = current ? parseModelId(current) : null;
+  const currentProvider = current?.startsWith(GOOGLE) ? "google" : current?.startsWith(OR) ? "openrouter" : "cloudflare";
+
+  const tabs: { id: ProviderTab; label: string; color: string }[] = [
+    { id: "all", label: "All", color: "text-foreground/60" },
+    { id: "cloudflare", label: "Cloudflare", color: "text-amber-500" },
+    ...(googleConnected ? [{ id: "google" as ProviderTab, label: "Google", color: "text-blue-500" }] : []),
+    ...(openRouterConnected ? [{ id: "openrouter" as ProviderTab, label: "OpenRouter", color: "text-emerald-500" }] : []),
+  ];
+
+  const providerIcon = (provider: string) => {
+    if (provider === "google") return <span className="text-[10px] font-bold text-blue-500">G</span>;
+    if (provider === "openrouter") return <span className="text-[9px] font-bold text-emerald-500">OR</span>;
+    return <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />;
+  };
 
   return (
     <div ref={containerRef} className="relative">
@@ -594,9 +631,9 @@ export default function ModelPicker({
         }`}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Choose Cloudflare model"
+        title="Choose model"
       >
-        <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />
+        {providerIcon(currentProvider)}
         {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
         <span className="max-w-[70px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
@@ -609,21 +646,17 @@ export default function ModelPicker({
 
       {open && (
         <>
-          {/* Mobile backdrop for tap-away dismissal */}
           <div
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] sm:hidden"
-            onClick={() => {
-              setOpen(false);
-              setSearch("");
-            }}
+            onClick={() => { setOpen(false); setSearch(""); }}
           />
           <div
             role="listbox"
-            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(540px,82vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-[440px] ${
+            className={`surface fixed inset-x-2 top-16 z-50 flex max-h-[min(560px,82vh)] flex-col overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-card dark:bg-[#1e1e1e] sm:absolute sm:inset-auto sm:right-0 sm:w-[440px] ${
               placement === "top" ? "sm:bottom-full sm:mb-2 sm:origin-bottom-right" : "sm:top-full sm:mt-2 sm:origin-top-right"
             }`}
           >
-            {/* Header: Search */}
+            {/* Search */}
             <div className="border-b border-black/[0.06] dark:border-white/[0.08] p-2 bg-popover/60 dark:bg-[#252525]">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-foreground/40" />
@@ -638,17 +671,34 @@ export default function ModelPicker({
               </div>
             </div>
 
-            {/* Model Options List */}
-            <div className="flex-1 overflow-y-auto p-1.5 space-y-1 divide-y divide-black/[0.03] dark:divide-white/[0.03]">
-              {allowDefault && !search && (
+            {/* Provider tabs */}
+            {tabs.length > 2 && (
+              <div className="flex gap-1 px-2 pt-1.5 pb-1 bg-popover/40 dark:bg-[#222] border-b border-black/[0.05] dark:border-white/[0.05]">
+                {tabs.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    className={`h-6 rounded-md px-2.5 text-[11px] font-medium transition-colors ${
+                      tab === t.id
+                        ? "bg-foreground/10 text-foreground"
+                        : "text-foreground/45 hover:text-foreground/70 hover:bg-foreground/5"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Model list */}
+            <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+              {allowDefault && !search && tab === "all" && (
                 <button
                   type="button"
                   role="option"
                   aria-selected={value === null}
-                  onClick={() => {
-                    onChange(null);
-                    setOpen(false);
-                  }}
+                  onClick={() => { onChange(null); setOpen(false); }}
                   className={`flex w-full items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
                     value === null ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                   }`}
@@ -672,10 +722,7 @@ export default function ModelPicker({
                     type="button"
                     role="option"
                     aria-selected={selected}
-                    onClick={() => {
-                      onChange(m.id);
-                      setOpen(false);
-                    }}
+                    onClick={() => { onChange(m.id); setOpen(false); }}
                     className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
                       selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                     }`}
@@ -683,28 +730,16 @@ export default function ModelPicker({
                     <div className="min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
                       <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
                       {m.badge && (
-                        <span
-                          className={`shrink-0 rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
-                            m.badge.includes("Video")
-                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                              : m.badge.includes("Photo") || m.badge.includes("Vision")
-                              ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                              : "bg-black/[0.05] dark:bg-white/[0.08] text-foreground/60"
-                          }`}
-                        >
+                        <span className={`shrink-0 rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
+                          m.badge.includes("Video") ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          : m.badge.includes("Photo") || m.badge.includes("Vision") ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                          : "bg-black/[0.05] dark:bg-white/[0.08] text-foreground/60"
+                        }`}>
                           {m.badge}
                         </span>
                       )}
-                      {m.params && (
-                        <span className="shrink-0 font-mono text-[10px] text-foreground/45">
-                          {m.params}
-                        </span>
-                      )}
-                      {m.ctx && (
-                        <span className="shrink-0 font-mono text-[10px] text-foreground/40">
-                          · {m.ctx}
-                        </span>
-                      )}
+                      {m.params && <span className="shrink-0 font-mono text-[10px] text-foreground/45">{m.params}</span>}
+                      {m.ctx && <span className="shrink-0 font-mono text-[10px] text-foreground/40">· {m.ctx}</span>}
                     </div>
                     {selected && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
                   </button>
@@ -713,7 +748,7 @@ export default function ModelPicker({
 
               {!filtered.length && (
                 <div className="py-8 text-center text-caption text-foreground/45">
-                  No Cloudflare models match “{search}”.
+                  No models match{search ? ` "${search}"` : ""}.
                 </div>
               )}
             </div>
