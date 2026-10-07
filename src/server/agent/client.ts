@@ -35,6 +35,7 @@ import {
   googleModelsAndMeta,
   isGoogleModel,
   preferredGoogleModel,
+  smallGoogleModel,
 } from "./google";
 import {
   anthropicClient,
@@ -156,7 +157,10 @@ async function resolve() {
       console.warn("[dots] couldn't list Groq models:", err instanceof Error ? err.message : err);
       return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
     }),
-    Promise.resolve(googleModelsAndMeta()),
+    googleModelsAndMeta().catch((err) => {
+      console.warn("[dots] couldn't list Google models:", err instanceof Error ? err.message : err);
+      return { ids: [] as string[], meta: {} as Record<string, ModelMeta> };
+    }),
     Promise.resolve(anthropicModelsAndMeta()),
   ]);
 
@@ -167,14 +171,14 @@ async function resolve() {
 
   if (!mainDefault) {
     if (cf.length) mainDefault = preferredCloudflareModel(cf);
-    else if (googleData.ids.length) mainDefault = preferredGoogleModel();
+    else if (googleData.ids.length) mainDefault = preferredGoogleModel(googleData.ids);
     else if (oa?.main) mainDefault = oa.main;
     else mainDefault = "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct";
   }
 
   if (!reviewDefault) {
     if (cf.length) reviewDefault = smallCloudflareModel(cf);
-    else if (googleData.ids.length) reviewDefault = preferredGoogleModel();
+    else if (googleData.ids.length) reviewDefault = smallGoogleModel(googleData.ids);
     else if (oa?.review) reviewDefault = oa.review;
     else reviewDefault = "cloudflare:@cf/meta/llama-3.1-8b-instruct-fast";
   }
