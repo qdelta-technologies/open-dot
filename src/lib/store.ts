@@ -262,7 +262,7 @@ if (typeof window !== "undefined") {
 
 /** Merge older messages (e.g. a conversation's full history, loaded on open) into the store. */
 export function mergeMessages(list: Message[]) {
-  if (!list.length) return;
+  if (!Array.isArray(list) || !list.length) return;
   const known = new Set(state.messages.map((m) => m.id));
   const extra = list.filter((m) => !known.has(m.id));
   if (extra.length) set({ messages: [...extra, ...state.messages].sort((a, b) => a.createdAt - b.createdAt) });
