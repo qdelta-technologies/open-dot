@@ -267,22 +267,6 @@ export const DEFAULT_CLOUDFLARE_MODELS = [
 
   // ── Large Frontier ──
   { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", name: "Llama 3.3 70B Instruct", parameters: "70B", context_length: 131072, category: "general" as const, description: "Meta's powerful 70B model in fast FP8 precision — best free open model for complex tasks" },
-  { id: "@cf/openai/gpt-oss-120b", name: "GPT-OSS 120B", parameters: "120B", context_length: 131072, category: "general" as const, description: "OpenAI's 120B open-weights model for high-capability reasoning and instruction following" },
-  { id: "@cf/openai/gpt-oss-20b", name: "GPT-OSS 20B", parameters: "20B", context_length: 131072, category: "general" as const, description: "OpenAI's efficient 20B open-weights model balancing capability and speed" },
-
-  // ── DeepSeek V4 ──
-  { id: "@cf/deepseek-ai/deepseek-v4-flash-0731", name: "DeepSeek V4 Flash", parameters: "Fast", context_length: 131072, category: "general" as const, description: "DeepSeek V4 Flash — fast and cost-efficient next-generation reasoning model" },
-  { id: "@cf/deepseek-ai/deepseek-v4-pro-0813", name: "DeepSeek V4 Pro", parameters: "Pro", context_length: 131072, category: "general" as const, description: "DeepSeek V4 Pro — full-capability frontier reasoning and agentic model" },
-
-  // ── Qwen 3.8 ──
-  { id: "@cf/qwen/qwen3.8-27b", name: "Qwen 3.8 27B", parameters: "27B", context_length: 131072, category: "general" as const, description: "Alibaba's latest Qwen 3.8 generation 27B model with strong reasoning and instruction following" },
-
-  // ── Coding & Technical ──
-  { id: "@cf/moonshotai/kimi-k2.7-code", name: "Kimi K2.7 Code", parameters: "Code", context_length: 131072, category: "coding" as const, description: "Moonshot AI's code-specialized model for generation, debugging, and architecture" },
-
-  // ── Multilingual ──
-  { id: "@cf/zai-org/glm-4.7-flash", name: "GLM 4.7 Flash", parameters: "Flash", context_length: 131072, category: "fast" as const, description: "Fast multilingual model with tool calling across 100+ languages" },
-  { id: "@cf/zai-org/glm-5.2", name: "GLM 5.2", parameters: "Agentic", context_length: 131072, category: "general" as const, description: "ZAI GLM 5.2 optimized for agentic coding workflows with function calling and reasoning" },
 
   // ── Fast, Light & High-Throughput (Ultra Low Neurons) ──
   { id: "@cf/meta/llama-3.1-8b-instruct-fast", name: "Llama 3.1 8B Instruct Fast", parameters: "8B Fast", context_length: 65536, category: "fast" as const, description: "Instant edge response optimized for speed, low latency, and minimal neuron consumption" },
