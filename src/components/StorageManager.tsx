@@ -164,7 +164,7 @@ export default function StorageManager() {
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-2">
               <HardDrive className="size-4 text-brand" strokeWidth={1.75} />
-              <span className="text-[13px] font-semibold text-foreground">Railway Local Storage</span>
+              <span className="text-[13px] font-semibold text-foreground">Railway Disk</span>
             </div>
             <span className="font-mono text-[11px] font-medium text-foreground/60">
               {formatBytes(stats.totalBytes)} / 500 MB ({stats.percentUsed}%)
@@ -215,8 +215,8 @@ export default function StorageManager() {
 
           <p className="text-[12px] text-foreground/60 leading-relaxed mb-3">
             {googleDriveConnected
-              ? "Google Drive is connected via Composio. Your files are stored directly in your 15 GB cloud Drive without consuming Railway's 500 MB disk."
-              : "Connect your Google Drive directly to unlock 15 GB of free cloud storage and keep Railway's container disk at 0 MB."}
+              ? "Google Drive is connected. All uploaded files go directly to your Drive — nothing is saved on Railway's 500 MB disk."
+              : "Google Drive is required to upload files. Connect it below — files will go to your Drive (15 GB free) instead of Railway's limited disk."}
           </p>
 
           <div className="flex items-center justify-between gap-2 pt-1">

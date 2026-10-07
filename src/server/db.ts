@@ -79,6 +79,11 @@ function migrate(conn: DatabaseSync) {
   const msgCols = conn.prepare("PRAGMA table_info(messages)").all().map((c) => (c as { name: string }).name);
   if (!msgCols.includes("attachments")) conn.exec("ALTER TABLE messages ADD COLUMN attachments TEXT");
   if (!msgCols.includes("channel_id")) conn.exec("ALTER TABLE messages ADD COLUMN channel_id TEXT");
+  const routineCols = conn.prepare("PRAGMA table_info(routines)").all().map((c) => (c as { name: string }).name);
+  if (!routineCols.includes("last_error")) conn.exec("ALTER TABLE routines ADD COLUMN last_error TEXT");
+  if (!routineCols.includes("timezone")) conn.exec("ALTER TABLE routines ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'");
+  const fileCols = conn.prepare("PRAGMA table_info(files)").all().map((c) => (c as { name: string }).name);
+  if (!fileCols.includes("drive_file_id")) conn.exec("ALTER TABLE files ADD COLUMN drive_file_id TEXT");
   if (!msgCols.includes("conversation_id")) {
     conn.exec("ALTER TABLE messages ADD COLUMN conversation_id TEXT");
     // Each dot's existing single chat becomes its first conversation (keeping its model thread).

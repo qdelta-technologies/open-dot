@@ -5,6 +5,7 @@ import { ArrowUp, X } from "lucide-react";
 
 interface VoiceInputPillProps {
   transcript?: string;
+  micStream?: MediaStream;
   onCancel: () => void;
   onStop: () => void;
   onSubmit: () => void;
@@ -23,12 +24,12 @@ interface VoiceInputPillProps {
  */
 export function VoiceInputPill({
   transcript,
+  micStream,
   onCancel,
   onStop,
   onSubmit,
 }: VoiceInputPillProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [dotCount, setDotCount] = useState<number>(55);
   const [history, setHistory] = useState<number[]>(() => new Array(55).fill(0));
   
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -49,7 +50,6 @@ export function VoiceInputPill({
       const available = Math.max(160, width - 130);
       // Each dot + gap is ~8px
       const count = Math.max(26, Math.min(68, Math.floor(available / 8.5)));
-      setDotCount(count);
       historyRef.current = new Array(count).fill(0);
       setHistory(new Array(count).fill(0));
     };
@@ -60,112 +60,105 @@ export function VoiceInputPill({
     return () => observer.disconnect();
   }, []);
 
-  // Web Audio API setup and streaming waveform history
+  // Web Audio API setup and streaming waveform history.
+  // Uses the shared micStream prop if provided (avoids a second competing getUserMedia call on mobile).
   useEffect(() => {
     let isMounted = true;
 
-    async function initAudio() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
+    function startAnalyser(stream: MediaStream) {
+      if (!isMounted) return;
+      streamRef.current = stream;
 
-        if (!isMounted) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioContextClass();
+      audioContextRef.current = ctx;
 
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        const ctx = new AudioContextClass();
-        audioContextRef.current = ctx;
+      // resume() must be called synchronously here — we're inside a user-gesture chain
+      if (ctx.state === "suspended") {
+        void ctx.resume();
+      }
 
-        if (ctx.state === "suspended") {
-          void ctx.resume();
-        }
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      analyserRef.current = analyser;
 
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.5;
-        analyserRef.current = analyser;
+      const source = ctx.createMediaStreamSource(stream);
+      source.connect(analyser);
 
-        const source = ctx.createMediaStreamSource(stream);
-        source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const tick = (now: number) => {
+        if (!isMounted) return;
 
-        const tick = (now: number) => {
-          if (!isMounted) return;
+        if (now - lastSampleTimeRef.current >= 38) {
+          lastSampleTimeRef.current = now;
+          analyser.getByteFrequencyData(dataArray);
 
-          // Shift audio history every ~38ms (~26 FPS stream)
-          if (now - lastSampleTimeRef.current >= 38) {
-            lastSampleTimeRef.current = now;
+          let sum = 0;
+          const binCount = Math.min(dataArray.length, 36);
+          for (let i = 2; i < binCount; i++) sum += dataArray[i];
+          const avg = sum / (binCount - 2);
 
-            analyser.getByteFrequencyData(dataArray);
+          let amplitude = 0;
+          if (avg > 10) amplitude = Math.min(1, Math.max(0.12, (avg - 10) / 48));
 
-            // Compute volume across human voice frequencies (bins 2 to 36)
-            let sum = 0;
-            const binCount = Math.min(dataArray.length, 36);
-            for (let i = 2; i < binCount; i++) {
-              sum += dataArray[i];
-            }
-            const avg = sum / (binCount - 2);
-
-            // Silence threshold
-            let amplitude = 0;
-            if (avg > 10) {
-              amplitude = Math.min(1, Math.max(0.12, (avg - 10) / 48));
-            }
-
-            // Push into streaming history tape (enters from right, scrolls to left)
-            const arr = historyRef.current;
-            arr.shift();
-            arr.push(amplitude);
-            setHistory([...arr]);
-          }
-
-          animFrameRef.current = requestAnimationFrame(tick);
-        };
-
-        animFrameRef.current = requestAnimationFrame(tick);
-      } catch (err) {
-        console.warn("[VoiceInputPill] Web Audio metering fallback:", err);
-        // Fallback gentle idle animation if mic permission pending or unavailable
-        let fallbackTick = 0;
-        const interval = setInterval(() => {
-          if (!isMounted) {
-            clearInterval(interval);
-            return;
-          }
-          fallbackTick++;
           const arr = historyRef.current;
           arr.shift();
-          // Gentle breathing dot pulse
-          arr.push(0);
+          arr.push(amplitude);
           setHistory([...arr]);
-        }, 40);
+        }
 
-        return () => clearInterval(interval);
-      }
+        animFrameRef.current = requestAnimationFrame(tick);
+      };
+
+      animFrameRef.current = requestAnimationFrame(tick);
     }
 
-    void initAudio();
+    function startFallback() {
+      const interval = setInterval(() => {
+        if (!isMounted) { clearInterval(interval); return; }
+        const arr = historyRef.current;
+        arr.shift();
+        arr.push(0);
+        setHistory([...arr]);
+      }, 40);
+      return interval;
+    }
+
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (micStream) {
+      // Use the shared stream passed from Chat — no second getUserMedia call
+      startAnalyser(micStream);
+    } else {
+      // Fallback: open our own stream (desktop / no prop passed)
+      navigator.mediaDevices
+        .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+        .then((stream) => {
+          if (!isMounted) { stream.getTracks().forEach((t) => t.stop()); return; }
+          startAnalyser(stream);
+        })
+        .catch((err) => {
+          console.warn("[VoiceInputPill] Web Audio metering fallback:", err);
+          fallbackInterval = startFallback();
+        });
+    }
 
     return () => {
       isMounted = false;
+      if (fallbackInterval !== null) clearInterval(fallbackInterval);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+      // Only stop tracks if we opened our own stream (not the shared one)
+      if (!micStream && streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
       if (audioContextRef.current && audioContextRef.current.state !== "closed") {
         void audioContextRef.current.close().catch(() => {});
       }
     };
-  }, [dotCount]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div

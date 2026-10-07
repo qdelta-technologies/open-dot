@@ -289,11 +289,14 @@ function Composer({
 }) {
   const [text, setText] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [drivePrompt, setDrivePrompt] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [pending, start] = useTransition();
   const recognitionRef = useRef<any>(null);
   const baseTextRef = useRef<string>("");
+  const userStoppedRef = useRef(false);
+  const micStreamRef = useRef<MediaStream | null>(null);
 
   const ready = uploads.filter((u) => u.state === "done" && u.file).map((u) => u.file!);
   const busy = uploads.some((u) => u.state === "uploading");
@@ -309,24 +312,22 @@ function Composer({
     };
   }, []);
 
-  const toggleListening = () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-      setIsListening(false);
-      return;
+  const stopListening = () => {
+    userStoppedRef.current = true;
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
     }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+    }
+    setIsListening(false);
+  };
 
+  const startRecognition = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.");
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     try {
       const recognition = new SpeechRecognition();
@@ -334,25 +335,16 @@ function Composer({
       recognition.interimResults = true;
       recognition.lang = navigator.language || "en-US";
 
-      baseTextRef.current = text;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
+      recognition.onstart = () => { setIsListening(true); };
 
       recognition.onresult = (event: any) => {
         let interim = "";
         let final = "";
-
         for (let i = 0; i < event.results.length; ++i) {
           const item = event.results[i];
-          if (item.isFinal) {
-            final += item[0].transcript;
-          } else {
-            interim += item[0].transcript;
-          }
+          if (item.isFinal) final += item[0].transcript;
+          else interim += item[0].transcript;
         }
-
         const spoken = (final + interim).trim();
         if (spoken) {
           const prefix = baseTextRef.current.trim() ? `${baseTextRef.current.trim()} ` : "";
@@ -364,12 +356,21 @@ function Composer({
         console.warn("[speech recognition error]", event.error);
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
           alert("Microphone permission was denied. Please allow microphone access in your browser to dictate.");
+          stopListening();
         }
-        setIsListening(false);
       };
 
+      // On mobile, the browser auto-fires onend after short silence.
+      // If the user did NOT explicitly stop, restart to keep listening.
       recognition.onend = () => {
-        setIsListening(false);
+        if (userStoppedRef.current) {
+          setIsListening(false);
+        } else {
+          // Browser auto-stopped (iOS/Android silence detection) — restart
+          setTimeout(() => {
+            if (!userStoppedRef.current) startRecognition();
+          }, 200);
+        }
       };
 
       recognitionRef.current = recognition;
@@ -380,19 +381,53 @@ function Composer({
     }
   };
 
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.");
+      return;
+    }
+
+    userStoppedRef.current = false;
+    baseTextRef.current = text;
+
+    // Get the mic stream first (single shared stream for both recognition + waveform)
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+      .then((stream) => {
+        micStreamRef.current = stream;
+        startRecognition();
+      })
+      .catch(() => {
+        alert("Microphone permission was denied. Please allow microphone access in your browser to dictate.");
+      });
+  };
+
   const addFiles = (list: File[]) => {
     if (!list.length) return;
     const batch = list.map((f) => ({ key: `${f.name}-${f.size}-${Math.random()}`, name: f.name, state: "uploading" as const }));
     setUploads((u) => [...u, ...batch]);
-    void uploadFiles(dot.id, list).then((r) =>
+    void uploadFiles(dot.id, list).then((r) => {
+      if (r.error === "DRIVE_NOT_CONNECTED") {
+        // Remove the pending upload pills and show the Drive connect prompt instead
+        setUploads((u) => u.filter((x) => !batch.find((b) => b.key === x.key)));
+        setDrivePrompt(true);
+        return;
+      }
       setUploads((u) =>
         u.map((x) => {
           const i = batch.findIndex((b) => b.key === x.key);
           if (i === -1) return x;
           return r.files?.[i] ? { ...x, state: "done", file: r.files[i] } : { ...x, state: "error", error: r.error ?? "Upload failed" };
         })
-      )
-    );
+      );
+    });
   };
 
   const submit = () => {
@@ -440,6 +475,26 @@ function Composer({
       }}
       className="relative"
     >
+      {drivePrompt && (
+        <div className="mb-2 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+          <span className="flex-1">Connect Google Drive to upload files — file storage requires Google Drive.</span>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg bg-amber-500/20 px-2.5 py-1 text-xs font-medium hover:bg-amber-500/30 transition-colors"
+            onClick={() => { setDrivePrompt(false); window.location.href = "/settings#apps"; }}
+          >
+            Connect Drive
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="shrink-0 text-amber-500/60 hover:text-amber-500 transition-colors"
+            onClick={() => setDrivePrompt(false)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {uploads.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5 pl-1 pt-1">
           {uploads.map((u) => (
@@ -468,30 +523,24 @@ function Composer({
       {isListening ? (
         <VoiceInputPill
           transcript={text}
+          micStream={micStreamRef.current ?? undefined}
           onCancel={() => {
+            userStoppedRef.current = true;
             if (recognitionRef.current) {
-              try {
-                recognitionRef.current.abort();
-              } catch {}
+              try { recognitionRef.current.abort(); } catch {}
+            }
+            if (micStreamRef.current) {
+              micStreamRef.current.getTracks().forEach((t) => t.stop());
+              micStreamRef.current = null;
             }
             setIsListening(false);
             setText(baseTextRef.current || "");
           }}
           onStop={() => {
-            if (recognitionRef.current) {
-              try {
-                recognitionRef.current.stop();
-              } catch {}
-            }
-            setIsListening(false);
+            stopListening();
           }}
           onSubmit={() => {
-            if (recognitionRef.current) {
-              try {
-                recognitionRef.current.stop();
-              } catch {}
-            }
-            setIsListening(false);
+            stopListening();
             submit();
           }}
         />

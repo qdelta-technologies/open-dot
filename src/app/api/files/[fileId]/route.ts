@@ -1,15 +1,28 @@
-import { get } from "@/server/files";
+import { get, fetchFromDrive } from "@/server/files";
 
 // Download or preview a file. Images/PDFs render inline; `?download=1` forces a download.
 export async function GET(req: Request, ctx: RouteContext<"/api/files/[fileId]">) {
   const { fileId } = await ctx.params;
   const f = get(fileId);
   if (!f) return new Response("Not found", { status: 404 });
+
+  let bytes: Uint8Array;
+  if (f.driveFileId) {
+    try {
+      bytes = new Uint8Array(await fetchFromDrive(f.driveFileId));
+    } catch (err) {
+      console.error("[files] Failed to fetch from Google Drive:", err);
+      return new Response("Failed to retrieve file from Google Drive", { status: 502 });
+    }
+  } else {
+    bytes = new Uint8Array(f.data());
+  }
+
   const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain)$/.test(f.mime) && new URL(req.url).searchParams.get("download") !== "1";
-  return new Response(new Uint8Array(f.data()), {
+  return new Response(bytes, {
     headers: {
       "Content-Type": f.mime,
-      "Content-Length": String(f.size),
+      "Content-Length": String(bytes.byteLength),
       "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(f.name)}`,
       "Cache-Control": "private, max-age=3600",
       "X-Content-Type-Options": "nosniff",

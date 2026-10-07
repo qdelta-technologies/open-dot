@@ -87,13 +87,16 @@ export function sendToChannel(channelId: string, text: string) {
 
 export function runRoutine(routine: Routine) {
   const dot = repo.getDot(routine.dotId);
-  if (!dot || dot.status === "paused" || !routine.enabled) return;
-  repo.updateRoutine(routine.id, { lastRunAt: Date.now() });
+  if (!dot || dot.status === “paused” || !routine.enabled) return;
   // Each routine keeps its own conversation, so its runs read like a log you can open any time.
-  const conv = repo.workConversation(dot.id, "chat", `routine:${routine.id}`, `Routine · ${routine.name}`);
-  repo.addMessage({ dotId: dot.id, role: "system", text: `Routine “${routine.name}” started`, from: `routine:${routine.name}`, conversationId: conv });
-  state(dot.id).inbox.push({ text: `[Routine: ${routine.name}] ${routine.instruction}`, trigger: { kind: "routine", name: routine.name }, conversationId: conv });
-  void pump(dot.id);
+  const conv = repo.workConversation(dot.id, “chat”, `routine:${routine.id}`, `Routine · ${routine.name}`);
+  repo.addMessage({ dotId: dot.id, role: “system”, text: `Routine “${routine.name}” started`, from: `routine:${routine.name}`, conversationId: conv });
+  state(dot.id).inbox.push({ text: `[Routine: ${routine.name}] ${routine.instruction}`, trigger: { kind: “routine”, name: routine.name }, conversationId: conv });
+  void pump(dot.id).then(() => {
+    repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: null });
+  }).catch((err: unknown) => {
+    repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: err instanceof Error ? err.message : String(err) });
+  });
 }
 
 /** A Composio trigger fired: run its dot on the instruction, in the trigger's own chat, from a fresh context. */

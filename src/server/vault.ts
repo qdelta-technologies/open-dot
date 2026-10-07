@@ -7,8 +7,9 @@ import { DATA_DIR } from "./db";
 import { insertPassword, sealedPasswordFor } from "./repo";
 
 // Passwords are AES-256-GCM encrypted at rest. The master key lives in the macOS
-// Keychain when available, Windows DPAPI on Windows, otherwise in a 0600 file under .data/. Plaintext secrets
-// are only ever decrypted to type them into a page — never returned to the model or UI.
+// Keychain when available, Windows DPAPI on Windows, VAULT_KEY env var on Linux/Railway,
+// otherwise in a 0600 file under .data/ (not safe across restarts — set VAULT_KEY).
+// Plaintext secrets are only ever decrypted to type them into a page — never returned to the model or UI.
 
 const SERVICE = "dots-openai-vault";
 const g = globalThis as unknown as { __dotsVaultKey?: Buffer };
@@ -110,11 +111,31 @@ function masterKey(): Buffer {
     }
   }
 
-  // Linux or fallback if secure storage failed
+  // Linux / Railway: prefer VAULT_KEY env var so the key survives redeploys
+  if (!hex) {
+    const envKey = process.env.VAULT_KEY?.trim();
+    if (envKey) {
+      // Accept hex (64 chars) or base64 (44 chars)
+      if (/^[0-9a-fA-F]{64}$/.test(envKey)) {
+        hex = envKey;
+      } else {
+        try {
+          const decoded = Buffer.from(envKey, "base64");
+          if (decoded.length === 32) hex = decoded.toString("hex");
+        } catch { /* fall through */ }
+      }
+      if (!hex) console.error("[vault] VAULT_KEY is set but could not be parsed — expected 64-char hex or 32-byte base64");
+    }
+  }
+
+  // Final fallback: random key in a file (NOT safe across Railway redeploys — set VAULT_KEY)
   if (!hex) {
     const file = path.join(DATA_DIR, "vault.key");
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
+    if (!fs.existsSync(file)) {
+      console.warn("[vault] No VAULT_KEY env var set. Generating a random key in .data/vault.key — saved passwords will be lost on redeploy. Set VAULT_KEY in Railway environment variables.");
+      fs.writeFileSync(file, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
+    }
     hex = fs.readFileSync(file, "utf8").trim();
   }
   g.__dotsVaultKey = Buffer.from(hex, "hex");

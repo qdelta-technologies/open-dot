@@ -66,6 +66,15 @@ export default function Sidebar() {
     checkAuthStatus().then((s) => setAuthEnabled(s.enabled));
   }, []);
 
+  // Save current route so the app can restore it after a mobile background kill
+  useEffect(() => {
+    if (pathname === "/" || pathname.startsWith("/login")) return;
+    try {
+      const full = pathname + (activeConv ? `?c=${activeConv}` : "");
+      localStorage.setItem("opendot-lastRoute", full);
+    } catch { /* localStorage unavailable */ }
+  }, [pathname, activeConv]);
+
   // Keyboard shortcut: Ctrl+B or Cmd+B to toggle sidebar
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

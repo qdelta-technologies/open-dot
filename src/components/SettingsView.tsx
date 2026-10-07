@@ -62,12 +62,68 @@ export default function SettingsView() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="rails mx-auto min-h-full max-w-[1080px] px-4 sm:px-8 pb-16">
-        <PageHeader eyebrow="Settings" title="Settings" description="Passwords, rules that apply to every dot, notifications, and the engine behind them." />
+        <PageHeader eyebrow="Settings" title="Settings" description="Configure your AI engine, integrations, notifications, and workspace security." />
+
+        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast) or OpenAI.">
+          <CloudflareWorkerKey />
+          <ApiKey />
+          <CloudKey />
+          <div className="surface mb-3 flex items-center gap-3 p-4">
+            <div className="flex-1">
+              <div className="text-[14px]">Default model</div>
+              <div className="text-body-sm text-foreground/55">Used by every dot that doesn&apos;t pick its own (pick per dot from its header).</div>
+            </div>
+            <ModelPicker allowDefault={false} value={computer.model || null} onChange={(m) => start(() => setDefaultModel(m))} />
+          </div>
+          <dl className="surface divide-y divide-black/[0.06]">
+            {[
+              ["Models on your key", computer.models.length ? `${computer.models.length} available` : "Loading…", true],
+              ["Computer use", computer.computerTool === "off" ? "Off (page tools only)" : "OpenAI computer tool", true],
+              ["Dot computers", computer.docker ? `Docker containers · ${computer.image}` : "Docker not available in this environment", computer.docker],
+            ].map(([k, v, ok]) => (
+              <div key={String(k)} className="flex items-center gap-4 px-4 py-2.5">
+                <dt className="eyebrow w-36 shrink-0">{k}</dt>
+                <dd className={`flex-1 text-body-sm ${ok ? "" : "text-warning"}`}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+
+        <Section
+          id="apps"
+          eyebrow="Apps"
+          title="Your apps, via Composio"
+          description="Sign in with your Composio account to give your dots Gmail, Calendar, Slack, Notion, GitHub, and 500+ more apps. Dots read on their own and ask before sending, posting, or changing anything."
+        >
+          <AppsList />
+        </Section>
+
+        <Section
+          id="triggers"
+          eyebrow="Triggers"
+          title="Wake dots from your apps"
+          description="Let a dot act when something happens, like a new email or a GitHub issue. Triggers run through a Composio developer project, so they need its API key. Then add them from a dot's Setup page."
+        >
+          <TriggersKey />
+        </Section>
+
+        <Section
+          id="storage"
+          eyebrow="Storage & Files"
+          title="Cloud & Local Storage"
+          description="Files uploaded by your dots are stored in Google Drive via Composio (15 GB free). Connect Google Drive in Apps to enable uploads."
+        >
+          <StorageManager />
+        </Section>
+
+        <Section eyebrow="Approvals" title="Rules for all dots" description="These apply to every dot, on top of each dot's own rules.">
+          <RuleEditor dotId={null} name="a dot" />
+        </Section>
 
         <Section
           eyebrow="Passwords"
           title="Saved logins"
-          description="Your dots can securely use these to log into websites in their browser. Encrypted with a key in your macOS Keychain, typed directly into the page, and never shown to the model."
+          description="Your dots can securely use these to log into websites in their browser. Encrypted with AES-256-GCM. Typed directly into the page and never shown to the model."
         >
           <div className="space-y-3">
             {passwords.length > 0 ? (
@@ -104,7 +160,7 @@ export default function SettingsView() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 text-caption text-foreground/45">
-                  <Lock className="size-3" strokeWidth={2} /> AES-256-GCM, key in Keychain
+                  <Lock className="size-3" strokeWidth={2} /> AES-256-GCM encrypted
                 </span>
                 {error && <span className="text-caption text-destructive">{error}</span>}
                 <button className="btn-primary ml-auto h-8 px-3 text-[13px]" disabled={pending}>
@@ -115,38 +171,9 @@ export default function SettingsView() {
           </div>
         </Section>
 
-        <Section eyebrow="Approvals" title="Rules for all dots" description="These apply to every dot, on top of each dot's own rules.">
-          <RuleEditor dotId={null} name="a dot" />
-        </Section>
+        <AccessSecuritySection />
 
-        <Section
-          id="apps"
-          eyebrow="Apps"
-          title="Your apps, via Composio"
-          description="Sign in with your Composio account to give your dots Gmail, Calendar, Slack, Notion, GitHub, and 500+ more apps. Dots read on their own and ask before sending, posting, or changing anything."
-        >
-          <AppsList />
-        </Section>
-
-        <Section
-          id="triggers"
-          eyebrow="Triggers"
-          title="Wake dots from your apps"
-          description="Let a dot act when something happens, like a new email or a GitHub issue. Triggers run through a Composio developer project, so they need its API key. Then add them from a dot's Setup page."
-        >
-          <TriggersKey />
-        </Section>
-
-        <Section
-          id="storage"
-          eyebrow="Storage & Files"
-          title="Cloud & Local Storage"
-          description="Manage files saved by your dots. Railway starter tier includes 500 MB container disk. Connect Google Drive via Composio for 15 GB free cloud storage without consuming Railway disk space."
-        >
-          <StorageManager />
-        </Section>
-
-        <Section eyebrow="Notifications" title="Desktop notifications" description={'Get notified when a dot finishes something or needs you, like "Your research is ready".'}>
+        <Section eyebrow="Notifications" title="Notifications" description={'Get notified when a dot finishes something or needs you, like "Your research is ready".'}>
           <div className="surface flex items-center gap-3 p-4">
             <Bell className="size-4 text-foreground/50" strokeWidth={1.5} />
             <span className="flex-1 text-body-sm">
@@ -170,33 +197,6 @@ export default function SettingsView() {
         <AppearanceSection />
 
         <InstallAppSection />
-
-        <AccessSecuritySection />
-
-        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (0 cost, fast edge inference) or OpenAI.">
-          <CloudflareWorkerKey />
-          <ApiKey />
-          <CloudKey />
-          <div className="surface mb-3 flex items-center gap-3 p-4">
-            <div className="flex-1">
-              <div className="text-[14px]">Default model</div>
-              <div className="text-body-sm text-foreground/55">Used by every dot that doesn&apos;t pick its own (pick per dot from its header).</div>
-            </div>
-            <ModelPicker allowDefault={false} value={computer.model || null} onChange={(m) => start(() => setDefaultModel(m))} />
-          </div>
-          <dl className="surface divide-y divide-black/[0.06]">
-            {[
-              ["Models on your key", computer.models.length ? `${computer.models.length} available` : "Loading…", true],
-              ["Computer use", computer.computerTool === "off" ? "Off (page tools only)" : "OpenAI computer tool", true],
-              ["Dot computers", computer.docker ? `Docker containers · ${computer.image}` : "Sandbox folders (start Docker for containers)", computer.docker],
-            ].map(([k, v, ok]) => (
-              <div key={String(k)} className="flex items-center gap-4 px-4 py-2.5">
-                <dt className="eyebrow w-36 shrink-0">{k}</dt>
-                <dd className={`flex-1 text-body-sm ${ok ? "" : "text-warning"}`}>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </Section>
       </div>
     </div>
   );
@@ -338,7 +338,7 @@ function ApiKey() {
             {computer.keySource === "env"
               ? "Connected from OPENAI_API_KEY."
               : computer.hasKey
-                ? "Connected. Stored encrypted on this computer."
+                ? "Connected. Stored encrypted on this server."
                 : "Your dots need one to think. Create one at platform.openai.com."}
           </div>
         </div>
@@ -405,7 +405,7 @@ function ApiKey() {
   );
 }
 
-/** Optional E2B key: each dot gets a cloud computer that keeps working while this Mac sleeps. */
+/** Optional E2B key: each dot gets a cloud computer that keeps working while you're away. */
 function CloudKey() {
   const computer = useStore((s) => s.computer);
   const [editing, setEditing] = useState(false);
@@ -453,8 +453,8 @@ function CloudKey() {
             {computer.cloudKey === "env"
               ? "Connected from E2B_API_KEY."
               : saved
-                ? "Connected. Each dot gets its own E2B cloud computer that keeps working while your Mac sleeps."
-                : "Paste an E2B API key (from e2b.dev) to give each dot a cloud computer that keeps working while your Mac sleeps."}
+                ? "Connected. Each dot gets its own E2B cloud computer that keeps working while you're away."
+                : "Paste an E2B API key (from e2b.dev) to give each dot a cloud computer that keeps working while you're away."}
           </div>
         </div>
         {saved && !editing && (
@@ -821,10 +821,14 @@ function AccessSecuritySection() {
   const [locking, startLock] = useTransition();
 
   useEffect(() => {
-    checkAuthStatus().then(setAuth);
+    checkAuthStatus().then(setAuth).catch(() => setAuth({ enabled: false, authenticated: true }));
   }, []);
 
-  if (!auth) return null;
+  if (!auth) return (
+    <Section eyebrow="Security" title="Master access" description="Protect your workspace and free AI quotas from unauthorized visitors with ACCESS_PASSWORD.">
+      <div className="surface animate-pulse h-20 rounded-lg" />
+    </Section>
+  );
 
   return (
     <Section

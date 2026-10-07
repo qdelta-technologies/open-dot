@@ -462,7 +462,8 @@ function nextRun(schedule: string): number | null {
 
 const toRoutine = (r: Row): Routine => ({
   id: r.id as string, dotId: r.dot_id as string, name: r.name as string, instruction: r.instruction as string,
-  schedule: r.schedule as string, enabled: r.enabled === 1, lastRunAt: (r.last_run_at as number) ?? null,
+  schedule: r.schedule as string, timezone: (r.timezone as string) || "UTC", enabled: r.enabled === 1,
+  lastRunAt: (r.last_run_at as number) ?? null, lastError: (r.last_error as string) ?? null,
   nextRunAt: r.enabled === 1 ? nextRun(r.schedule as string) : null, createdAt: r.created_at as number,
 });
 
@@ -491,9 +492,10 @@ export function addRoutine(input: { dotId: string; name: string; instruction: st
   return routine;
 }
 
-export function updateRoutine(routineId: string, patch: { enabled?: boolean; lastRunAt?: number }): Routine | null {
+export function updateRoutine(routineId: string, patch: { enabled?: boolean; lastRunAt?: number; lastError?: string | null }): Routine | null {
   if (patch.enabled !== undefined) db().prepare("UPDATE routines SET enabled = ? WHERE id = ?").run(patch.enabled ? 1 : 0, routineId);
   if (patch.lastRunAt !== undefined) db().prepare("UPDATE routines SET last_run_at = ? WHERE id = ?").run(patch.lastRunAt, routineId);
+  if (patch.lastError !== undefined) db().prepare("UPDATE routines SET last_error = ? WHERE id = ?").run(patch.lastError ?? null, routineId);
   const routine = getRoutine(routineId);
   if (routine) emit({ type: "routine", data: routine });
   return routine;

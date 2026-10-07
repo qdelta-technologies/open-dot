@@ -14,13 +14,29 @@ function schedule(routineId: string) {
   jobs.delete(routineId);
   const routine = repo.getRoutine(routineId);
   if (!routine?.enabled) return;
-  jobs.set(
-    routineId,
-    new Cron(routine.schedule, { protect: true }, () => {
-      const fresh = repo.getRoutine(routineId);
-      if (fresh) runRoutine(fresh);
-    }),
-  );
+
+  const tz = routine.timezone || "UTC";
+  const cron = new Cron(routine.schedule, { protect: true, timezone: tz }, () => {
+    const fresh = repo.getRoutine(routineId);
+    if (fresh) runRoutine(fresh);
+  });
+  jobs.set(routineId, cron);
+
+  // Missed-run catch-up: if the last expected fire was after lastRunAt, run now
+  try {
+    const prev = cron.previousRun();
+    if (prev) {
+      const prevMs = prev.getTime();
+      const lastRan = routine.lastRunAt ?? 0;
+      if (prevMs > lastRan && Date.now() - prevMs < 24 * 60 * 60 * 1000) {
+        // Missed within the last 24h — run immediately to catch up
+        const fresh = repo.getRoutine(routineId);
+        if (fresh) void Promise.resolve().then(() => runRoutine(fresh));
+      }
+    }
+  } catch {
+    // previousRun() may throw on some cron expressions — skip catch-up safely
+  }
 }
 
 export function startScheduler() {

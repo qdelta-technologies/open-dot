@@ -119,8 +119,10 @@ export type Routine = {
   name: string;
   instruction: string;
   schedule: string; // cron expression
+  timezone: string; // IANA timezone, e.g. "America/New_York"
   enabled: boolean;
   lastRunAt: number | null;
+  lastError: string | null;
   nextRunAt: number | null;
   createdAt: number;
 };

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { db, DATA_DIR, id } from "./db";
 import * as computer from "./computer";
-import { apps as composioApps, signedIn as composioSignedIn } from "./composio";
+import { apps as composioApps, signedIn as composioSignedIn, callTool } from "./composio";
 import type { Attachment } from "@/lib/types";
 
 // Files that move between the user and a dot. The canonical copy lives in .data/files/<id>
@@ -12,7 +12,7 @@ import type { Attachment } from "@/lib/types";
 const DIR = path.join(DATA_DIR, "files");
 export const MAX_UPLOAD = 25 * 1024 * 1024;
 
-type Row = { id: string; dot_id: string; name: string; mime: string; size: number; source: string; box_path: string | null; created_at: number };
+type Row = { id: string; dot_id: string; name: string; mime: string; size: number; source: string; box_path: string | null; drive_file_id: string | null; created_at: number };
 
 const safeName = (name: string) => name.replace(/[\\/:*?"<>|\x00-\x1f]+/g, "_").replace(/^\.+/, "").slice(0, 120) || "file";
 
@@ -29,21 +29,65 @@ export function guessMime(name: string): string {
   )[ext] ?? "application/octet-stream";
 }
 
+/** Thrown when files.upload() is called but Google Drive is not connected. */
+export class DriveNotConnectedError extends Error {
+  constructor() { super("DRIVE_NOT_CONNECTED"); this.name = "DriveNotConnectedError"; }
+}
+
+function saveRecord(dotId: string, fileId: string, name: string, mime: string, size: number, source: "user" | "dot", boxPath: string | null, driveFileId: string | null): Attachment {
+  db()
+    .prepare("INSERT INTO files (id, dot_id, name, mime, size, source, box_path, drive_file_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(fileId, dotId, name, mime, size, source, boxPath, driveFileId, Date.now());
+  return { id: fileId, name, mime, size };
+}
+
+/** Upload to Google Drive via Composio. Returns the Drive file id. */
+async function uploadToDrive(name: string, mime: string, data: Buffer): Promise<string> {
+  const b64 = data.toString("base64");
+  const result = await callTool("GOOGLEDRIVE_UPLOAD_FILE", {
+    name,
+    mime_type: mime,
+    file_data: b64,
+  });
+  // Composio returns a JSON-ish string; extract the file id
+  const match = result.match(/"id"\s*:\s*"([^"]+)"/);
+  if (!match?.[1]) throw new Error(`Google Drive upload did not return a file id. Response: ${result.slice(0, 300)}`);
+  return match[1];
+}
+
+/** Fetch file content from Google Drive via Composio. Returns raw bytes as Buffer. */
+export async function fetchFromDrive(driveFileId: string): Promise<Buffer> {
+  const result = await callTool("GOOGLEDRIVE_GET_FILE_CONTENT", { file_id: driveFileId });
+  // Try base64 decode first, fall back to treating as plain text
+  const b64Match = result.match(/"content"\s*:\s*"([^"]+)"/);
+  if (b64Match?.[1]) {
+    try { return Buffer.from(b64Match[1], "base64"); } catch { /* fall through */ }
+  }
+  return Buffer.from(result, "utf8");
+}
+
 function save(dotId: string, name: string, mime: string, data: Buffer, source: "user" | "dot", boxPath: string | null): Attachment {
   fs.mkdirSync(DIR, { recursive: true });
   const fileId = id("file");
   fs.writeFileSync(path.join(DIR, fileId), data);
-  db()
-    .prepare("INSERT INTO files (id, dot_id, name, mime, size, source, box_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-    .run(fileId, dotId, name, mime, data.length, source, boxPath, Date.now());
-  return { id: fileId, name, mime, size: data.length };
+  return saveRecord(dotId, fileId, name, mime, data.length, source, boxPath, null);
 }
 
-/** The user attached a file: store it and put a copy in the dot's workspace under uploads/. */
+/** The user attached a file. If Google Drive is connected, uploads there; otherwise throws DriveNotConnectedError. */
 export async function upload(dotId: string, name: string, mime: string, data: Buffer): Promise<Attachment & { boxPath: string }> {
+  if (!isGoogleDriveConnected()) throw new DriveNotConnectedError();
+
   const clean = safeName(name);
+  const mimeType = mime || guessMime(clean);
+
+  // Upload to Google Drive
+  const driveFileId = await uploadToDrive(clean, mimeType, data);
+
+  // Also write a copy to the dot's computer workspace for agent use
   const boxPath = await computer.writeFile(dotId, `uploads/${clean}`, data);
-  return { ...save(dotId, clean, mime || guessMime(clean), data, "user", boxPath), boxPath };
+
+  const fileId = id("file");
+  return { ...saveRecord(dotId, fileId, clean, mimeType, data.length, "user", boxPath, driveFileId), boxPath };
 }
 
 /** The dot shares a file from its computer with the user. */
@@ -54,12 +98,15 @@ export async function shareFromComputer(dotId: string, p: string): Promise<Attac
   return save(dotId, name, guessMime(name), data, "dot", p);
 }
 
-export function get(fileId: string): (Attachment & { dotId: string; boxPath: string | null; data: () => Buffer }) | null {
+export function get(fileId: string): (Attachment & { dotId: string; boxPath: string | null; driveFileId: string | null; data: () => Buffer }) | null {
   const r = db().prepare("SELECT * FROM files WHERE id = ?").get(fileId) as Row | undefined;
   if (!r) return null;
   return {
-    id: r.id, name: r.name, mime: r.mime, size: r.size, dotId: r.dot_id, boxPath: r.box_path,
-    data: () => fs.readFileSync(path.join(DIR, r.id)),
+    id: r.id, name: r.name, mime: r.mime, size: r.size, dotId: r.dot_id, boxPath: r.box_path, driveFileId: r.drive_file_id ?? null,
+    data: () => {
+      const p = path.join(DIR, r.id);
+      return fs.existsSync(p) ? fs.readFileSync(p) : Buffer.alloc(0);
+    },
   };
 }
 
