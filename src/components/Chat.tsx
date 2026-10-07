@@ -378,6 +378,8 @@ function Composer({
   const [pending, start] = useTransition();
   const recognitionRef = useRef<any>(null);
   const baseTextRef = useRef<string>("");
+  const textRef = useRef("");
+  textRef.current = text;
   const userStoppedRef = useRef(false);
   const micStreamRef = useRef<MediaStream | null>(null);
 
@@ -451,7 +453,10 @@ function Composer({
         } else {
           // Browser auto-stopped (iOS/Android silence detection) — restart
           setTimeout(() => {
-            if (!userStoppedRef.current) startRecognition();
+            if (userStoppedRef.current) return;
+            // A new session's transcript starts empty, so keep what was already dictated as the base
+            baseTextRef.current = textRef.current;
+            startRecognition();
           }, 200);
         }
       };
