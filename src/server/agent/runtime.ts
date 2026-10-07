@@ -3,6 +3,7 @@ import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
+import { needsCompat, responsesStreamCompat, responsesCompat } from "./compat";
 import { cloudflareForUrl, cloudflareWorkerUrl, cloudflareWorkerUrls, getAvailableWorkerUrls, isCloudflareModel, markWorkerExhausted } from "./cloudflare";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
@@ -337,23 +338,25 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
 
     let stream: any = null;
     try {
-      stream = await activeClient.responses.create(
-        stateless
-          ? { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 2048 }
-          : {
-              model: activeModel,
-              instructions: systemPrompt(dot, trigger),
-              input,
-              previous_response_id: prevId ?? undefined,
-              tools,
-              ...(isReasoningModel(activeModel) ? { reasoning: { effort: "medium" as const } } : {}),
-              truncation: "auto",
-              parallel_tool_calls: false,
-              store: true,
-              stream: true,
-            },
-        { signal },
-      );
+      stream = needsCompat(appModel) && stateless
+        ? await responsesStreamCompat(activeClient, { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, max_output_tokens: 2048 }, { signal })
+        : await activeClient.responses.create(
+            stateless
+              ? { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 2048 }
+              : {
+                  model: activeModel,
+                  instructions: systemPrompt(dot, trigger),
+                  input,
+                  previous_response_id: prevId ?? undefined,
+                  tools,
+                  ...(isReasoningModel(activeModel) ? { reasoning: { effort: "medium" as const } } : {}),
+                  truncation: "auto",
+                  parallel_tool_calls: false,
+                  store: true,
+                  stream: true,
+                },
+            { signal },
+          );
     } catch (err) {
       const errMsg = String(err);
       const isContextOverflow = /context length|maximum context|input_tokens|8007|reduce the length/i.test(errMsg);
@@ -362,19 +365,12 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
         const pruned = history.slice(-4);
         repo.setHistory(dot.id, pruned);
         try {
-          stream = await activeClient.responses.create(
-            {
-              model: activeModel,
-              instructions: systemPrompt(dot, trigger),
-              input: [...pruned, ...input],
-              tools,
-              parallel_tool_calls: false,
-              store: false,
-              stream: true,
-              max_output_tokens: 1500,
-            },
-            { signal },
-          );
+          stream = needsCompat(appModel)
+            ? await responsesStreamCompat(activeClient, { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...pruned, ...input], tools, max_output_tokens: 1500 }, { signal })
+            : await activeClient.responses.create(
+                { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...pruned, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 1500 },
+                { signal },
+              );
         } catch (retryErr) {
           lastErr = retryErr;
         }
@@ -718,16 +714,14 @@ setConsult(async (target, message, from, _depth, signal) => {
   repo.setActivity(target.id, `Helping ${from.name}`);
   try {
     const { client, model, stateless } = clientFor(await modelFor(target.model));
-    const res = await client.responses.create(
-      {
-        model,
-        instructions: systemPrompt(target, { kind: "dot", from: from.name }),
-        input: [...rebuildContext(target.id, message).slice(-12), { role: "user", content: `${from.name} asks: ${message}` }],
-        tools: stateless ? [{ type: "openrouter:web_search" } as unknown as Tool] : [{ type: "web_search" }],
-        ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}),
-      },
-      { signal },
-    );
+    const consultInput = [...rebuildContext(target.id, message).slice(-12), { role: "user", content: `${from.name} asks: ${message}` }] as ResponseInputItem[];
+    const consultTools: Tool[] = stateless ? [{ type: "openrouter:web_search" } as unknown as Tool] : [{ type: "web_search" }];
+    const res = needsCompat(model) && stateless
+      ? await responsesCompat(client, { model, instructions: systemPrompt(target, { kind: "dot", from: from.name }), input: consultInput, tools: consultTools }, { signal })
+      : await client.responses.create(
+          { model, instructions: systemPrompt(target, { kind: "dot", from: from.name }), input: consultInput, tools: consultTools, ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}) },
+          { signal },
+        );
     const reply = (res.output_text || "(no reply)").replace(/<think>[\s\S]*?<\/think>\s*/gi, "").trim();
     // In a channel the member answers in the channel (the user sees the team at work); otherwise in its own chat.
     repo.addMessage({ dotId: target.id, role: "dot", text: reply, from: `dot:${from.name}`, channelId });
