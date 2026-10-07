@@ -239,9 +239,14 @@ export function models(): Promise<{ main: string; review: string; available: str
 /** The model a dot should run on right now. */
 export async function modelFor(dotModel: string | null): Promise<string> {
   const m = await models();
-  if (dotModel && !dotModel.startsWith("openrouter:")) return dotModel;
+  // Groq/Google retire model IDs; a stored ID that's no longer listed would 404 forever.
+  const usable = (id: string | null | undefined): id is string =>
+    Boolean(id) &&
+    !id!.startsWith("openrouter:") &&
+    !((id!.startsWith("groq:") || id!.startsWith("google:")) && m.available.length > 0 && !m.available.includes(id!));
+  if (usable(dotModel)) return dotModel;
   const def = getSetting("default_model");
-  if (def && !def.startsWith("openrouter:")) return def;
+  if (usable(def)) return def;
   return m.main;
 }
 

@@ -96,7 +96,7 @@ export async function groqModelsAndMeta(): Promise<{ ids: string[]; meta: Record
       const data = await res.json() as { data?: { id: string; context_window?: number }[] };
       // Exclude audio/vision/embedding models — keep only chat-capable LLMs
       liveModels = (data.data ?? []).filter(
-        (m) => !/whisper|tts|vision|embed|guard|preview/i.test(m.id)
+        (m) => !/whisper|tts|orpheus|canopylabs|playai|allam|vision|embed|guard|safeguard|preview/i.test(m.id)
       );
     }
   } catch { /* fall through to static list */ }
