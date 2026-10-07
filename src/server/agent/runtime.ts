@@ -4,6 +4,7 @@ import type {
 } from "openai/resources/responses/responses";
 import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
 import { needsCompat, responsesStreamCompat, responsesCompat } from "./compat";
+import { isGroqModel } from "./groq";
 import { cloudflareForUrl, cloudflareWorkerUrl, cloudflareWorkerUrls, getAvailableWorkerUrls, isCloudflareModel, markWorkerExhausted } from "./cloudflare";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
@@ -359,6 +360,19 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   ];
   if (!stateless && COMPUTER_ENABLED && supportsComputerTool(model)) tools.push({ type: "computer" } as Tool);
 
+  // Groq's free tier allows ~8k tokens per request (input + max output), so keep tool definitions within a budget.
+  const onGroq = isGroqModel(appModel);
+  if (onGroq) {
+    let used = 0;
+    const kept = tools.filter((t) => {
+      used += JSON.stringify(t).length;
+      return used <= 9000;
+    });
+    tools.length = 0;
+    tools.push(...kept);
+  }
+  const maxOut = onGroq ? 1024 : 2048;
+
   // Stateless providers get the whole conversation every time; the app keeps it (trimmed) per chat.
   const history = stateless ? (repo.getHistory(dot.id) as ResponseInputItem[]) : [];
   repo.setActivity(dot.id, "Thinking");
@@ -380,10 +394,10 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
     let stream: any = null;
     try {
       stream = needsCompat(appModel) && stateless
-        ? await responsesStreamCompat(activeClient, { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, max_output_tokens: 2048 }, { signal })
+        ? await responsesStreamCompat(activeClient, { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, max_output_tokens: maxOut }, { signal })
         : await activeClient.responses.create(
             stateless
-              ? { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: 2048 }
+              ? { model: activeModel, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true, max_output_tokens: maxOut }
               : {
                   model: activeModel,
                   instructions: systemPrompt(dot, trigger),
