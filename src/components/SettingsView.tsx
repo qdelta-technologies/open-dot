@@ -480,17 +480,15 @@ function CloudflareWorkerKey() {
           </div>
         </div>
         {saved && !editing && (
-          <div className="flex items-center gap-2">
-            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
-              Remove
-            </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
-              Change
-            </button>
-          </div>
+          computer.cloudflare?.source === "env" || computer.cloudflare?.source === "default"
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            : <div className="flex items-center gap-2">
+                <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
+                <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
+              </div>
         )}
       </div>
-      {(editing || !saved) && (
+      {(editing || !saved) && computer.cloudflare?.source !== "env" && computer.cloudflare?.source !== "default" && (
         <form
           className="mt-3 space-y-2"
           onSubmit={(e) => {
@@ -596,13 +594,15 @@ function GoogleKey() {
           </div>
         </div>
         {saved && !editing && (
-          <div className="flex items-center gap-2">
-            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
-          </div>
+          computer.google === "env"
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            : <div className="flex items-center gap-2">
+                <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
+                <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
+              </div>
         )}
       </div>
-      {(editing || !saved) && (
+      {(editing || !saved) && computer.google !== "env" && (
         <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); save(key); }}>
           <div className="relative flex-1">
             <input
@@ -689,24 +689,16 @@ function OpenModelsKey() {
           </div>
         </div>
         {saved && !editing && (
-          <div className="flex items-center gap-2">
-            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
-              Remove
-            </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
-              Change
-            </button>
-          </div>
+          computer.openRouter === "env"
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            : <div className="flex items-center gap-2">
+                <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
+                <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
+              </div>
         )}
       </div>
-      {(editing || !saved) && (
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            save(key);
-          }}
-        >
+      {(editing || !saved) && computer.openRouter !== "env" && (
+        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); save(key); }}>
           <div className="relative flex-1">
             <input
               className="field font-mono text-[13px] pr-9 w-full"
@@ -726,15 +718,8 @@ function OpenModelsKey() {
             </button>
           </div>
           {editing && (
-            <button
-              type="button"
-              className="btn-secondary shrink-0"
-              onClick={() => {
-                setEditing(false);
-                setError(null);
-                setShowKey(false);
-              }}
-            >
+            <button type="button" className="btn-secondary shrink-0"
+              onClick={() => { setEditing(false); setError(null); setShowKey(false); }}>
               Cancel
             </button>
           )}
@@ -796,21 +781,16 @@ function OpenAIKey() {
           </div>
         </div>
         {saved && !editing && (
-          <div className="flex items-center gap-2">
-            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
-              Remove
-            </button>
-            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
-              Change
-            </button>
-          </div>
+          computer.keySource === "env"
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            : <div className="flex items-center gap-2">
+                <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
+                <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
+              </div>
         )}
       </div>
-      {(editing || !saved) && (
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => { e.preventDefault(); save(key); }}
-        >
+      {(editing || !saved) && computer.keySource !== "env" && (
+        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); save(key); }}>
           <div className="relative flex-1">
             <input
               className="field font-mono text-[13px] pr-9 w-full"
@@ -830,11 +810,8 @@ function OpenAIKey() {
             </button>
           </div>
           {editing && (
-            <button
-              type="button"
-              className="btn-secondary shrink-0"
-              onClick={() => { setEditing(false); setError(null); setShowKey(false); }}
-            >
+            <button type="button" className="btn-secondary shrink-0"
+              onClick={() => { setEditing(false); setError(null); setShowKey(false); }}>
               Cancel
             </button>
           )}
