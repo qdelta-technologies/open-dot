@@ -61,10 +61,10 @@ export async function saveGoogleKey(key: string): Promise<string | null> {
 }
 
 export const GOOGLE_MODELS = [
-  { id: "gemini-2.5-pro",   name: "Gemini 2.5 Pro",   parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context, multimodal" },
-  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" },
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Reliable free-tier model with tool calling, multimodal and 1M context" },
-  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Proven fast model for routine tasks and scheduled automations" },
+  { id: "gemini-2.5-pro-preview-06-05",   name: "Gemini 2.5 Pro",   parameters: "Pro",   context_length: 1048576, category: "general" as const, description: "Google's most capable model — advanced reasoning, 1M context, multimodal" },
+  { id: "gemini-2.5-flash-preview-04-17", name: "Gemini 2.5 Flash", parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Fast, efficient Gemini with 1M context — ideal for automation and long docs" },
+  { id: "gemini-2.0-flash",               name: "Gemini 2.0 Flash", parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Stable free-tier model with tool calling, multimodal and 1M context" },
+  { id: "gemini-1.5-flash",               name: "Gemini 1.5 Flash", parameters: "Flash", context_length: 1048576, category: "fast"    as const, description: "Proven fast model for routine tasks and scheduled automations" },
 ];
 
 export const preferredGoogleModel = () => GOOGLE_PREFIX + "gemini-2.0-flash";
