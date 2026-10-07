@@ -10,9 +10,9 @@ const KEY_SETTING = "groq_key";
 
 // Fallback list used when the live API call fails
 export const DEFAULT_GROQ_MODELS = [
-  { id: "llama-3.1-8b-instant",          name: "Llama 3.1 8B Instant",        description: "Ultra-fast 8B on Groq LPUs",                   context_length: 131072, parameters: "8B",  category: "fast"    as const },
-  { id: "gemma2-9b-it",                  name: "Gemma 2 9B",                   description: "Google Gemma 2 9B instruction-tuned on Groq",   context_length: 8192,   parameters: "9B",  category: "fast"    as const },
-  { id: "llama3-70b-8192",               name: "Llama 3 70B",                  description: "Meta Llama 3 70B on Groq LPUs",                 context_length: 8192,   parameters: "70B", category: "general" as const },
+  { id: "openai/gpt-oss-20b",   name: "GPT-OSS 20B",   description: "OpenAI open-weight 20B on Groq LPUs",  context_length: 131072, parameters: "20B",  category: "fast"    as const },
+  { id: "openai/gpt-oss-120b",  name: "GPT-OSS 120B",  description: "OpenAI open-weight 120B on Groq LPUs", context_length: 131072, parameters: "120B", category: "general" as const },
+  { id: "qwen/qwen3.8-27b",     name: "Qwen 3.8 27B",  description: "Alibaba Qwen 3.8 27B on Groq LPUs",    context_length: 131072, parameters: "27B",  category: "general" as const },
 ];
 
 const g = globalThis as unknown as {
