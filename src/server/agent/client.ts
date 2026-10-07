@@ -242,7 +242,7 @@ export async function modelFor(dotModel: string | null): Promise<string> {
   // Groq/Google retire model IDs; a stored ID that's no longer listed would 404 forever.
   const usable = (id: string | null | undefined): id is string =>
     Boolean(id) &&
-    !id!.startsWith("openrouter:") &&
+    !(id!.startsWith("openrouter:") && !openRouterKey()) &&
     !((id!.startsWith("groq:") || id!.startsWith("google:")) && m.available.length > 0 && !m.available.includes(id!));
   if (usable(dotModel)) return dotModel;
   const def = getSetting("default_model");

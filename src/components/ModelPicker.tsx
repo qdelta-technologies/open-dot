@@ -570,7 +570,27 @@ export default function ModelPicker({
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<ProviderTab>("all");
+  const [savedTab, setTabState] = useState<ProviderTab>(() => {
+    try {
+      return (localStorage.getItem("opendot-model-tab") as ProviderTab | null) ?? "all";
+    } catch {
+      return "all";
+    }
+  });
+  const connectedByTab: Record<ProviderTab, boolean> = {
+    all: true,
+    cloudflare: true,
+    google: googleConnected,
+    openrouter: openRouterConnected,
+    anthropic: anthropicConnected,
+    groq: groqConnected,
+    openai: openAIConnected,
+  };
+  const tab: ProviderTab = connectedByTab[savedTab] ? savedTab : "all";
+  const setTab = (t: ProviderTab) => {
+    setTabState(t);
+    try { localStorage.setItem("opendot-model-tab", t); } catch {}
+  };
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
