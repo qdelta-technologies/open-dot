@@ -311,10 +311,19 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   const convId = conversationId ?? repo.currentConversation(dot.id);
   const appModel = await modelFor(dot.model);
   const { client, model, stateless } = clientFor(appModel);
+  const dotTools = toolsForDot(dot);
   const tools: Tool[] = [
-    ...toolsForDot(dot).map((t): Tool => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: !stateless && t.strict !== false })),
-    // OpenRouter's server-side search: the model decides when to search, same as OpenAI's web_search.
-    ...(stateless ? [{ type: "openrouter:web_search" } as unknown as Tool] : [{ type: "web_search" as const }]),
+    ...dotTools
+      .filter((t) => stateless || t.name !== "web_search")
+      .map((t): Tool => ({
+        type: "function",
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+        strict: !stateless && t.strict !== false,
+      })),
+    // For OpenAI native Responses API, use their server-side search tool
+    ...(!stateless ? [{ type: "web_search" as const }] : []),
   ];
   if (!stateless && COMPUTER_ENABLED && supportsComputerTool(model)) tools.push({ type: "computer" } as Tool);
 
@@ -715,7 +724,17 @@ setConsult(async (target, message, from, _depth, signal) => {
   try {
     const { client, model, stateless } = clientFor(await modelFor(target.model));
     const consultInput = [...rebuildContext(target.id, message).slice(-12), { role: "user", content: `${from.name} asks: ${message}` }] as ResponseInputItem[];
-    const consultTools: Tool[] = stateless ? [{ type: "openrouter:web_search" } as unknown as Tool] : [{ type: "web_search" }];
+    const consultTools: Tool[] = stateless
+      ? [
+          {
+            type: "function",
+            name: "web_search",
+            description: "Search the web for real-time news, current events, live facts, documentation, or online information.",
+            parameters: { type: "object", properties: { query: { type: "string", description: "The search query" } }, required: ["query"] },
+            strict: false,
+          } as Tool,
+        ]
+      : [{ type: "web_search" }];
     const res = needsCompat(model) && stateless
       ? await responsesCompat(client, { model, instructions: systemPrompt(target, { kind: "dot", from: from.name }), input: consultInput, tools: consultTools }, { signal })
       : await client.responses.create(

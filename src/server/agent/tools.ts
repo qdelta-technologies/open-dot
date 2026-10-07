@@ -47,7 +47,104 @@ export function setConsult(fn: typeof consultImpl) {
   consultImpl = fn;
 }
 
+/** Built-in web search: fast, free, and works with all model providers (Cloudflare, Groq, OpenRouter, etc.). */
+async function searchWeb(query: string): Promise<string> {
+  const q = query.trim();
+  if (!q) return "No query provided.";
+
+  // 1. DuckDuckGo HTML Search
+  try {
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+
+    if (res.ok) {
+      const html = await res.text();
+      const decodeHtml = (str: string) =>
+        str
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&#x27;/g, "'")
+          .replace(/<[^>]+>/g, "")
+          .trim();
+
+      const cleanUrl = (raw: string) => {
+        if (!raw) return "";
+        if (raw.includes("uddg=")) {
+          try {
+            return decodeURIComponent(raw.split("uddg=")[1].split("&")[0]);
+          } catch {
+            return raw;
+          }
+        }
+        return raw;
+      };
+
+      const blocks = html.split("result__body").slice(1);
+      const results: { title: string; snippet: string; url: string }[] = [];
+
+      for (const b of blocks.slice(0, 6)) {
+        const titleMatch = b.match(/class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+        const snippetMatch = b.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
+
+        if (titleMatch) {
+          const url = cleanUrl(titleMatch[1]);
+          const title = decodeHtml(titleMatch[2]);
+          const snippet = snippetMatch ? decodeHtml(snippetMatch[1]) : "";
+          if (title) results.push({ title, snippet, url });
+        }
+      }
+
+      if (results.length > 0) {
+        return results
+          .map((r, i) => `${i + 1}. **${r.title}**\n   ${r.snippet}\n   Source: ${r.url}`)
+          .join("\n\n");
+      }
+    }
+  } catch (err) {
+    console.warn("[web_search] DuckDuckGo search failed, trying fallback:", err);
+  }
+
+  // 2. Fallback: DuckDuckGo Instant Answer API
+  try {
+    const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&skip_disambig=1`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as any;
+      const parts: string[] = [];
+      if (data.AbstractText) parts.push(`**${data.Heading || "Summary"}**: ${data.AbstractText}\nSource: ${data.AbstractURL || ""}`);
+      if (Array.isArray(data.RelatedTopics)) {
+        for (const t of data.RelatedTopics.slice(0, 4)) {
+          if (t.Text) parts.push(`- ${t.Text} (${t.FirstURL || ""})`);
+        }
+      }
+      if (parts.length > 0) return parts.join("\n\n");
+    }
+  } catch (err) {
+    console.warn("[web_search] Instant Answer fallback failed:", err);
+  }
+
+  return `No search results found for "${q}". Try a different or simpler search query.`;
+}
+
 export const TOOLS: ToolDef[] = [
+  {
+    name: "web_search",
+    label: "Searching the web",
+    description: "Search the web for real-time news, current events, live facts, documentation, or online information. Returns titles, snippets, and source URLs.",
+    parameters: obj({ query: str("The search query") }),
+    describe: (a) => `search the web for "${s(a.query)}"`,
+    defaultDecision: () => "allow",
+    execute: (a) => searchWeb(s(a.query)),
+  },
   {
     name: "run_command",
     label: "Running commands",
