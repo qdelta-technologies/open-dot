@@ -515,10 +515,17 @@ function Composer({
 
   const submit = () => {
     if (isListening) {
+      userStoppedRef.current = true;
       if (recognitionRef.current) {
+        // Drop late transcript events so they can't refill the input after it's cleared
+        recognitionRef.current.onresult = null;
         try {
           recognitionRef.current.stop();
         } catch {}
+      }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((t) => t.stop());
+        micStreamRef.current = null;
       }
       setIsListening(false);
     }
@@ -622,10 +629,7 @@ function Composer({
           onStop={() => {
             stopListening();
           }}
-          onSubmit={() => {
-            stopListening();
-            submit();
-          }}
+          onSubmit={submit}
         />
       ) : (
         <div
