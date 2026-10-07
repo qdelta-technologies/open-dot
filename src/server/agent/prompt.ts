@@ -38,7 +38,7 @@ export function systemPrompt(dot: Dot, trigger: Trigger): string {
   const ownerRole = getSetting(PROFILE_KEYS.role)?.trim() || "";
   const company = getSetting(PROFILE_KEYS.company)?.trim() || DEFAULT_COMPANY;
   const who = ownerName ? `**${ownerName}**${ownerRole ? ` (${ownerRole})` : ""}` : "the user";
-  const ownerLine = ownerName ? `You work for ${who}. Address them by name only when natural.` : "You work for the user. You do not know their name, so do not guess one.";
+  const ownerLine = ownerName ? `You work for ${who}. Address them by name only when natural.` : "You work for the user. You do not know their name, so do not guess one. The company notes below may name several team members; that does not tell you which of them you are talking to, so never greet anyone by name unless the user tells you their name in chat.";
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const rules = repo.rulesFor(dot.id);
   const memories = repo.listMemories();
