@@ -840,7 +840,7 @@ const ACTIVITY_ICON: [RegExp, typeof Globe][] = [
   [/^Setting up a routine|^Updating routines/, Clock],
   [/^Messaging/, MessageSquare],
   [/^Learning a skill|^Using a skill/, Sparkles],
-  [/^Finding app tools|^Using an app|^Connecting an app/, AppWindow],
+  [/^Finding app tools|^Using your apps|^Using an app|^Checking app connections|^Connecting an app/, AppWindow],
   [/^Blocked/, X],
 ];
 
