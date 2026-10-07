@@ -105,6 +105,91 @@ export async function responsesStreamCompat(
 ): Promise<AsyncGenerator<any>> {
   const messages = toMessages(params.instructions, params.input);
   const convertedTools = toTools(params.tools);
+  const isGoogle = isGoogleModel(params.model) || params.model.toLowerCase().includes("gemini");
+
+  // Google AI Studio's OpenAI-compatible streaming endpoint frequently hangs / drops headers with tools.
+  // Using non-streaming for Google models executes in ~2 seconds with complete thought signatures!
+  if (isGoogle) {
+    const res: any = await (client.chat.completions as any).create(
+      {
+        model: params.model,
+        messages,
+        ...(convertedTools.length ? { tools: convertedTools } : {}),
+        stream: false,
+        max_tokens: params.max_output_tokens ?? 2048,
+        parallel_tool_calls: false,
+      },
+      options
+    );
+
+    const messageId = `msg_cc_${Date.now()}`;
+    const responseId = `resp_cc_${Date.now()}`;
+    const choice = res.choices?.[0];
+    const msg = choice?.message ?? {};
+    const text = msg.content || "";
+    const rawToolCalls: any[] = msg.tool_calls || [];
+
+    async function* googleGen(): AsyncGenerator<any> {
+      yield { type: "response.output_item.added", item: { type: "message", id: messageId, role: "assistant", content: [] } };
+      if (text) {
+        yield { type: "response.output_text.delta", item_id: messageId, delta: text };
+      }
+      yield {
+        type: "response.output_item.done",
+        item: { type: "message", id: messageId, role: "assistant", content: [{ type: "output_text", text }] },
+      };
+
+      const output: any[] = [];
+      if (text || !rawToolCalls.length) {
+        output.push({
+          type: "message",
+          id: messageId,
+          role: "assistant",
+          status: "completed",
+          content: [{ type: "output_text", text, annotations: [] }],
+        });
+      }
+
+      for (let i = 0; i < rawToolCalls.length; i++) {
+        const tc = rawToolCalls[i];
+        const id = tc.id || `call_${i}_${Date.now()}`;
+        const itemId = `fc_${id}`;
+        const name = tc.function?.name || "";
+        const args = tc.function?.arguments || "{}";
+        const extraContent = tc.extra_content;
+        const thoughtSig = tc.thought_signature ?? extraContent?.google?.thought_signature;
+
+        yield {
+          type: "response.output_item.added",
+          item: { type: "function_call", id: itemId, call_id: id, name },
+        };
+        yield {
+          type: "response.function_call_arguments.delta",
+          item_id: itemId,
+          delta: args,
+        };
+        yield {
+          type: "response.output_item.done",
+          item: { type: "function_call", id: itemId, call_id: id, name, arguments: args },
+        };
+
+        output.push({
+          type: "function_call",
+          id: itemId,
+          call_id: id,
+          name,
+          arguments: args,
+          status: "completed",
+          extra_content: extraContent,
+          thought_signature: thoughtSig,
+        } as any);
+      }
+
+      yield { type: "response.completed", response: { id: responseId, object: "response", status: "completed", output, output_text: text } };
+    }
+
+    return googleGen();
+  }
 
   const ccStream: any = await (client.chat.completions as any).create(
     {
