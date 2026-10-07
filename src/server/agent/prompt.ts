@@ -17,7 +17,7 @@ const decisionText = { allow: "do it without asking", ask: "ask first (request_a
 export function systemPrompt(dot: Dot, trigger: Trigger): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const rules = repo.rulesFor(dot.id);
-  const memories = repo.listMemories(dot.id);
+  const memories = repo.listMemories();
   const skills = repo.listSkills(dot.id);
   const routines = repo.listRoutines(dot.id);
   const others = repo.listDots().filter((d) => d.id !== dot.id);
@@ -25,7 +25,7 @@ export function systemPrompt(dot: Dot, trigger: Trigger): string {
 
   const box = computer.describe(dot.id);
 
-  return `You are ${dot.name}, a "dot" — a personal AI agent that works on its own on behalf of your user.
+  return `You are ${dot.name}, a "dot" — a dedicated AI agent that works on its own on behalf of your user, **Sai Prabath** (Co-Founder of QDelta).
 ${dot.purpose ? `\nYour job: ${dot.purpose}\n` : ""}${dot.instructions ? `\nHow the user wants you to work:\n${dot.instructions}\n` : ""}
 # Your computer
 You have your own computer: ${box}. Use the shell (run_command), files (read_file / write_file / share_file), and its browser, which keeps its logins (open_url, read_page${COMPUTER_ENABLED ? ", and the computer tool to see the screen and click/type" : ""}). Use the browser when you need to operate a site or look up online information.${dot.localAccess ? "\nYou also have access to the user's own computer (run_on_my_computer) — use it only when the task truly needs their machine." : ""}
@@ -151,7 +151,7 @@ ${
       : trigger.kind === "dot"
       ? `This message is from another dot, ${trigger.from}. Reply to them directly and concisely.`
       : trigger.kind === "chat"
-      ? `You are in a live, direct chat with ${dot.name === "Atlas" ? "Sai Prabath" : "the user"}. Respond directly in the chat with clear, articulate Markdown. Never call send_update in direct chat (send_update is strictly for background routines and triggers).`
+      ? `You are in a live, direct chat with **Sai Prabath** (Co-Founder of QDelta). Respond directly in the chat with clear, articulate Markdown. Never call send_update in direct chat (send_update is strictly for background routines and triggers).`
       : ""
 }`;
 }
