@@ -114,6 +114,8 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   const [pendingText, setPendingText] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [isSending, setIsSending] = useState(false);
+  // User messages that existed before the latest send, so an older identical message is not mistaken for the new one.
+  const sentBeforeRef = useRef<Set<string>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -121,7 +123,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   // Clear optimistic message once the actual message lands from server SSE
   useEffect(() => {
     if (pendingText) {
-      const match = messages.some((m) => m.role === "user" && m.text.trim() === pendingText.trim());
+      const match = messages.some((m) => m.role === "user" && !sentBeforeRef.current.has(m.id) && m.text.trim() === pendingText.trim());
       if (match) {
         setPendingText(null);
         setPendingAttachments([]);
@@ -159,7 +161,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   }, [pendingText, pendingAttachments, dot.id, convId]);
 
   const shown = useMemo(() => {
-    if (optimisticMsg && !baseShown.some((m) => m.role === "user" && m.text.trim() === optimisticMsg.text.trim())) {
+    if (optimisticMsg && !baseShown.some((m) => m.role === "user" && !sentBeforeRef.current.has(m.id) && m.text.trim() === optimisticMsg.text.trim())) {
       return [...baseShown, optimisticMsg];
     }
     return baseShown;
@@ -182,6 +184,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   );
 
   const send = (text: string, attachments: Attachment[] = []) => {
+    sentBeforeRef.current = new Set(messages.filter((m) => m.role === "user").map((m) => m.id));
     setIsSending(true);
     setPendingText(text);
     setPendingAttachments(attachments);
