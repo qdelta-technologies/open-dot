@@ -52,6 +52,61 @@ async function searchWeb(query: string): Promise<string> {
   const q = query.trim();
   if (!q) return "No query provided.";
 
+  // 0. Google results via Serper, or Tavily, when a key is configured (fresher than DuckDuckGo).
+  const serperKey = process.env.SERPER_API_KEY;
+  if (serperKey) {
+    try {
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ q, num: 8 }),
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        const parts: string[] = [];
+        const box = data.answerBox;
+        if (box) parts.push(`**Answer**: ${box.answer || box.snippet || box.title || ""}${box.link ? `
+Source: ${box.link}` : ""}`);
+        const items: any[] = [...(data.topStories ?? []).slice(0, 3), ...(data.organic ?? [])].slice(0, 8);
+        items.forEach((r, i) => parts.push(`${i + 1}. **${r.title}**
+   ${r.snippet ?? r.source ?? ""}${r.date ? ` (${r.date})` : ""}
+   Source: ${r.link}`));
+        if (parts.length) return parts.join("
+
+");
+      }
+    } catch (err) {
+      console.warn("[web_search] Serper failed, falling back:", err);
+    }
+  }
+  const tavilyKey = process.env.TAVILY_API_KEY;
+  if (tavilyKey) {
+    try {
+      const res = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tavilyKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q, max_results: 6, include_answer: true, topic: "general" }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        const parts: string[] = [];
+        if (data.answer) parts.push(`**Answer**: ${data.answer}`);
+        (data.results ?? []).forEach((r: any, i: number) =>
+          parts.push(`${i + 1}. **${r.title}**
+   ${String(r.content ?? "").slice(0, 400)}
+   Source: ${r.url}`),
+        );
+        if (parts.length) return parts.join("
+
+");
+      }
+    } catch (err) {
+      console.warn("[web_search] Tavily failed, falling back:", err);
+    }
+  }
+
   // 1. DuckDuckGo HTML Search
   try {
     const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
