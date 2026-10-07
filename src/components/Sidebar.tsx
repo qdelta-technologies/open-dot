@@ -151,6 +151,7 @@ export default function Sidebar() {
           className="flex size-9 items-center justify-center rounded-full border border-black/10 text-foreground/70 transition-colors hover:border-black/25 hover:text-foreground"
           title="New chat"
           aria-label="New chat"
+          onClick={() => { try { localStorage.removeItem("opendot-lastRoute"); } catch {} }}
         >
           <SquarePen className="size-4" strokeWidth={1.75} />
         </Link>
