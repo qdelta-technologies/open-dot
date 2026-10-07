@@ -87,11 +87,11 @@ export function sendToChannel(channelId: string, text: string) {
 
 export function runRoutine(routine: Routine) {
   const dot = repo.getDot(routine.dotId);
-  if (!dot || dot.status === “paused” || !routine.enabled) return;
+  if (!dot || dot.status === "paused" || !routine.enabled) return;
   // Each routine keeps its own conversation, so its runs read like a log you can open any time.
-  const conv = repo.workConversation(dot.id, “chat”, `routine:${routine.id}`, `Routine · ${routine.name}`);
-  repo.addMessage({ dotId: dot.id, role: “system”, text: `Routine “${routine.name}” started`, from: `routine:${routine.name}`, conversationId: conv });
-  state(dot.id).inbox.push({ text: `[Routine: ${routine.name}] ${routine.instruction}`, trigger: { kind: “routine”, name: routine.name }, conversationId: conv });
+  const conv = repo.workConversation(dot.id, "chat", `routine:${routine.id}`, `Routine · ${routine.name}`);
+  repo.addMessage({ dotId: dot.id, role: "system", text: `Routine "${routine.name}" started`, from: `routine:${routine.name}`, conversationId: conv });
+  state(dot.id).inbox.push({ text: `[Routine: ${routine.name}] ${routine.instruction}`, trigger: { kind: "routine", name: routine.name }, conversationId: conv });
   void pump(dot.id).then(() => {
     repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: null });
   }).catch((err: unknown) => {
@@ -104,7 +104,7 @@ export function runTrigger(t: AppTrigger, event: Record<string, unknown>) {
   const dot = repo.getDot(t.dotId);
   if (!dot || dot.status === "paused" || !t.enabled) return;
   const conv = repo.workConversation(dot.id, "chat", `trigger:${t.id}`, `Trigger · ${t.name}`);
-  repo.addMessage({ dotId: dot.id, role: "system", text: `Trigger “${t.name}” fired`, from: `trigger:${t.name}`, conversationId: conv });
+  repo.addMessage({ dotId: dot.id, role: "system", text: `Trigger "${t.name}" fired`, from: `trigger:${t.name}`, conversationId: conv });
   const data = JSON.stringify(event, null, 1).slice(0, 6000);
   state(dot.id).inbox.push({ text: `[Trigger: ${t.name}] ${t.instruction}\n\nWhat happened (${t.toolkit} event data):\n${data}`, trigger: { kind: "trigger", name: t.name }, conversationId: conv });
   void pump(dot.id);
