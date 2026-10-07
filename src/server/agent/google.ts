@@ -29,7 +29,11 @@ export const googleSource = (): "env" | "settings" | null =>
   getSetting(KEY_SETTING) ? "settings" : envKey() ? "env" : null;
 
 export const isGoogleModel = (model: string) => model.startsWith(GOOGLE_PREFIX);
-export const googleId = (model: string) => model.slice(GOOGLE_PREFIX.length);
+export const googleId = (model: string) => {
+  const id = model.slice(GOOGLE_PREFIX.length);
+  // Strip legacy "models/" prefix that was briefly stored in the DB
+  return id.startsWith("models/") ? id.slice("models/".length) : id;
+};
 
 export function googleClient(): OpenAI {
   const key = googleKey();
