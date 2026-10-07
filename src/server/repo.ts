@@ -12,6 +12,11 @@ const now = () => Date.now();
 
 // ---------- dots ----------
 
+// Transient in-memory routing and activity states; not persisted.
+const g = globalThis as unknown as { __dotsActivity?: Map<string, string | null>; __dotsConvRouting?: Map<string, string> };
+const activity = (g.__dotsActivity ??= new Map());
+const convRouting = (g.__dotsConvRouting ??= new Map());
+
 const toDot = (r: Row): Dot => ({
   id: r.id as string,
   name: r.name as string,
@@ -20,14 +25,11 @@ const toDot = (r: Row): Dot => ({
   look: normalizeLook(JSON.parse(r.look as string)),
   status: r.status as DotStatus,
   activity: activity.get(r.id as string) ?? null,
+  activeConversationId: convRouting.get(r.id as string) ?? null,
   localAccess: r.local_access === 1,
   model: (r.model as string) ?? null,
   createdAt: r.created_at as number,
 });
-
-// Transient "what is the dot doing right now" label; not persisted.
-const g = globalThis as unknown as { __dotsActivity?: Map<string, string | null> };
-const activity = (g.__dotsActivity ??= new Map());
 
 export function listDots(): Dot[] {
   return db().prepare("SELECT * FROM dots ORDER BY created_at").all().map(toDot);
@@ -165,11 +167,11 @@ export function deleteConversation(convId: string) {
   emit({ type: "conversation_deleted", id: convId });
 }
 
-const gc = globalThis as unknown as { __dotsConvRouting?: Map<string, string> };
-const convRouting = (gc.__dotsConvRouting ??= new Map());
 export function routeToConversation(dotId: string, convId: string | null) {
   if (convId) convRouting.set(dotId, convId);
   else convRouting.delete(dotId);
+  const dot = getDot(dotId);
+  if (dot) emit({ type: "dot", data: dot });
 }
 /** The conversation a dot is working in right now (or its latest chat). */
 export const currentConversation = (dotId: string) => convRouting.get(dotId) ?? latestConversationId(dotId);

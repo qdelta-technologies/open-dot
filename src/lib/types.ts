@@ -42,6 +42,7 @@ export type Dot = {
   look: Look;
   status: DotStatus;
   activity: string | null; // e.g. "Searching the web"
+  activeConversationId?: string | null; // which conversation the dot is actively working in
   localAccess: boolean; // may this dot run things on the user's own computer?
   model: string | null; // null = use the default model
   createdAt: number;

@@ -110,25 +110,92 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   const hasKey = useStore((s) => s.computer.hasKey || s.computer.openRouter !== null || s.computer.cloudflare !== null);
   const [, start] = useTransition();
 
+  const [pendingText, setPendingText] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [isSending, setIsSending] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
+  // Clear optimistic message once the actual message lands from server SSE
+  useEffect(() => {
+    if (pendingText) {
+      const match = messages.some((m) => m.role === "user" && m.text.trim() === pendingText.trim());
+      if (match) {
+        setPendingText(null);
+        setPendingAttachments([]);
+      }
+    }
+  }, [messages, pendingText]);
+
+  useEffect(() => {
+    if (dot.status !== "working") {
+      setIsSending(false);
+    }
+  }, [dot.status]);
+
   // A chat counts as started once you've written, or talked in voice mode.
-  const fresh = !messages.some((m) => m.role === "user" || m.from === "voice");
+  const fresh = !messages.some((m) => m.role === "user" || m.from === "voice") && !pendingText;
   // On a fresh chat the welcome panel replaces the dot's canned greeting.
-  const shown = fresh && messages[0]?.role === "dot" ? messages.slice(1) : messages;
+  const baseShown = fresh && messages[0]?.role === "dot" ? messages.slice(1) : messages;
+
+  // Optimistic pending user message rendered immediately when user presses Enter
+  const optimisticMsg = useMemo<Message | null>(() => {
+    if (!pendingText) return null;
+    return {
+      id: "optimistic_pending_user_msg",
+      dotId: dot.id,
+      role: "user",
+      text: pendingText,
+      title: null,
+      card: null,
+      from: null,
+      attachments: pendingAttachments.length ? pendingAttachments : null,
+      channelId: null,
+      conversationId: convId,
+      createdAt: Date.now(),
+    };
+  }, [pendingText, pendingAttachments, dot.id, convId]);
+
+  const shown = useMemo(() => {
+    if (optimisticMsg && !baseShown.some((m) => m.role === "user" && m.text.trim() === optimisticMsg.text.trim())) {
+      return [...baseShown, optimisticMsg];
+    }
+    return baseShown;
+  }, [baseShown, optimisticMsg]);
+
   // "NEW" marks messages that arrived since the user last looked (captured when the chat opens).
   const lastRead = useStore((s) => s.lastRead[dot.id]);
   const [readAt] = useState(() => lastRead ?? Infinity);
   const firstNew = shown.findIndex((m) => (m.role === "dot" || m.role === "card") && m.createdAt > readAt);
-  // Best guess at where the dot is working: its most recently active conversation.
-  const workingHere = dot.status === "working" && (convId === mine[0]?.id || !convId);
 
-  const send = (text: string, attachments: Attachment[] = []) =>
+  // Dot is working in this conversation if actively routed here, or if this conversation is active / awaiting response
+  const isBoundToThisChat = dot.activeConversationId
+    ? dot.activeConversationId === convId
+    : convId === mine[0]?.id || !convId || Boolean(pendingText) || isSending;
+
+  const workingHere = Boolean(
+    isSending ||
+    Boolean(pendingText) ||
+    (dot.status === "working" && isBoundToThisChat)
+  );
+
+  const send = (text: string, attachments: Attachment[] = []) => {
+    setIsSending(true);
+    setPendingText(text);
+    setPendingAttachments(attachments);
+    scrollToBottom();
     start(async () => {
-      if (convId) await sendMessage(dot.id, text, attachments, convId);
-      else router.replace(`/dots/${dot.id}?c=${await startConversation(dot.id, text, attachments)}`);
+      try {
+        if (convId) await sendMessage(dot.id, text, attachments, convId);
+        else router.replace(`/dots/${dot.id}?c=${await startConversation(dot.id, text, attachments)}`);
+      } catch (err) {
+        console.error("[send error]", err);
+        setIsSending(false);
+        setPendingText(null);
+      }
     });
+  };
 
   const voice = async () => {
     const id = convId ?? (await startVoiceConversation(dot.id));
