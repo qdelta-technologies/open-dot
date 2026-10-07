@@ -66,9 +66,9 @@ export function useSmoothStream(targetText: string, isStreaming: boolean): strin
         let charsToAdd = 1;
         if (remaining > 60) {
           // Large backlog: catch up smoothly
-          charsToAdd = Math.max(3, Math.ceil(remaining * 0.18));
+          charsToAdd = Math.max(2, Math.ceil(remaining * 0.04));
         } else if (remaining > 20) {
-          charsToAdd = Math.max(2, Math.ceil(remaining * 0.1));
+          charsToAdd = Math.max(1, Math.ceil(remaining * 0.05));
         } else {
           // Natural pacing: 1-2 chars per frame based on time
           charsToAdd = Math.max(1, Math.round(deltaMs * 0.05));
