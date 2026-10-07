@@ -226,9 +226,45 @@ const prettyName = (slug: string) => NAMES[slug] ?? slug.replace(/[_-]+/g, " ").
 const clip = (s: string, n = 30_000) => (s.length > n ? `${s.slice(0, n)}…[truncated]` : s);
 
 export async function callTool(name: string, args: Record<string, unknown>): Promise<string> {
+  const normalizedArgs: Record<string, unknown> = { ...args };
+  if (typeof normalizedArgs.tools === "string") {
+    try {
+      normalizedArgs.tools = JSON.parse(normalizedArgs.tools);
+    } catch {
+      try {
+        normalizedArgs.tools = JSON.parse((normalizedArgs.tools as string).replace(/'/g, '"'));
+      } catch {}
+    }
+  }
+  if (Array.isArray(normalizedArgs.tools)) {
+    normalizedArgs.tools = normalizedArgs.tools.map((t: any) => {
+      if (!t || typeof t !== "object") return t;
+      let toolArgs = t.arguments;
+      if (typeof toolArgs === "string") {
+        try {
+          toolArgs = JSON.parse(toolArgs);
+        } catch {
+          try {
+            toolArgs = JSON.parse((toolArgs as string).replace(/'/g, '"'));
+          } catch {}
+        }
+      }
+      return { ...t, arguments: toolArgs };
+    });
+  }
+  if (typeof normalizedArgs.toolkits === "string") {
+    try {
+      normalizedArgs.toolkits = JSON.parse(normalizedArgs.toolkits);
+    } catch {
+      try {
+        normalizedArgs.toolkits = JSON.parse((normalizedArgs.toolkits as string).replace(/'/g, '"'));
+      } catch {}
+    }
+  }
+
   const run = async () => {
     const client = await ensureClient();
-    const res = await client.callTool({ name, arguments: args }, undefined, { timeout: 5 * 60_000 });
+    const res = await client.callTool({ name, arguments: normalizedArgs }, undefined, { timeout: 5 * 60_000 });
     const content = (res.content ?? []) as { type: string; text?: string }[];
     const text = content.map((c) => (c.type === "text" ? c.text : `[${c.type}]`)).join("\n");
     return (res.isError ? "Error: " : "") + clip(text || "(no output)");
@@ -249,7 +285,17 @@ const READ_VERB = /(?:^|_)(GET|LIST|SEARCH|FETCH|FIND|READ|RETRIEVE|QUERY|DESCRI
 type ExecItem = { tool_slug?: string; arguments?: unknown };
 
 export function executeItems(args: Record<string, unknown>): ExecItem[] {
-  return Array.isArray(args.tools) ? (args.tools as ExecItem[]) : [];
+  let tools = args.tools;
+  if (typeof tools === "string") {
+    try {
+      tools = JSON.parse(tools);
+    } catch {
+      try {
+        tools = JSON.parse((tools as string).replace(/'/g, '"'));
+      } catch {}
+    }
+  }
+  return Array.isArray(tools) ? (tools as ExecItem[]) : [];
 }
 
 /** Reads run automatically; anything else (send, post, create, update, delete…) asks first. */

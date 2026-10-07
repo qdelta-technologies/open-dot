@@ -887,7 +887,16 @@ function extractFallbackCalls(dot: Dot, resp: Response): Call[] {
               let kv;
               while ((kv = kvRegex.exec(trimmedArgs)) !== null) {
                 const key = kv[1];
-                const val = kv[2] ?? kv[3] ?? kv[4];
+                let val: any = kv[2] ?? kv[3] ?? kv[4];
+                if (typeof val === "string" && (val.trim().startsWith("[") || val.trim().startsWith("{"))) {
+                  try {
+                    val = JSON.parse(val.trim());
+                  } catch {
+                    try {
+                      val = JSON.parse(val.trim().replace(/'/g, '"'));
+                    } catch {}
+                  }
+                }
                 parsedArgs[key] = val;
               }
             }
