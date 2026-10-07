@@ -27,6 +27,7 @@ import {
   getCloudflareConfig,
   getCloudKey,
   getGoogleKey,
+  getOpenAIKey,
   getOpenRouterKey,
   lockApp,
   refreshApps,
@@ -35,6 +36,7 @@ import {
   setCloudKey,
   setDefaultModel,
   setGoogleKey,
+  setOpenAIKey,
   setOpenRouterKey,
   signInComposio,
   signOutComposio,
@@ -64,10 +66,11 @@ export default function SettingsView() {
       <div className="rails mx-auto min-h-full max-w-[1080px] px-4 sm:px-8 pb-16">
         <PageHeader eyebrow="Settings" title="Settings" description="Configure your AI engine, integrations, notifications, and workspace security." />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast), Google Gemini, or open models via OpenRouter.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast), Google Gemini, OpenRouter, or OpenAI GPT models.">
           <CloudflareWorkerKey />
           <GoogleKey />
           <OpenModelsKey />
+          <OpenAIKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
             <div className="flex-1">
@@ -731,6 +734,106 @@ function OpenModelsKey() {
                 setError(null);
                 setShowKey(false);
               }}
+            >
+              Cancel
+            </button>
+          )}
+          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
+            {pending ? "Checking…" : "Save"}
+          </button>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Optional OpenAI key: adds GPT-4o, o1, o3-mini and other OpenAI models to the model picker. */
+function OpenAIKey() {
+  const computer = useStore((s) => s.computer);
+  const oaiCount = computer.models.filter((m) => !m.includes(":")).length;
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.hasKey || computer.keySource !== null;
+
+  const handleStartEdit = async () => {
+    setEditing(true);
+    try {
+      const val = await getOpenAIKey();
+      if (val) setKey(val);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (editing && !key) {
+      void getOpenAIKey().then((val) => { if (val) setKey(val); });
+    }
+  }, [editing]);
+
+  const save = (value: string) =>
+    start(async () => {
+      const err = await setOpenAIKey(value);
+      setError(err);
+      if (!err) { setKey(""); setEditing(false); setShowKey(false); }
+    });
+
+  return (
+    <div id="openai-key" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[14px]">
+            OpenAI <span className="rounded-xs bg-green-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-green-600 dark:text-green-400 uppercase">GPT Models</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.keySource === "env"
+              ? `Connected from OPENAI_API_KEY${oaiCount ? ` · ${oaiCount} models in the model picker` : ""}.`
+              : saved
+                ? `Connected${oaiCount ? ` · ${oaiCount} models in the model picker` : ""}. Stored encrypted on this computer.`
+                : "Paste an OpenAI API key (from platform.openai.com) to run dots on GPT-4o, o1, o3-mini and other OpenAI models."}
+          </div>
+        </div>
+        {saved && !editing && (
+          <div className="flex items-center gap-2">
+            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
+              Remove
+            </button>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>
+              Change
+            </button>
+          </div>
+        )}
+      </div>
+      {(editing || !saved) && (
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(e) => { e.preventDefault(); save(key); }}
+        >
+          <div className="relative flex-1">
+            <input
+              className="field font-mono text-[13px] pr-9 w-full"
+              type={showKey ? "text" : "password"}
+              placeholder="sk-..."
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+              title={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {editing && (
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => { setEditing(false); setError(null); setShowKey(false); }}
             >
               Cancel
             </button>

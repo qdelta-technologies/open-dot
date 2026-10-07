@@ -522,7 +522,7 @@ const CLOUDFLARE_CATALOG = [
   "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8",
 ];
 
-type ProviderTab = "all" | "cloudflare" | "google" | "openrouter";
+type ProviderTab = "all" | "cloudflare" | "google" | "openrouter" | "openai";
 
 /**
  * Model picker with provider tabs: Cloudflare · Google · OpenRouter
@@ -545,6 +545,7 @@ export default function ModelPicker({
   const fallback = useStore((s) => s.computer.model);
   const googleConnected = useStore((s) => Boolean(s.computer.google));
   const openRouterConnected = useStore((s) => Boolean(s.computer.openRouter));
+  const openAIConnected = useStore((s) => Boolean(s.computer.hasKey));
   const current = value ?? fallback;
 
   const [open, setOpen] = useState(false);
@@ -572,8 +573,9 @@ export default function ModelPicker({
     const cfFromKey = (storeModels || []).filter((m) => m.startsWith(CF));
     const googleModels = (storeModels || []).filter((m) => m.startsWith(GOOGLE));
     const orModels = (storeModels || []).filter((m) => m.startsWith(OR));
+    const oaiModels = (storeModels || []).filter((m) => !m.includes(":"));
     const cfAll = [...new Set([...CLOUDFLARE_CATALOG, ...cfFromKey])];
-    return [...cfAll, ...googleModels, ...orModels];
+    return [...cfAll, ...googleModels, ...orModels, ...oaiModels];
   }, [storeModels]);
 
   const parsedList = useMemo(() => {
@@ -588,7 +590,7 @@ export default function ModelPicker({
         desc: meta?.description || parsed.desc,
         params: meta?.parameters,
         ctx: meta?.contextFormatted,
-        provider: id.startsWith(GOOGLE) ? "google" : id.startsWith(OR) ? "openrouter" : "cloudflare",
+        provider: id.startsWith(GOOGLE) ? "google" : id.startsWith(OR) ? "openrouter" : id.includes(":") ? "cloudflare" : "openai",
       };
     });
   }, [list, modelMeta]);
@@ -606,18 +608,20 @@ export default function ModelPicker({
   }, [parsedList, search, tab]);
 
   const currentParsed = current ? parseModelId(current) : null;
-  const currentProvider = current?.startsWith(GOOGLE) ? "google" : current?.startsWith(OR) ? "openrouter" : "cloudflare";
+  const currentProvider = current?.startsWith(GOOGLE) ? "google" : current?.startsWith(OR) ? "openrouter" : current?.includes(":") ? "cloudflare" : "openai";
 
   const tabs: { id: ProviderTab; label: string; color: string }[] = [
     { id: "all", label: "All", color: "text-foreground/60" },
     { id: "cloudflare", label: "Cloudflare", color: "text-amber-500" },
     ...(googleConnected ? [{ id: "google" as ProviderTab, label: "Google", color: "text-blue-500" }] : []),
     ...(openRouterConnected ? [{ id: "openrouter" as ProviderTab, label: "OpenRouter", color: "text-emerald-500" }] : []),
+    ...(openAIConnected ? [{ id: "openai" as ProviderTab, label: "OpenAI", color: "text-green-500" }] : []),
   ];
 
   const providerIcon = (provider: string) => {
     if (provider === "google") return <span className="text-[10px] font-bold text-blue-500">G</span>;
     if (provider === "openrouter") return <span className="text-[9px] font-bold text-emerald-500">OR</span>;
+    if (provider === "openai") return <span className="text-[9px] font-bold text-green-500">AI</span>;
     return <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />;
   };
 
