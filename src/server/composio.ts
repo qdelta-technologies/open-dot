@@ -340,23 +340,29 @@ export async function isConnected(toolkit: string): Promise<boolean> {
 }
 
 /** Create a Composio auth link for an app. `wait()` resolves once the connection is active. */
-export async function startConnect(toolkit: string, originOverride?: string) {
-  if (await isConnected(toolkit)) return { already: true as const };
+const activeCount = (out: string) => (out.match(/"status"\s*:\s*"ACTIVE"/gi) ?? []).length;
+const listAccounts = (toolkit: string) => callTool("COMPOSIO_MANAGE_CONNECTIONS", { toolkits: [{ name: toolkit, action: "list" }] }).catch(() => "");
+
+/** With an alias, adds another account of an app that is already connected (e.g. a second LinkedIn login). */
+export async function startConnect(toolkit: string, originOverride?: string, alias?: string | null) {
+  const label = alias?.trim() || null;
+  if (!label && (await isConnected(toolkit))) return { already: true as const };
+  const baseline = label ? activeCount(await listAccounts(toolkit)) : 0;
   const redirectUrl = getRedirectUrl(originOverride);
   const out = await callTool("COMPOSIO_MANAGE_CONNECTIONS", {
-    toolkits: [{ name: toolkit, action: "add", redirect_url: redirectUrl, callback_url: redirectUrl }],
+    toolkits: [{ name: toolkit, action: "add", ...(label ? { alias: label } : {}), redirect_url: redirectUrl, callback_url: redirectUrl }],
   });
   const url = out.match(/"redirect_url"\s*:\s*"([^"]+)"/)?.[1] ?? out.match(/https:\/\/[^\s"')\]]+/)?.[0];
   if (!url) throw new Error(`Composio didn't return a sign-in link for ${toolkit}: ${out.slice(0, 300)}`);
   return {
     already: false as const,
-    name: prettyName(toolkit),
+    name: label ? `${prettyName(toolkit)} (${label})` : prettyName(toolkit),
     url,
     wait: async () => {
       const deadline = Date.now() + 10 * 60_000;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 5000));
-        if (await isConnected(toolkit).catch(() => false)) return;
+        if (label ? activeCount(await listAccounts(toolkit)) > baseline : await isConnected(toolkit).catch(() => false)) return;
       }
       throw new Error("Timed out waiting for the connection.");
     },

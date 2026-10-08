@@ -629,7 +629,7 @@ async function processCalls(dot: Dot, pending: Pending, signal: AbortSignal): Pr
 
     if (def.pause === "connect") {
       const toolkit = String(args.toolkit ?? "").trim().toLowerCase();
-      const started = await composio.startConnect(toolkit).catch((err: unknown) => ({ error: err instanceof Error ? err.message : String(err) }));
+      const started = await composio.startConnect(toolkit, undefined, typeof args.alias === "string" ? args.alias : null).catch((err: unknown) => ({ error: err instanceof Error ? err.message : String(err) }));
       if ("error" in started) {
         pending.outputs.push({ type: "function_call_output", call_id: call.call_id, output: `Couldn't start connecting ${toolkit}: ${started.error}` });
         continue;

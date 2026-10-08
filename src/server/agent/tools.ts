@@ -455,8 +455,11 @@ TOOLS.push({
   name: "app_connect",
   label: "Connecting an app",
   description:
-    "Ask the user to connect one of their apps to Composio (shows a Connect card with a sign-in link) and wait until they finish. Use the exact toolkit slug from COMPOSIO_SEARCH_TOOLS.",
-  parameters: obj({ toolkit: str("Toolkit slug, e.g. gmail, googlecalendar, slack, notion, github") }),
+    "Ask the user to connect one of their apps to Composio (shows a Connect card with a sign-in link) and wait until they finish. Use the exact toolkit slug from COMPOSIO_SEARCH_TOOLS. To add an ADDITIONAL account of an app that is already connected (for example a second LinkedIn login), also pass a short alias.",
+  parameters: obj({
+    toolkit: str("Toolkit slug, e.g. gmail, googlecalendar, slack, notion, github"),
+    alias: nullableStr("Only to add another account of an already-connected app: a short label like \"qdelta-linkedin\". Otherwise null."),
+  }),
   pause: "connect",
 });
 
