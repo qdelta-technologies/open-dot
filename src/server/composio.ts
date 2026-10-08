@@ -279,6 +279,31 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
   }
 }
 
+let metaSession: string | null = null;
+
+/** Run one Composio app tool (for example GOOGLEDRIVE_GET_ABOUT) through the meta tools this connection exposes. */
+export async function executeTool(slug: string, args: Record<string, unknown>): Promise<string> {
+  const run = async () => {
+    if (!metaSession) {
+      const found = await callTool("COMPOSIO_SEARCH_TOOLS", { queries: [{ use_case: `run ${slug}` }], session: { generate_id: true } });
+      metaSession = found.match(/"session_id"\s*:\s*"([^"]+)"/)?.[1] ?? null;
+      if (!metaSession) throw new Error(`Composio did not return a session id: ${found.slice(0, 200)}`);
+    }
+    return callTool("COMPOSIO_MULTI_EXECUTE_TOOL", {
+      tools: [{ tool_slug: slug, arguments: args }],
+      sync_response_to_workbench: false,
+      thought: `QDot is running ${slug}`,
+      session_id: metaSession,
+    });
+  };
+  let out = await run();
+  if (/session/i.test(out) && /error|invalid|expired/i.test(out.slice(0, 200))) {
+    metaSession = null;
+    out = await run();
+  }
+  return out;
+}
+
 // ---------- read vs write, for approvals ----------
 
 const READ_VERB = /(?:^|_)(GET|LIST|SEARCH|FETCH|FIND|READ|RETRIEVE|QUERY|DESCRIBE|LOOKUP|VIEW|CHECK|COUNT|EXPORT|DOWNLOAD)(_|$)/i;

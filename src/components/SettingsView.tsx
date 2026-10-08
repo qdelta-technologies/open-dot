@@ -129,7 +129,7 @@ export default function SettingsView() {
           id="storage"
           eyebrow="Storage & Files"
           title="Cloud & Local Storage"
-          description="Files uploaded by your dots are stored in Google Drive via Composio (15 GB free). Connect Google Drive in Apps to enable uploads."
+          description="Files you attach are kept on the server so your dots can read them. Your real Google Drive storage is shown for reference."
         >
           <StorageManager />
         </Section>

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { db, DATA_DIR, id } from "./db";
 import * as computer from "./computer";
-import { apps as composioApps, signedIn as composioSignedIn, callTool } from "./composio";
+import { apps as composioApps, signedIn as composioSignedIn, callTool, executeTool } from "./composio";
 import type { Attachment } from "@/lib/types";
 
 // Files that move between the user and a dot. The canonical copy lives in .data/files/<id>
@@ -57,20 +57,6 @@ function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> 
   });
 }
 
-/** Upload to Google Drive via Composio. Returns the Drive file id. */
-async function uploadToDrive(name: string, mime: string, data: Buffer): Promise<string> {
-  const b64 = data.toString("base64");
-  const result = await callTool("GOOGLEDRIVE_UPLOAD_FILE", {
-    name,
-    mime_type: mime,
-    file_data: b64,
-  });
-  // Composio returns a JSON-ish string; extract the file id
-  const match = result.match(/"id"\s*:\s*"([^"]+)"/);
-  if (!match?.[1]) throw new Error(`Google Drive upload did not return a file id. Response: ${result.slice(0, 300)}`);
-  return match[1];
-}
-
 /** Fetch file content from Google Drive via Composio. Returns raw bytes as Buffer. */
 export async function fetchFromDrive(driveFileId: string): Promise<Buffer> {
   const result = await callTool("GOOGLEDRIVE_GET_FILE_CONTENT", { file_id: driveFileId });
@@ -89,21 +75,14 @@ function save(dotId: string, name: string, mime: string, data: Buffer, source: "
   return saveRecord(dotId, fileId, name, mime, data.length, source, boxPath, null);
 }
 
-/** The user attached a file. If Google Drive is connected, uploads there; otherwise throws DriveNotConnectedError. */
+/** The user attached a file. It is kept on the server (and in the dot's workspace). Saving to Google Drive is not switched on yet. */
 export async function upload(dotId: string, name: string, mime: string, data: Buffer): Promise<Attachment & { boxPath: string }> {
-  if (!isGoogleDriveConnected()) throw new DriveNotConnectedError();
-
   const clean = safeName(name);
   const mimeType = mime || guessMime(clean);
 
-  // Upload to Google Drive and, at the same time, write a working copy to the dot's computer
-  const [driveFileId, boxPath] = await Promise.all([
-    withTimeout(uploadToDrive(clean, mimeType, data), 60_000, "Google Drive took too long to respond. Please try again."),
-    computer.writeFile(dotId, `uploads/${clean}`, data),
-  ]);
-
-  const fileId = id("file");
-  return { ...saveRecord(dotId, fileId, clean, mimeType, data.length, "user", boxPath, driveFileId), boxPath };
+  // Working copy on the dot's computer, so the dot can read it
+  const boxPath = await computer.writeFile(dotId, `uploads/${clean}`, data);
+  return { ...save(dotId, clean, mimeType, data, "user", boxPath), boxPath };
 }
 
 /** The dot shares a file from its computer with the user. */
@@ -237,6 +216,29 @@ export function getStorageStats(): {
 }
 
 /** Check if user has connected Google Drive via Composio. */
+export type DriveQuota = { limit: number | null; usage: number; usageInDrive: number; usageInTrash: number };
+let quotaCache: { at: number; value: DriveQuota } | null = null;
+
+/** The user's real Google Drive storage (bytes), read through Composio. Cached for a minute. */
+export async function getDriveQuota(): Promise<DriveQuota> {
+  if (quotaCache && Date.now() - quotaCache.at < 60_000) return quotaCache.value;
+  let out = await withTimeout(callExecute({ fields: "storageQuota" }), 45_000, "Google Drive took too long to answer.");
+  if (!/"usage"/i.test(out)) out = await withTimeout(callExecute({}), 45_000, "Google Drive took too long to answer.");
+  const num = (key: string): number | null => {
+    const m = out.match(new RegExp(`"${key}"\\s*:\\s*"?(\\d+)"?`, "i"));
+    return m ? Number(m[1]) : null;
+  };
+  const usage = num("usage");
+  if (usage === null) throw new Error(`Couldn't read Drive storage: ${out.slice(0, 200)}`);
+  const value: DriveQuota = { limit: num("limit"), usage, usageInDrive: num("usageInDrive") ?? 0, usageInTrash: num("usageInDriveTrash") ?? 0 };
+  quotaCache = { at: Date.now(), value };
+  return value;
+}
+
+function callExecute(args: Record<string, unknown>) {
+  return executeTool("GOOGLEDRIVE_GET_ABOUT", args);
+}
+
 export function isGoogleDriveConnected(): boolean {
   if (!composioSignedIn()) return false;
   try {

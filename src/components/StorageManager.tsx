@@ -61,6 +61,8 @@ export default function StorageManager() {
   const [data, setData] = useState<{
     stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number };
     googleDriveConnected: boolean;
+    drive: { limit: number | null; usage: number; usageInDrive: number; usageInTrash: number } | null;
+    driveError: string | null;
     files: StoredFile[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,7 +206,7 @@ export default function StorageManager() {
             </div>
             {googleDriveConnected ? (
               <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono text-[12px] font-semibold text-emerald-500 uppercase">
-                <CheckCircle2 className="size-3" /> 15 GB Free Active
+                <CheckCircle2 className="size-3" /> Connected
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 font-mono text-[12px] font-semibold text-amber-500 uppercase">
@@ -215,9 +217,33 @@ export default function StorageManager() {
 
           <p className="text-[12px] text-foreground/60 leading-relaxed mb-3">
             {googleDriveConnected
-              ? "Google Drive is connected. All uploaded files go directly to your Drive — nothing is saved on Railway's 500 MB disk."
-              : "Google Drive is required to upload files. Connect it below — files will go to your Drive (15 GB free) instead of Railway's limited disk."}
+              ? "Google Drive is connected. Files you attach are currently kept on the server (Railway disk); saving them to Drive is not switched on yet."
+              : "Connect Google Drive to see your Drive storage here."}
           </p>
+
+          {googleDriveConnected && data?.drive && (
+            <div className="mb-3">
+              <div className="mb-1 flex items-baseline justify-between gap-2 text-[12px]">
+                <span className="font-mono font-medium text-foreground/75">
+                  {formatBytes(data.drive.usage)} {data.drive.limit ? `of ${formatBytes(data.drive.limit)} used` : "used · unlimited"}
+                </span>
+                {data.drive.limit ? <span className="text-foreground/50">{Math.max(0.1, Math.round((data.drive.usage / data.drive.limit) * 1000) / 10)}%</span> : null}
+              </div>
+              {data.drive.limit ? (
+                <div className="h-2 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(1.5, Math.min(100, (data.drive.usage / data.drive.limit) * 100))}%` }} />
+                </div>
+              ) : null}
+              <p className="mt-1.5 text-[12px] text-foreground/55">
+                {formatBytes(data.drive.usageInDrive)} in Drive files · {formatBytes(data.drive.usageInTrash)} in trash · the rest is Gmail and Photos
+              </p>
+            </div>
+          )}
+          {googleDriveConnected && !data?.drive && data && (
+            <p className="mb-3 text-[12px] text-foreground/55" title={data.driveError ?? undefined}>
+              {data.driveError ? "Couldn't read your Drive storage right now. Press Verify to try again." : "Reading your Drive storage…"}
+            </p>
+          )}
 
           <div className="flex items-center justify-between gap-2 pt-1">
             <span className="text-[12px] text-foreground/50">Provider: Composio MCP</span>

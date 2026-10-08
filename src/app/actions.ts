@@ -587,11 +587,25 @@ export async function lockApp(): Promise<void> {
 export async function getStorageInfo(): Promise<{
   stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number };
   googleDriveConnected: boolean;
+  drive: files.DriveQuota | null;
+  driveError: string | null;
   files: files.StoredFile[];
 }> {
+  const connected = files.isGoogleDriveConnected();
+  let drive: files.DriveQuota | null = null;
+  let driveError: string | null = null;
+  if (connected) {
+    try {
+      drive = await files.getDriveQuota();
+    } catch (err) {
+      driveError = err instanceof Error ? err.message : String(err);
+    }
+  }
   return {
     stats: files.getStorageStats(),
-    googleDriveConnected: files.isGoogleDriveConnected(),
+    googleDriveConnected: connected,
+    drive,
+    driveError,
     files: files.listFiles(),
   };
 }
