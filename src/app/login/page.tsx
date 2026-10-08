@@ -30,24 +30,42 @@ const BUBBLES = [
 function LoginScene({ typing, leaving }: { typing: boolean; leaving: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // On devices with a mouse, the circles lean gently toward the pointer.
+  // Mouse devices: the circles lean toward the pointer. Android phones: they shift as you tilt the phone.
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia("(hover: hover)").matches) return;
+    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0;
-    const onMove = (e: PointerEvent) => {
+    const apply = (x: number, y: number) => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const el = ref.current;
         if (!el) return;
-        el.style.setProperty("--px", String((e.clientX / window.innerWidth - 0.5) * 2));
-        el.style.setProperty("--py", String((e.clientY / window.innerHeight - 0.5) * 2));
+        el.style.setProperty("--px", String(Math.max(-1, Math.min(1, x))));
+        el.style.setProperty("--py", String(Math.max(-1, Math.min(1, y))));
       });
     };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      cancelAnimationFrame(raf);
-    };
+
+    if (window.matchMedia("(hover: hover)").matches) {
+      const onMove = (e: PointerEvent) => apply((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
+      window.addEventListener("pointermove", onMove, { passive: true });
+      return () => {
+        window.removeEventListener("pointermove", onMove);
+        cancelAnimationFrame(raf);
+      };
+    }
+
+    // iPhones ask for permission to read tilt, so only devices that allow it freely use it.
+    const DO = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: unknown } }).DeviceOrientationEvent;
+    if (DO && typeof DO.requestPermission !== "function") {
+      const onTilt = (e: DeviceOrientationEvent) => {
+        if (e.gamma == null || e.beta == null) return;
+        apply(e.gamma / 30, (e.beta - 55) / 30);
+      };
+      window.addEventListener("deviceorientation", onTilt);
+      return () => {
+        window.removeEventListener("deviceorientation", onTilt);
+        cancelAnimationFrame(raf);
+      };
+    }
   }, []);
 
   return (
@@ -149,7 +167,7 @@ function LoginForm({ onTyping, onLeave }: { onTyping: (v: boolean) => void; onLe
       <form
         key={shakeKey}
         onSubmit={handleSubmit}
-        className={`rounded-3xl border border-black/[0.08] bg-card p-5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.18)] transition-colors focus-within:border-brand/40 sm:p-6 dark:border-white/[0.08] ${shakeKey > 0 && error ? "login-shake" : ""}`}
+        className={`rounded-3xl border border-black/[0.08] bg-card p-5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.18)] sm:p-6 dark:border-white/[0.08] ${shakeKey > 0 && error ? "login-shake" : ""}`}
       >
         <label htmlFor="team-password" className="mb-2 block text-[13px] font-medium text-foreground/70">
           Team password
@@ -177,7 +195,7 @@ function LoginForm({ onTyping, onLeave }: { onTyping: (v: boolean) => void; onLe
             disabled={busy}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? "login-error" : undefined}
-            className="field h-12 w-full pr-12 pl-11 text-base transition-shadow focus:border-brand focus:ring-4 focus:ring-brand/15 sm:text-[15px]"
+            className="h-12 w-full rounded-xl border border-transparent bg-black/[0.045] pr-12 pl-11 text-base text-foreground outline-none transition-colors placeholder:text-foreground/35 hover:bg-black/[0.06] focus:border-foreground/25 focus:bg-card aria-[invalid=true]:border-destructive/50 sm:text-[15px]"
           />
           <button
             type="button"

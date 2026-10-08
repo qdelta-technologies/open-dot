@@ -395,6 +395,10 @@ html[data-splash="off"] .qdot-splash {
   inset: 0;
   pointer-events: none;
   --k: 1;
+  --amp: 1.6;
+}
+@media (hover: hover) and (min-width: 900px) {
+  .login-scene { --amp: 3.2; }
 }
 @media (max-width: 640px) {
   .login-scene { --k: 0.62; }
@@ -423,7 +427,7 @@ html[data-splash="off"] .qdot-splash {
 }
 @keyframes login-float {
   from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(var(--dx), var(--dy), 0) scale(1.08); }
+  to { transform: translate3d(calc(var(--dx) * var(--amp, 1)), calc(var(--dy) * var(--amp, 1)), 0) scale(1.1); }
 }
 .login-dot {
   animation: login-dot-in 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) both, login-bob 3.2s ease-in-out infinite;
