@@ -49,7 +49,7 @@ export default function MobileBar() {
         <Wordmark />
       </Link>
       <Link href="/" className="btn-quiet size-9 p-0" aria-label="New chat"
-        onClick={() => { try { localStorage.removeItem("opendot-lastRoute"); } catch {} }}>
+        onClick={() => { try { localStorage.removeItem("qdot-lastRoute"); } catch {} }}>
         <SquarePen className="size-4" strokeWidth={1.75} />
       </Link>
     </div>

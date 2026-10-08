@@ -572,7 +572,7 @@ export default function ModelPicker({
   const [search, setSearch] = useState("");
   const [savedTab, setTabState] = useState<ProviderTab>(() => {
     try {
-      return (localStorage.getItem("opendot-model-tab") as ProviderTab | null) ?? "all";
+      return (localStorage.getItem("qdot-model-tab") as ProviderTab | null) ?? "all";
     } catch {
       return "all";
     }
@@ -589,7 +589,7 @@ export default function ModelPicker({
   const tab: ProviderTab = connectedByTab[savedTab] ? savedTab : "all";
   const setTab = (t: ProviderTab) => {
     setTabState(t);
-    try { localStorage.setItem("opendot-model-tab", t); } catch {}
+    try { localStorage.setItem("qdot-model-tab", t); } catch {}
   };
   const containerRef = useRef<HTMLDivElement>(null);
 

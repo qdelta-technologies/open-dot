@@ -71,7 +71,7 @@ export default function Sidebar() {
     if (pathname === "/" || pathname.startsWith("/login")) return;
     try {
       const full = pathname + (activeConv ? `?c=${activeConv}` : "");
-      localStorage.setItem("opendot-lastRoute", full);
+      localStorage.setItem("qdot-lastRoute", full);
     } catch { /* localStorage unavailable */ }
   }, [pathname, activeConv]);
 
@@ -151,7 +151,7 @@ export default function Sidebar() {
           className="flex size-9 items-center justify-center rounded-full border border-black/10 text-foreground/70 transition-colors hover:border-black/25 hover:text-foreground"
           title="New chat"
           aria-label="New chat"
-          onClick={() => { try { localStorage.removeItem("opendot-lastRoute"); } catch {} }}
+          onClick={() => { try { localStorage.removeItem("qdot-lastRoute"); } catch {} }}
         >
           <SquarePen className="size-4" strokeWidth={1.75} />
         </Link>

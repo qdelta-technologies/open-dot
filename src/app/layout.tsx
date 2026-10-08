@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 
 const themeScript = `(function() {
   try {
-    var stored = localStorage.getItem('opendot-theme');
+    var stored = localStorage.getItem('qdot-theme');
     var isDark = stored === 'dark' || ((!stored || stored === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (isDark) {
       document.documentElement.classList.add('dark');

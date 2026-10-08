@@ -10,7 +10,7 @@ const listeners = new Set<() => void>();
 function getStoredTheme(): Theme {
   if (typeof window === "undefined") return "system";
   try {
-    const v = localStorage.getItem("opendot-theme");
+    const v = localStorage.getItem("qdot-theme");
     if (v === "light" || v === "dark" || v === "system") return v;
   } catch {}
   return "system";
@@ -47,7 +47,7 @@ if (typeof window !== "undefined") {
 export function setTheme(theme: Theme) {
   currentTheme = theme;
   try {
-    localStorage.setItem("opendot-theme", theme);
+    localStorage.setItem("qdot-theme", theme);
   } catch {}
   applyTheme(theme);
   listeners.forEach((l) => l());

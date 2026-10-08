@@ -103,7 +103,7 @@ export async function connectTriggerApp(toolkit: string): Promise<string> {
   const c = client();
   // The app's auth config in this project, or Composio's managed OAuth if the project has none yet.
   const authConfigId =
-    (await c.authConfigs.list({ toolkit })).items[0]?.id ?? (await c.authConfigs.create(toolkit, { type: "use_composio_managed_auth", name: `${toolkit} (Open Dot)` })).id;
+    (await c.authConfigs.list({ toolkit })).items[0]?.id ?? (await c.authConfigs.create(toolkit, { type: "use_composio_managed_auth", name: `${toolkit} (QDot)` })).id;
   const req = await c.connectedAccounts.link(userId(), authConfigId, {
     callbackUrl: `${getAppUrl()}/settings#triggers`,
   });

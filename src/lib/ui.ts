@@ -25,7 +25,7 @@ export function useSidebarOpen(): boolean {
 let desktopOpen = true;
 if (typeof window !== "undefined") {
   try {
-    const saved = localStorage.getItem("opendot-sidebar-desktop");
+    const saved = localStorage.getItem("qdot-sidebar-desktop");
     if (saved === "closed") desktopOpen = false;
   } catch {}
 }
@@ -36,7 +36,7 @@ export function setDesktopSidebarOpen(value: boolean) {
   desktopOpen = value;
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem("opendot-sidebar-desktop", value ? "open" : "closed");
+      localStorage.setItem("qdot-sidebar-desktop", value ? "open" : "closed");
     } catch {}
   }
   for (const l of desktopListeners) l();

@@ -71,7 +71,7 @@ class Provider implements OAuthClientProvider {
   get clientMetadata(): OAuthClientMetadata {
     const rUrl = getRedirectUrl(this.originOverride);
     return {
-      client_name: "Open Dot",
+      client_name: "QDot",
       redirect_uris: [rUrl],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
