@@ -1,21 +1,88 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ChevronDown, X } from "lucide-react";
 import * as actions from "@/app/actions";
 import { useStore } from "@/lib/store";
 import type { RuleDecision } from "@/lib/types";
 
-/** Two-column settings block: label + description on the left, controls on the right. */
-export function Section({ id, eyebrow, title, description, children }: { id?: string; eyebrow?: string; title: string; description?: React.ReactNode; children: React.ReactNode }) {
+/** Two-column settings block: label + description on the left, controls on the right. Optionally foldable (the choice is remembered). */
+export function Section({
+  id,
+  eyebrow,
+  title,
+  description,
+  collapsible = false,
+  defaultOpen = false,
+  openOnHash,
+  children,
+}: {
+  id?: string;
+  eyebrow?: string;
+  title: string;
+  description?: React.ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  /** Extra element ids inside this section that should open it when they are in the page address (#...). */
+  openOnHash?: string[];
+  children: React.ReactNode;
+}) {
+  const key = `qdot-settings-open:${id ?? eyebrow ?? title}`;
+  const [open, setOpen] = useState(!collapsible || defaultOpen);
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!collapsible) return;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved === "1") setOpen(true);
+      else if (saved === "0") setOpen(false);
+    } catch {
+      // storage unavailable
+    }
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash && (hash === id || openOnHash?.includes(hash))) {
+      setOpen(true);
+      setTimeout(() => (document.getElementById(hash) ?? ref.current)?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    try {
+      localStorage.setItem(key, next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  };
+
+  const showBody = !collapsible || open;
   return (
-    <section id={id} className="grid gap-5 border-t border-black/[0.06] py-8 first:border-t-0 first:pt-2 md:grid-cols-[240px_1fr] md:gap-10">
+    <section
+      ref={ref}
+      id={id}
+      className={`grid gap-5 border-t border-black/[0.06] first:border-t-0 first:pt-2 md:grid-cols-[240px_1fr] md:gap-10 ${collapsible && !open ? "py-4" : "py-8"}`}
+    >
       <div>
-        {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
-        <h2 className="text-[15px] leading-snug font-medium">{title}</h2>
-        {description && <p className="mt-1.5 text-body-sm text-foreground/55">{description}</p>}
+        {collapsible ? (
+          <button type="button" onClick={toggle} aria-expanded={open} className="group flex w-full items-start gap-3 text-left">
+            <span className="min-w-0 flex-1">
+              {eyebrow && <span className="eyebrow mb-1.5 block">{eyebrow}</span>}
+              <span className="block text-[15px] leading-snug font-medium">{title}</span>
+            </span>
+            <ChevronDown className={`mt-1 size-4 shrink-0 text-foreground/45 transition-transform duration-200 group-hover:text-foreground ${open ? "rotate-180" : ""}`} strokeWidth={1.75} />
+          </button>
+        ) : (
+          <>
+            {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
+            <h2 className="text-[15px] leading-snug font-medium">{title}</h2>
+          </>
+        )}
+        {description && showBody && <p className="mt-1.5 text-body-sm text-foreground/55">{description}</p>}
       </div>
-      <div className="min-w-0">{children}</div>
+      {showBody && <div className="min-w-0">{children}</div>}
     </section>
   );
 }

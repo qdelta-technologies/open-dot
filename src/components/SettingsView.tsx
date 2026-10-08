@@ -6,6 +6,7 @@ import {
   Bell,
   CheckCircle2,
   Download,
+  ChevronDown,
   Eye,
   EyeOff,
   KeyRound,
@@ -79,13 +80,15 @@ export default function SettingsView() {
 
         <ProfileSection />
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast), Google Gemini, OpenRouter, or OpenAI GPT models.">
-          <CloudflareWorkerKey />
-          <GoogleKey />
-          <GroqKey />
-          <OpenModelsKey />
-          <AnthropicKey />
-          <OpenAIKey />
+        <Section collapsible defaultOpen openOnHash={["cloudflare-worker"]} eyebrow="Engine" title="Models & computers" description="Models run on your Cloudflare AI Worker (free, fast), Google Gemini, OpenRouter, or OpenAI GPT models.">
+          <ProviderGroup>
+            <CloudflareWorkerKey />
+            <GoogleKey />
+            <GroqKey />
+            <OpenModelsKey />
+            <AnthropicKey />
+            <OpenAIKey />
+          </ProviderGroup>
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
             <div className="flex-1">
@@ -107,7 +110,7 @@ export default function SettingsView() {
           </dl>
         </Section>
 
-        <Section
+        <Section collapsible defaultOpen
           id="apps"
           eyebrow="Apps"
           title="Your apps, via Composio"
@@ -116,7 +119,7 @@ export default function SettingsView() {
           <AppsList />
         </Section>
 
-        <Section
+        <Section collapsible
           id="triggers"
           eyebrow="Triggers"
           title="Wake dots from your apps"
@@ -125,7 +128,7 @@ export default function SettingsView() {
           <TriggersKey />
         </Section>
 
-        <Section
+        <Section collapsible
           id="storage"
           eyebrow="Storage & Files"
           title="Cloud & Local Storage"
@@ -134,11 +137,11 @@ export default function SettingsView() {
           <StorageManager />
         </Section>
 
-        <Section eyebrow="Approvals" title="Rules for all dots" description="These apply to every dot, on top of each dot's own rules.">
+        <Section collapsible eyebrow="Approvals" title="Rules for all dots" description="These apply to every dot, on top of each dot's own rules.">
           <RuleEditor dotId={null} name="a dot" />
         </Section>
 
-        <Section
+        <Section collapsible
           eyebrow="Passwords"
           title="Saved logins"
           description="Your dots can securely use these to log into websites in their browser. Encrypted with AES-256-GCM. Typed directly into the page and never shown to the model."
@@ -191,7 +194,7 @@ export default function SettingsView() {
 
         <AccessSecuritySection />
 
-        <Section eyebrow="Notifications" title="Notifications" description={'Get notified when a dot finishes something or needs you, like "Your research is ready".'}>
+        <Section collapsible eyebrow="Notifications" title="Notifications" description={'Get notified when a dot finishes something or needs you, like "Your research is ready".'}>
           <div className="surface flex items-center gap-3 p-4">
             <Bell className="size-4 text-foreground/50" strokeWidth={1.5} />
             <span className="flex-1 text-body-sm">
@@ -220,6 +223,67 @@ export default function SettingsView() {
   );
 }
 
+/** The model-provider cards, folded into one row that shows who is connected. */
+function ProviderGroup({ children }: { children: React.ReactNode }) {
+  const computer = useStore((s) => s.computer);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("qdot-settings-providers") === "1") setOpen(true);
+    } catch {
+      // ignore
+    }
+    if (window.location.hash === "#cloudflare-worker") setOpen(true);
+  }, []);
+
+  const providers: [string, boolean][] = [
+    ["Cloudflare", Boolean(computer.cloudflare)],
+    ["Google", Boolean(computer.google)],
+    ["Groq", Boolean(computer.groq)],
+    ["OpenRouter", Boolean(computer.openRouter)],
+    ["Anthropic", Boolean(computer.anthropic)],
+    ["OpenAI", Boolean(computer.hasKey)],
+  ];
+  const connected = providers.filter(([, on]) => on).length;
+
+  return (
+    <div className="mb-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          try {
+            localStorage.setItem("qdot-settings-providers", next ? "1" : "0");
+          } catch {
+            // ignore
+          }
+        }}
+        className="surface group flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-left"
+      >
+        <span className="min-w-0 flex-1 basis-40">
+          <span className="block text-[14px]">Model providers</span>
+          <span className="block text-caption text-foreground/55">
+            {connected} of {providers.length} connected
+          </span>
+        </span>
+        <span className="flex flex-wrap items-center gap-1.5">
+          {providers.map(([name, on]) => (
+            <span key={name} className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.05] px-2 py-0.5 text-[12px] text-foreground/70">
+              <span className={`size-1.5 rounded-full ${on ? "bg-success" : "bg-foreground/25"}`} />
+              {name}
+            </span>
+          ))}
+        </span>
+        <ChevronDown className={`size-4 shrink-0 text-foreground/45 transition-transform duration-200 group-hover:text-foreground ${open ? "rotate-180" : ""}`} strokeWidth={1.75} />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
+
 function ProfileSection() {
   const [form, setForm] = useState({ name: "", role: "", company: "" });
   const [loaded, setLoaded] = useState(false);
@@ -239,7 +303,7 @@ function ProfileSection() {
   };
 
   return (
-    <Section
+    <Section collapsible defaultOpen
       id="profile"
       eyebrow="Profile"
       title="About you & your company"
@@ -1195,7 +1259,7 @@ function AppearanceSection() {
   }, []);
 
   return (
-    <Section
+    <Section collapsible
       eyebrow="Appearance"
       title="Theme"
       description="Choose your preferred color theme or match your operating system settings."
@@ -1251,13 +1315,13 @@ function AccessSecuritySection() {
   }, []);
 
   if (!auth) return (
-    <Section eyebrow="Security" title="Master access" description="Protect your workspace and free AI quotas from unauthorized visitors with ACCESS_PASSWORD.">
+    <Section collapsible eyebrow="Security" title="Master access" description="Protect your workspace and free AI quotas from unauthorized visitors with ACCESS_PASSWORD.">
       <div className="surface animate-pulse h-20 rounded-lg" />
     </Section>
   );
 
   return (
-    <Section
+    <Section collapsible
       eyebrow="Security"
       title="Master access"
       description="Protect your workspace and free AI quotas from unauthorized visitors with ACCESS_PASSWORD."
@@ -1359,7 +1423,7 @@ function InstallAppSection() {
   };
 
   return (
-    <Section
+    <Section collapsible
       eyebrow="Mobile & Desktop App"
       title="Install QDot"
       description="Run QDot as a fast, full-screen standalone app on your phone, tablet, or desktop with no browser address bar."
