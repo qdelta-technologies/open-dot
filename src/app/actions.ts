@@ -234,22 +234,24 @@ export async function getOpenRouterKey(): Promise<string> {
   return openRouterKey() || "";
 }
 
-export type Profile = { name: string; role: string; company: string; defaultCompany: string };
+export type Profile = { name: string; role: string; company: string; accounts: string; defaultCompany: string };
 
 export async function getProfile(): Promise<Profile> {
   return {
     name: getSetting(PROFILE_KEYS.name) ?? "",
     role: getSetting(PROFILE_KEYS.role) ?? "",
     company: getSetting(PROFILE_KEYS.company) ?? "",
+    accounts: getSetting(PROFILE_KEYS.accounts) ?? "",
     defaultCompany: DEFAULT_COMPANY,
   };
 }
 
 /** Who the dots work for and what they should know about the business (empty company falls back to the default). */
-export async function saveProfile(p: { name: string; role: string; company: string }): Promise<void> {
+export async function saveProfile(p: { name: string; role: string; company: string; accounts: string }): Promise<void> {
   setSetting(PROFILE_KEYS.name, p.name.trim().slice(0, 100) || null);
   setSetting(PROFILE_KEYS.role, p.role.trim().slice(0, 100) || null);
   setSetting(PROFILE_KEYS.company, p.company.trim().slice(0, 8000) || null);
+  setSetting(PROFILE_KEYS.accounts, p.accounts.trim().slice(0, 4000) || null);
 }
 
 /** Paste a Groq API key in Settings to add ultra-fast LPU models (empty removes it). */
