@@ -469,3 +469,10 @@ html[data-splash="off"] .qdot-splash {
   .login-card-in, .login-shake, .login-bubble, .login-dot { animation: none !important; }
   .login-bubble { transition: none !important; translate: none !important; }
 }
+
+
+/* Hide the browser's built-in show/clear password buttons (Edge); the app draws its own. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
