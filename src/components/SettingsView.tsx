@@ -311,10 +311,10 @@ function AppsList() {
 
   return (
     <div className="space-y-3">
-      <div className="surface flex items-center gap-3 px-4 py-3">
+      <div className="surface flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="https://logos.composio.dev/api/composio" alt="" className="size-6 rounded-xs object-contain" />
-        <div className="flex-1">
+        <div className="min-w-0 flex-1 basis-40">
           <div className="text-[14px]">Composio For You</div>
           <div className="text-caption text-foreground/50">Signed in · {connected.length} app{connected.length === 1 ? "" : "s"} connected</div>
         </div>
@@ -407,8 +407,8 @@ function CloudKey() {
 
   return (
     <div id="cloud-key" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="text-[14px]">
             Cloud computers <span className="text-foreground/40">· optional</span>
           </div>
@@ -526,8 +526,8 @@ function CloudflareWorkerKey() {
 
   return (
     <div id="cloudflare-worker" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
             Cloudflare AI Worker <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">Recommended · Fast</span>
           </div>
@@ -642,8 +642,8 @@ function GoogleKey() {
 
   return (
     <div id="google-key" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
             Google Gemini <span className="rounded-xs bg-blue-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-blue-600 dark:text-blue-400 uppercase">Free · Reliable</span>
           </div>
@@ -737,8 +737,8 @@ function OpenModelsKey() {
 
   return (
     <div id="open-models" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
             OpenRouter <span className="rounded-xs bg-emerald-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">Open Models</span>
           </div>
@@ -829,8 +829,8 @@ function AnthropicKey() {
 
   return (
     <div id="anthropic-key" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
             Anthropic <span className="rounded-xs bg-violet-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-violet-600 dark:text-violet-400 uppercase">Claude Models</span>
           </div>
@@ -918,8 +918,8 @@ function GroqKey() {
 
   return (
     <div id="groq-key" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
             Groq <span className="rounded-xs bg-orange-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-orange-600 dark:text-orange-400 uppercase">Ultra-Fast LPU</span>
           </div>
@@ -1007,8 +1007,8 @@ function OpenAIKey() {
 
   return (
     <div id="openai-key" className="surface mb-3 scroll-mt-6 p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
             OpenAI <span className="rounded-xs bg-green-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-green-600 dark:text-green-400 uppercase">GPT Models</span>
           </div>

@@ -76,8 +76,8 @@ export function TriggersKey() {
 
       {source && !editing && (
         <div className="mt-3 flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-black/[0.03] px-3 py-1.5 font-mono text-[13px] text-foreground/75 dark:border-white/[0.08] dark:bg-white/[0.04]">
-            <span>{showKey && key ? key : "ak_••••••••••••••••••••••••••••••••"}</span>
+          <div className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-black/[0.08] bg-black/[0.03] px-3 py-1.5 font-mono text-[13px] text-foreground/75 dark:border-white/[0.08] dark:bg-white/[0.04]">
+            <span className="min-w-0 truncate">{showKey && key ? key : "ak_••••••••••••••••••••••••••••••••"}</span>
             <button
               type="button"
               onClick={async () => {
