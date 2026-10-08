@@ -4,7 +4,7 @@ import path from "node:path";
 import { db, DATA_DIR, id, getSetting, setSetting } from "./db";
 import * as computer from "./computer";
 import { apps as composioApps, signedIn as composioSignedIn, executeTool, getAppUrl } from "./composio";
-import { createFileToken } from "./links";
+import { createStoredFileToken } from "./links";
 import type { Attachment } from "@/lib/types";
 
 // Files that move between the user and a dot. The canonical copy lives in .data/files/<id>
@@ -278,7 +278,7 @@ export async function backupToDrive(fileId: string): Promise<boolean> {
   backingUp.add(fileId);
   try {
     const folder = await ensureBackupFolder();
-    const { token } = createFileToken(f.dotId, `uploads/${f.name}`, 15 * 60_000);
+    const { token } = createStoredFileToken(fileId, 15 * 60_000);
     const url = `${getAppUrl()}/api/public-files/${token}`;
     const out = await withTimeout(
       executeTool("GOOGLEDRIVE_UPLOAD_FROM_URL", { source_url: url, name: f.name, mime_type: f.mime, parent_folder_id: folder }),

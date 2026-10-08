@@ -28,7 +28,16 @@ export function createFileToken(dotId: string, path: string, ttlMs = DEFAULT_TTL
   return { token: `${payload}.${sign(payload)}`, expiresAt };
 }
 
-export function verifyFileToken(token: string): { dotId: string; path: string } | null {
+/** A link to an attachment saved by QDot itself (survives redeploys, unlike the dot's workspace). */
+export function createStoredFileToken(fileId: string, ttlMs = DEFAULT_TTL_MS): { token: string; expiresAt: number } {
+  const expiresAt = Date.now() + ttlMs;
+  const payload = b64(JSON.stringify({ f: fileId, e: expiresAt }));
+  return { token: `${payload}.${sign(payload)}`, expiresAt };
+}
+
+export type VerifiedLink = { kind: "workspace"; dotId: string; path: string } | { kind: "stored"; fileId: string };
+
+export function verifyFileToken(token: string): VerifiedLink | null {
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
   const expected = sign(payload);
@@ -36,10 +45,11 @@ export function verifyFileToken(token: string): { dotId: string; path: string } 
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try {
-    const { d, p, e } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { d: string; p: string; e: number };
-    if (typeof d !== "string" || typeof p !== "string" || typeof e !== "number" || Date.now() > e) return null;
-    if (!isSafeWorkspacePath(p)) return null;
-    return { dotId: d, path: p };
+    const { d, p, f, e } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { d?: string; p?: string; f?: string; e: number };
+    if (typeof e !== "number" || Date.now() > e) return null;
+    if (typeof f === "string") return { kind: "stored", fileId: f };
+    if (typeof d !== "string" || typeof p !== "string" || !isSafeWorkspacePath(p)) return null;
+    return { kind: "workspace", dotId: d, path: p };
   } catch {
     return null;
   }

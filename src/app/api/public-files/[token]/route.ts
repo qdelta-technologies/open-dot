@@ -1,5 +1,6 @@
 import * as computer from "@/server/computer";
 import { mimeForPath, verifyFileToken } from "@/server/links";
+import { get as getStoredFile } from "@/server/files";
 
 // A short-lived, signed link to one workspace file. No login: the signature and expiry are the access control.
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -7,6 +8,12 @@ const MAX_BYTES = 100 * 1024 * 1024;
 async function load(token: string) {
   const link = verifyFileToken(token);
   if (!link) return null;
+  if (link.kind === "stored") {
+    const f = getStoredFile(link.fileId);
+    const data = f?.data();
+    if (!f || !data || !data.length || data.length > MAX_BYTES) return null;
+    return { data, name: f.name, mime: f.mime || mimeForPath(f.name) };
+  }
   const data = await computer.readFile(link.dotId, link.path).catch(() => null);
   if (!data || data.length > MAX_BYTES) return null;
   return { data, name: link.path.split("/").pop() ?? "file", mime: mimeForPath(link.path) };
