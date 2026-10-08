@@ -659,7 +659,7 @@ function CloudflareWorkerKey() {
                 ? `Connected to default Cloudflare Workers AI edge proxy${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}.`
               : saved
                 ? `Connected to ${computer.cloudflare?.url}${cfCount ? ` · ${cfCount} edge models in the model picker` : ""}. Multi-worker failover active.`
-                : "Connect one or more opendot-worker URLs (comma-separated). When a worker reaches Cloudflare's daily 10k neuron limit, OpenDot automatically switches to the next worker."}
+                : "Connect one or more opendot-worker URLs (comma-separated). When a worker reaches Cloudflare's daily 10k neuron limit, QDot automatically switches to the next worker."}
           </div>
         </div>
         {saved && !editing && (
@@ -1361,8 +1361,8 @@ function InstallAppSection() {
   return (
     <Section
       eyebrow="Mobile & Desktop App"
-      title="Install Open Dot"
-      description="Run Open Dot as a fast, full-screen standalone app on your phone, tablet, or desktop with no browser address bar."
+      title="Install QDot"
+      description="Run QDot as a fast, full-screen standalone app on your phone, tablet, or desktop with no browser address bar."
     >
       <div className="surface p-4">
         {isStandalone || installed ? (
@@ -1378,7 +1378,7 @@ function InstallAppSection() {
                 </span>
               </div>
               <p className="mt-0.5 text-caption text-foreground/50">
-                Open Dot is running in native app mode on this device. Updates will load automatically.
+                QDot is running in native app mode on this device. Updates will load automatically.
               </p>
             </div>
           </div>
@@ -1390,7 +1390,7 @@ function InstallAppSection() {
             <div className="min-w-0 flex-1">
               <div className="text-[14px] font-medium">Ready to install</div>
               <p className="mt-0.5 text-caption text-foreground/50">
-                Install Open Dot to your home screen or desktop with one click for a native-like experience.
+                Install QDot to your home screen or desktop with one click for a native-like experience.
               </p>
             </div>
             <button
@@ -1411,7 +1411,7 @@ function InstallAppSection() {
               <div className="min-w-0 flex-1">
                 <div className="text-[14px] font-medium">Add to iPhone / iPad Home Screen</div>
                 <p className="mt-0.5 text-caption text-foreground/50">
-                  Safari lets you install Open Dot without downloading from the App Store.
+                  Safari lets you install QDot without downloading from the App Store.
                 </p>
               </div>
             </div>
@@ -1419,7 +1419,7 @@ function InstallAppSection() {
               <ol className="list-decimal space-y-1.5 pl-4 text-foreground/75 text-[13px]">
                 <li>Tap the <strong className="text-foreground">Share</strong> icon in the Safari toolbar (at the bottom or top).</li>
                 <li>Scroll down and tap <strong className="text-foreground">&quot;Add to Home Screen&quot;</strong>.</li>
-                <li>Tap <strong className="text-foreground">Add</strong> in the top-right corner to launch Open Dot like any native app.</li>
+                <li>Tap <strong className="text-foreground">Add</strong> in the top-right corner to launch QDot like any native app.</li>
               </ol>
             </div>
           </div>
@@ -1431,7 +1431,7 @@ function InstallAppSection() {
             <div className="min-w-0 flex-1">
               <div className="text-[14px] font-medium">Install from Browser Menu</div>
               <p className="mt-0.5 text-caption text-foreground/50">
-                In Chrome, Edge, or Android: open the browser menu (⋮) and tap <strong className="text-foreground">&quot;Install Open Dot&quot;</strong> or <strong className="text-foreground">&quot;Add to Home screen&quot;</strong>.
+                In Chrome, Edge, or Android: open the browser menu (⋮) and tap <strong className="text-foreground">&quot;Install QDot&quot;</strong> or <strong className="text-foreground">&quot;Add to Home screen&quot;</strong>.
               </p>
             </div>
           </div>

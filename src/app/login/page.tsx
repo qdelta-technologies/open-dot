@@ -39,7 +39,7 @@ function LoginForm() {
       {/* Decorative gradient glow */}
       <div className="pointer-events-none absolute -top-14 left-1/2 -z-10 h-32 w-48 -translate-x-1/2 rounded-full bg-brand/20 blur-3xl" />
 
-      {/* Header with Open Dot Brand dots */}
+      {/* Header with QDot Brand dots */}
       <div className="mb-6 flex flex-col items-center text-center">
         <div className="mb-3 flex -space-x-1.5 p-2">
           <span className="size-4 rounded-full bg-foreground ring-2 ring-card shadow-sm" />
@@ -47,7 +47,7 @@ function LoginForm() {
           <span className="size-4 rounded-full bg-highlight ring-2 ring-card shadow-sm" />
         </div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-          Open Dot
+          QDot
         </h1>
         <p className="mt-1 text-sm text-foreground/60">
           Enter your access password to unlock this workspace

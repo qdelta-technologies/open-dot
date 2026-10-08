@@ -24,9 +24,9 @@ const escape = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)}
 
 function page(error: string | null): string {
   const title = error ? "Couldn't sign in to Composio" : "You're signed in to Composio";
-  const body = error ? escape(error) : "Your dots can use your apps now. You can close this tab and go back to Open Dot.";
+  const body = error ? escape(error) : "Your dots can use your apps now. You can close this tab and go back to QDot.";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · Open Dot</title>
+<title>${title} · QDot</title>
 <style>
   :root { color-scheme: light dark; --bg: #f6f6f6; --card: #fff; --fg: #0a0a0a; --muted: #0a0a0a99; --line: #0a0a0a14; }
   @media (prefers-color-scheme: dark) { :root { --bg: #0e0e0e; --card: #171717; --fg: #f4f4f4; --muted: #f4f4f499; --line: #ffffff14; } }
@@ -39,7 +39,7 @@ function page(error: string | null): string {
 <div class="dots"><span style="background:#0a0a0a"></span><span style="background:#51a2ff"></span><span style="background:#c8f169"></span></div>
 <h1>${title}</h1><p>${body}</p>
 <div style="margin-top: 24px;">
-  <a href="/settings#apps" style="display: inline-block; padding: 10px 22px; background: #51a2ff; color: #fff; text-decoration: none; border-radius: 9999px; font-weight: 500; font-size: 14px;">Return to Open Dot</a>
+  <a href="/settings#apps" style="display: inline-block; padding: 10px 22px; background: #51a2ff; color: #fff; text-decoration: none; border-radius: 9999px; font-weight: 500; font-size: 14px;">Return to QDot</a>
 </div>
 </div></body></html>`;
 }

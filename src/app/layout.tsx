@@ -26,13 +26,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Open Dot",
+  title: "QDot",
   description: "Open-source personal AI agents that work on their own, on their own computers",
-  applicationName: "Open Dot",
+  applicationName: "QDot",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Open Dot",
+    title: "QDot",
   },
   icons: {
     icon: "/favicon.ico",

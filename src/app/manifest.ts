@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Open Dot",
-    short_name: "OpenDot",
+    name: "QDot",
+    short_name: "QDot",
     description: "Open-source personal AI agents that work on their own, on their own computers",
     start_url: "/",
     display: "standalone",
