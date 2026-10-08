@@ -199,6 +199,14 @@ export default function Sidebar() {
       {!q && (
         <div className="shrink-0 pb-1">
           <div className="flex gap-0.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:none]">
+            {!loaded &&
+              !dots.length &&
+              [0, 1, 2].map((i) => (
+                <div key={i} className="flex w-[54px] shrink-0 flex-col items-center gap-1 py-1.5" aria-hidden="true">
+                  <span className="skeleton size-10 rounded-full" />
+                  <span className="skeleton h-2.5 w-9 rounded" />
+                </div>
+              ))}
             {dots.map((d) => (
               <Link
                 key={d.id}
@@ -227,7 +235,19 @@ export default function Sidebar() {
       {/* Recent chats */}
       {q && <div className="eyebrow shrink-0 px-4 pt-2 pb-1.5">Chats matching “{q}”</div>}
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-        {!loaded && <div className="px-2 py-2 text-body-sm text-foreground/45">Connecting…</div>}
+        {!loaded && (
+          <div role="status" aria-label="Loading chats" className="space-y-0.5">
+            {[68, 54, 62, 46, 58, 50].map((w, i) => (
+              <div key={i} className="flex items-center gap-3 px-2.5 py-2.5" aria-hidden="true">
+                <span className="skeleton size-[42px] shrink-0 rounded-full" />
+                <span className="min-w-0 flex-1 space-y-2">
+                  <span className="skeleton block h-3 rounded" style={{ width: `${w}%` }} />
+                  <span className="skeleton block h-2.5 w-[86%] rounded" />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         {recent.map((c) => {
           const d = dotById.get(c.dotId);
           if (!d) return null;
