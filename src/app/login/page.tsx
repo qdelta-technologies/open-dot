@@ -49,13 +49,13 @@ function LoginForm() {
   }, [error, pending, done, shakeKey]);
 
   return (
-    <div className={`login-card-in w-full max-w-[400px] transition-all duration-300 ${done ? "scale-[0.98] opacity-0" : ""}`}>
+    <div className={`login-card-in relative z-10 w-full max-w-[400px] transition-all duration-300 ${done ? "scale-[0.98] opacity-0" : ""}`}>
       {/* Brand */}
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="mb-5 flex -space-x-2">
-          <span className="size-7 rounded-full bg-foreground ring-[3px] ring-background shadow-sm" />
-          <span className="size-7 rounded-full bg-brand ring-[3px] ring-background shadow-sm" />
-          <span className="size-7 rounded-full bg-highlight ring-[3px] ring-background shadow-sm" />
+        <div className={`login-dots mb-5 flex -space-x-2 ${busy ? "is-busy" : ""}`} aria-hidden="true">
+          <span className="login-dot login-dot-1 size-7 rounded-full bg-foreground ring-[3px] ring-background shadow-sm" />
+          <span className="login-dot login-dot-2 size-7 rounded-full bg-brand ring-[3px] ring-background shadow-sm" />
+          <span className="login-dot login-dot-3 size-7 rounded-full bg-highlight ring-[3px] ring-background shadow-sm" />
         </div>
         <h1 className="text-[26px] font-semibold tracking-tight text-foreground">Welcome to QDot</h1>
         <p className="mt-2 max-w-[300px] text-[15px] leading-relaxed text-foreground/55">
@@ -67,7 +67,7 @@ function LoginForm() {
       <form
         key={shakeKey}
         onSubmit={handleSubmit}
-        className={`rounded-3xl border border-black/[0.08] bg-card p-5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.18)] sm:p-6 dark:border-white/[0.08] ${shakeKey > 0 && error ? "login-shake" : ""}`}
+        className={`rounded-3xl border border-black/[0.08] bg-card/95 p-5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.18)] backdrop-blur-sm transition-colors focus-within:border-brand/40 sm:p-6 dark:border-white/[0.08] ${shakeKey > 0 && error ? "login-shake" : ""}`}
       >
         <label htmlFor="team-password" className="mb-2 block text-[13px] font-medium text-foreground/70">
           Team password
@@ -151,6 +151,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="login-bg relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-5 py-10">
+      <div className="login-blob login-blob-a" aria-hidden="true" />
+      <div className="login-blob login-blob-b" aria-hidden="true" />
       <Suspense fallback={<div className="text-sm text-foreground/50">Loading…</div>}>
         <LoginForm />
       </Suspense>

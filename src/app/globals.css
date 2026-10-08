@@ -387,11 +387,69 @@ html[data-splash="off"] .qdot-splash {
 
 
 /* Login page */
-.login-bg {
-  background-image:
-    radial-gradient(60% 45% at 50% 0%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 70%),
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--foreground) 9%, transparent) 1px, transparent 0);
-  background-size: 100% 100%, 22px 22px;
+.login-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--foreground) 14%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 78%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 78%);
+}
+.login-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  pointer-events: none;
+  will-change: transform;
+}
+.login-blob-a {
+  width: 40vmax;
+  height: 40vmax;
+  left: -12vmax;
+  top: -16vmax;
+  background: var(--brand);
+  opacity: 0.32;
+  animation: login-drift-a 22s ease-in-out infinite alternate;
+}
+.login-blob-b {
+  width: 32vmax;
+  height: 32vmax;
+  right: -12vmax;
+  bottom: -14vmax;
+  background: var(--highlight);
+  opacity: 0.26;
+  animation: login-drift-b 26s ease-in-out infinite alternate;
+}
+.dark .login-blob-a { opacity: 0.2; }
+.dark .login-blob-b { opacity: 0.12; }
+@keyframes login-drift-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(7vmax, 5vmax) scale(1.1); }
+}
+@keyframes login-drift-b {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-6vmax, -5vmax) scale(1.12); }
+}
+.login-dot {
+  animation: login-dot-in 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) both, login-bob 3.2s ease-in-out infinite;
+}
+.login-dot-1 { --from: -34px; animation-delay: 0.05s, 1s; }
+.login-dot-2 { --from: 0px; animation-delay: 0.2s, 1.15s; }
+.login-dot-3 { --from: 34px; animation-delay: 0.35s, 1.3s; }
+.login-dots.is-busy .login-dot {
+  animation: login-bob 0.7s ease-in-out infinite;
+}
+.login-dots.is-busy .login-dot-2 { animation-delay: 0.12s; }
+.login-dots.is-busy .login-dot-3 { animation-delay: 0.24s; }
+@keyframes login-dot-in {
+  from { opacity: 0; transform: translateX(var(--from, 0px)) scale(0.4); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes login-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 .login-card-in {
   animation: login-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -411,5 +469,5 @@ html[data-splash="off"] .qdot-splash {
   80% { transform: translateX(2px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .login-card-in, .login-shake { animation: none; }
+  .login-card-in, .login-shake, .login-blob, .login-dot { animation: none !important; }
 }
