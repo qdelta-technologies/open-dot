@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { verifyAccessPassword } from "@/app/actions";
@@ -42,6 +42,11 @@ function LoginForm() {
   };
 
   const busy = pending || done;
+
+  // Put the cursor back in the box after a wrong password
+  useEffect(() => {
+    if (error && !pending && !done) document.getElementById("team-password")?.focus();
+  }, [error, pending, done, shakeKey]);
 
   return (
     <div className={`login-card-in w-full max-w-[400px] transition-all duration-300 ${done ? "scale-[0.98] opacity-0" : ""}`}>
