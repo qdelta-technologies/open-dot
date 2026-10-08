@@ -12,6 +12,7 @@ import {
   ArrowUp,
   AudioLines,
   Brain,
+  Camera,
   Check,
   ChevronDown,
   Clock,
@@ -19,10 +20,13 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Film,
   FileText,
   Globe,
+  Image as ImageIcon,
   KeyRound,
   Laptop,
+  Loader2,
   MessageSquare,
   Mic,
   MonitorSmartphone,
@@ -353,7 +357,35 @@ function Welcome({ dot, onPick }: { dot: Dot; onPick: (text: string) => void }) 
   );
 }
 
-type Upload = { key: string; name: string; state: "uploading" | "done" | "error"; file?: Attachment; error?: string };
+type Upload = {
+  key: string;
+  name: string;
+  state: "uploading" | "done" | "error";
+  kind: "image" | "video" | "file";
+  size: number;
+  preview?: string;
+  file?: Attachment;
+  error?: string;
+};
+
+const fmtSize = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+
+function AttachItem({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-black/[0.05] text-foreground/70 dark:bg-white/[0.08]">{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-[14px] font-medium">{label}</span>
+        <span className="block text-[12px] text-foreground/55">{hint}</span>
+      </span>
+    </button>
+  );
+}
 
 async function uploadFiles(dotId: string, list: File[]): Promise<{ files?: Attachment[]; error?: string }> {
   const form = new FormData();
@@ -382,6 +414,29 @@ function Composer({
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [drivePrompt, setDrivePrompt] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const attachRef = useRef<HTMLDivElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!attachOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (attachRef.current && !attachRef.current.contains(e.target as Node)) setAttachOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAttachOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [attachOpen]);
   const [isListening, setIsListening] = useState(false);
   const [pending, start] = useTransition();
   const recognitionRef = useRef<any>(null);
@@ -507,7 +562,17 @@ function Composer({
 
   const addFiles = (list: File[]) => {
     if (!list.length) return;
-    const batch = list.map((f) => ({ key: `${f.name}-${f.size}-${Math.random()}`, name: f.name, state: "uploading" as const }));
+    const batch = list.map((f) => {
+      const kind: Upload["kind"] = f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : "file";
+      return {
+        key: `${f.name}-${f.size}-${Math.random()}`,
+        name: f.name,
+        state: "uploading" as const,
+        kind,
+        size: f.size,
+        preview: kind === "image" ? URL.createObjectURL(f) : undefined,
+      };
+    });
     setUploads((u) => [...u, ...batch]);
     void uploadFiles(dot.id, list).then((r) => {
       if (r.error === "DRIVE_NOT_CONNECTED") {
@@ -545,6 +610,7 @@ function Composer({
     const value = text.trim();
     if ((!value && !ready.length) || busy) return;
     setText("");
+    uploads.forEach((u) => u.preview && URL.revokeObjectURL(u.preview));
     setUploads([]);
     onSend(value, ready);
   };
@@ -599,26 +665,56 @@ function Composer({
         </div>
       )}
       {uploads.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5 pl-1 pt-1">
+        <div className="mb-2 flex flex-wrap gap-2 pl-1 pt-1">
           {uploads.map((u) => (
-            <span
+            <div
               key={u.key}
-              className={`flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[12px] ${
-                u.state === "error" ? "border-destructive/40 text-destructive" : "border-black/10 dark:border-white/10 text-foreground/75"
-              }`}
               title={u.error}
+              className={`qdot-pop group relative overflow-hidden rounded-xl border bg-card ${
+                u.state === "error" ? "border-destructive/50" : "border-black/10 dark:border-white/10"
+              } ${u.kind === "file" ? "flex h-14 max-w-[230px] items-center gap-2.5 pr-8 pl-2.5" : "size-16"}`}
             >
-              <Paperclip className="size-3" strokeWidth={1.75} />
-              <span className="max-w-40 truncate">{u.name}</span>
-              {u.state === "uploading" && <span className="font-mono text-[11px] text-foreground/40">…</span>}
+              {u.kind === "image" && u.preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={u.preview} alt="" className="size-full object-cover" />
+              ) : u.kind === "video" ? (
+                <span className="flex size-full items-center justify-center bg-black/[0.05] text-foreground/60 dark:bg-white/[0.08]">
+                  <Film className="size-6" strokeWidth={1.5} />
+                </span>
+              ) : (
+                <>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-black/[0.05] text-foreground/60 dark:bg-white/[0.08]">
+                    <FileText className="size-[18px]" strokeWidth={1.5} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-medium">{u.name}</span>
+                    <span className="flex items-center gap-1 text-[12px] text-foreground/55">
+                      {u.state === "uploading" && <Loader2 className="size-3 animate-spin" />}
+                      {u.state === "uploading" ? "Uploading…" : u.state === "error" ? "Failed" : fmtSize(u.size)}
+                    </span>
+                  </span>
+                </>
+              )}
+              {u.kind !== "file" && u.state === "uploading" && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-white">
+                  <Loader2 className="size-5 animate-spin" />
+                </span>
+              )}
+              {u.kind !== "file" && u.state === "error" && (
+                <span className="absolute inset-x-0 bottom-0 bg-destructive/85 py-0.5 text-center text-[11px] font-medium text-white">Failed</span>
+              )}
               <button
-                onClick={() => setUploads((x) => x.filter((y) => y.key !== u.key))}
+                type="button"
+                onClick={() => {
+                  if (u.preview) URL.revokeObjectURL(u.preview);
+                  setUploads((x) => x.filter((y) => y.key !== u.key));
+                }}
                 aria-label={`Remove ${u.name}`}
-                className="text-foreground/35 hover:text-foreground"
+                className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white transition-opacity hover:bg-black/80 focus:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
               >
-                <X className="size-3" strokeWidth={2} />
+                <X className="size-3" strokeWidth={2.25} />
               </button>
-            </span>
+            </div>
           ))}
         </div>
       )}
@@ -653,21 +749,90 @@ function Composer({
 
           <div className="flex items-end gap-2">
             {/* Plus / Attach button */}
-            <label
-              className="flex size-8.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground/60 transition-colors hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-foreground"
-              title="Attach files or screenshots"
-            >
-              <Plus className="size-5" strokeWidth={1.75} />
+            <div ref={attachRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setAttachOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={attachOpen}
+                aria-label="Add photos or files"
+                title="Add photos or files"
+                className={`flex size-8.5 items-center justify-center rounded-full transition-colors hover:bg-black/[0.06] hover:text-foreground dark:hover:bg-white/[0.08] ${attachOpen ? "bg-black/[0.06] text-foreground dark:bg-white/[0.08]" : "text-foreground/60"}`}
+              >
+                <Plus className={`size-5 transition-transform duration-200 ${attachOpen ? "rotate-45" : ""}`} strokeWidth={1.75} />
+              </button>
+
+              {attachOpen && (
+                <div
+                  role="menu"
+                  className="qdot-menu absolute bottom-full left-0 z-30 mb-2 w-64 origin-bottom-left rounded-2xl border border-black/10 bg-card p-1.5 shadow-[0_14px_44px_-10px_rgba(0,0,0,0.28)] dark:border-white/10"
+                >
+                  <AttachItem
+                    icon={<ImageIcon className="size-[18px]" strokeWidth={1.5} />}
+                    label="Photos & videos"
+                    hint="Pick from your gallery"
+                    onClick={() => {
+                      setAttachOpen(false);
+                      mediaInputRef.current?.click();
+                    }}
+                  />
+                  <AttachItem
+                    icon={<FileText className="size-[18px]" strokeWidth={1.5} />}
+                    label="Files & documents"
+                    hint="PDF, Word, Excel, text…"
+                    onClick={() => {
+                      setAttachOpen(false);
+                      docInputRef.current?.click();
+                    }}
+                  />
+                  <div className="hidden [@media(pointer:coarse)]:block">
+                    <AttachItem
+                      icon={<Camera className="size-[18px]" strokeWidth={1.5} />}
+                      label="Take a photo"
+                      hint="Use your camera"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        cameraInputRef.current?.click();
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <input
+                ref={mediaInputRef}
                 type="file"
                 multiple
+                accept="image/*,video/*"
                 className="hidden"
                 onChange={(e) => {
                   addFiles([...(e.target.files ?? [])]);
                   e.target.value = "";
                 }}
               />
-            </label>
+              <input
+                ref={docInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.json,.rtf,.zip"
+                className="hidden"
+                onChange={(e) => {
+                  addFiles([...(e.target.files ?? [])]);
+                  e.target.value = "";
+                }}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  addFiles([...(e.target.files ?? [])]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
 
             {/* Chat input textarea */}
             <textarea
