@@ -6,16 +6,15 @@ export async function GET(req: Request, ctx: RouteContext<"/api/files/[fileId]">
   const f = get(fileId);
   if (!f) return new Response("Not found", { status: 404 });
 
-  let buf: Buffer;
-  if (f.driveFileId) {
+  let buf = f.data();
+  if (!buf.length && f.driveFileId) {
+    // the server copy was cleaned up after the Drive backup: fetch it from Drive
     try {
       buf = await fetchFromDrive(f.driveFileId);
     } catch (err) {
       console.error("[files] Failed to fetch from Google Drive:", err);
       return new Response("Failed to retrieve file from Google Drive", { status: 502 });
     }
-  } else {
-    buf = f.data();
   }
 
   const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain)$/.test(f.mime) && new URL(req.url).searchParams.get("download") !== "1";

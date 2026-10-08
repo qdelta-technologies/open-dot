@@ -1,9 +1,10 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { db, DATA_DIR, id } from "./db";
+import { db, DATA_DIR, id, getSetting, setSetting } from "./db";
 import * as computer from "./computer";
-import { apps as composioApps, signedIn as composioSignedIn, callTool, executeTool } from "./composio";
+import { apps as composioApps, signedIn as composioSignedIn, executeTool, getAppUrl } from "./composio";
+import { createFileToken } from "./links";
 import type { Attachment } from "@/lib/types";
 
 // Files that move between the user and a dot. The canonical copy lives in .data/files/<id>
@@ -57,15 +58,15 @@ function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> 
   });
 }
 
-/** Fetch file content from Google Drive via Composio. Returns raw bytes as Buffer. */
+/** Fetch a file's content from Google Drive via Composio. Returns the raw bytes. */
 export async function fetchFromDrive(driveFileId: string): Promise<Buffer> {
-  const result = await callTool("GOOGLEDRIVE_GET_FILE_CONTENT", { file_id: driveFileId });
-  // Try base64 decode first, fall back to treating as plain text
-  const b64Match = result.match(/"content"\s*:\s*"([^"]+)"/);
-  if (b64Match?.[1]) {
-    try { return Buffer.from(b64Match[1], "base64"); } catch { /* fall through */ }
-  }
-  return Buffer.from(result, "utf8");
+  const out = await executeTool("GOOGLEDRIVE_DOWNLOAD_FILE", { fileId: driveFileId });
+  const raw = out.match(/"s3url"\s*:\s*"([^"]+)"/)?.[1];
+  if (!raw) throw new Error(`Google Drive did not return a download link: ${out.slice(0, 200)}`);
+  const url = JSON.parse(`"${raw}"`) as string;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Couldn't download the file from Google Drive (${res.status}).`);
+  return Buffer.from(await res.arrayBuffer());
 }
 
 function save(dotId: string, name: string, mime: string, data: Buffer, source: "user" | "dot", boxPath: string | null): Attachment {
@@ -77,12 +78,19 @@ function save(dotId: string, name: string, mime: string, data: Buffer, source: "
 
 /** The user attached a file. It is kept on the server (and in the dot's workspace). Saving to Google Drive is not switched on yet. */
 export async function upload(dotId: string, name: string, mime: string, data: Buffer): Promise<Attachment & { boxPath: string }> {
+  const disk = diskUsage();
+  if (disk && disk.used / disk.total >= 0.9) {
+    throw new Error(`The server disk is almost full (${Math.round((disk.used / disk.total) * 100)}%). Attachments are paused. Free some space in Settings → Storage.`);
+  }
+
   const clean = safeName(name);
   const mimeType = mime || guessMime(clean);
 
   // Working copy on the dot's computer, so the dot can read it
   const boxPath = await computer.writeFile(dotId, `uploads/${clean}`, data);
-  return { ...save(dotId, clean, mimeType, data, "user", boxPath), boxPath };
+  const saved = save(dotId, clean, mimeType, data, "user", boxPath);
+  void backupToDrive(saved.id);
+  return { ...saved, boxPath };
 }
 
 /** The dot shares a file from its computer with the user. */
@@ -119,6 +127,8 @@ export type StoredFile = {
   source: string;
   boxPath: string | null;
   createdAt: number;
+  driveFileId: string | null;
+  localCopy: boolean;
 };
 
 /** List all files stored in the system, with associated dot name. */
@@ -142,6 +152,8 @@ export function listFiles(): StoredFile[] {
       source: r.source,
       boxPath: r.box_path,
       createdAt: r.created_at,
+      driveFileId: r.drive_file_id ?? null,
+      localCopy: fs.existsSync(path.join(DIR, r.id)),
     }));
   } catch (err) {
     console.warn("[files] Failed to list files:", err);
@@ -194,28 +206,136 @@ export async function deleteAllFiles(): Promise<{ count: number; freedBytes: num
   return { count: all.length, freedBytes: totalBytes };
 }
 
-/** Get disk usage summary vs Railway 500 MB limit. */
+export function diskUsage(): { total: number; used: number } | null {
+  try {
+    const s = fs.statfsSync(DATA_DIR);
+    const total = Number(s.bsize) * Number(s.blocks);
+    const free = Number(s.bsize) * Number(s.bavail);
+    return total > 0 ? { total, used: Math.max(0, total - free) } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Attachments still on the server, plus the real disk usage. */
 export function getStorageStats(): {
   totalFiles: number;
   totalBytes: number;
   railwayLimitBytes: number;
   percentUsed: number;
+  diskUsedBytes: number | null;
+  diskTotalBytes: number | null;
 } {
   try {
-    const r = db()
-      .prepare("SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM files")
-      .get() as { count: number; total_size: number } | undefined;
-    const totalFiles = r?.count ?? 0;
-    const totalBytes = Number(r?.total_size ?? 0);
-    const railwayLimitBytes = 500 * 1024 * 1024; // 500 MB container disk limit
-    const percentUsed = Math.min(100, Math.round((totalBytes / railwayLimitBytes) * 100));
-    return { totalFiles, totalBytes, railwayLimitBytes, percentUsed };
-  } catch {
-    return { totalFiles: 0, totalBytes: 0, railwayLimitBytes: 500 * 1024 * 1024, percentUsed: 0 };
+    const rows = db().prepare("SELECT id, size FROM files").all() as { id: string; size: number }[];
+    const local = rows.filter((r) => fs.existsSync(path.join(DIR, r.id)));
+    const totalFiles = local.length;
+    const totalBytes = local.reduce((n, r) => n + Number(r.size), 0);
+    const disk = diskUsage();
+    const railwayLimitBytes = disk?.total ?? 500 * 1024 * 1024;
+    const used = disk?.used ?? totalBytes;
+    const percentUsed = Math.min(100, Math.round((used / railwayLimitBytes) * 100));
+    return { totalFiles, totalBytes, railwayLimitBytes, percentUsed, diskUsedBytes: disk?.used ?? null, diskTotalBytes: disk?.total ?? null };
+  } catch (err) {
+    console.warn("[files] Failed to read storage stats:", err);
+    return { totalFiles: 0, totalBytes: 0, railwayLimitBytes: 500 * 1024 * 1024, percentUsed: 0, diskUsedBytes: null, diskTotalBytes: null };
   }
 }
 
-/** Check if user has connected Google Drive via Composio. */
+// ---------------- backup to Google Drive, and cleanup of backed-up copies ----------------
+
+const BACKUP_FOLDER_NAME = "QDot Uploads";
+const BACKUP_FOLDER_KEY = "drive_backup_folder_id";
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const backingUp = new Set<string>();
+
+const driveIdOf = (out: string) => out.match(/"id"\s*:\s*"([A-Za-z0-9_-]{15,})"/)?.[1] ?? null;
+
+async function ensureBackupFolder(): Promise<string> {
+  const saved = getSetting(BACKUP_FOLDER_KEY);
+  if (saved) return saved;
+  let folderId: string | null = null;
+  try {
+    const found = await executeTool("GOOGLEDRIVE_FIND_FOLDER", { name: BACKUP_FOLDER_NAME });
+    if (found.includes(BACKUP_FOLDER_NAME)) folderId = driveIdOf(found);
+  } catch {
+    // not found: create it below
+  }
+  if (!folderId) {
+    const created = await executeTool("GOOGLEDRIVE_CREATE_FOLDER", { name: BACKUP_FOLDER_NAME });
+    folderId = driveIdOf(created);
+    if (!folderId) throw new Error(`Couldn't create the Drive folder: ${created.slice(0, 200)}`);
+  }
+  setSetting(BACKUP_FOLDER_KEY, folderId);
+  return folderId;
+}
+
+/** Copy an attachment into the "QDot Uploads" folder in Google Drive, using a temporary link Drive can fetch. */
+export async function backupToDrive(fileId: string): Promise<boolean> {
+  if (backingUp.has(fileId)) return false;
+  const f = get(fileId);
+  if (!f || f.driveFileId || !composioSignedIn() || !isGoogleDriveConnected()) return false;
+  backingUp.add(fileId);
+  try {
+    const folder = await ensureBackupFolder();
+    const { token } = createFileToken(f.dotId, `uploads/${f.name}`, 15 * 60_000);
+    const url = `${getAppUrl()}/api/public-files/${token}`;
+    const out = await withTimeout(
+      executeTool("GOOGLEDRIVE_UPLOAD_FROM_URL", { source_url: url, name: f.name, mime_type: f.mime, parent_folder_id: folder }),
+      120_000,
+      "Google Drive took too long to fetch the file.",
+    );
+    const newId = driveIdOf(out);
+    if (!newId || /"successful"\s*:\s*false/i.test(out)) throw new Error(`Drive did not confirm the upload: ${out.slice(0, 200)}`);
+    db().prepare("UPDATE files SET drive_file_id = ? WHERE id = ?").run(newId, fileId);
+    return true;
+  } catch (err) {
+    console.warn(`[files] Drive backup of ${f.name} failed:`, err instanceof Error ? err.message : err);
+    return false;
+  } finally {
+    backingUp.delete(fileId);
+  }
+}
+
+/** Delete the server copy of files that are safely in Drive and older than a week. Never touches files without a Drive copy. */
+export async function reclaimBackedUp(): Promise<number> {
+  const rows = db().prepare("SELECT id FROM files WHERE drive_file_id IS NOT NULL AND created_at < ?").all(Date.now() - RETENTION_MS) as { id: string }[];
+  let removed = 0;
+  for (const { id: fid } of rows) {
+    const f = get(fid);
+    const p = path.join(DIR, fid);
+    if (!f || !fs.existsSync(p)) continue;
+    try {
+      fs.unlinkSync(p);
+      removed++;
+    } catch {
+      continue;
+    }
+    if (f.dotId && f.name) await computer.runCommand(f.dotId, `rm -f "uploads/${f.name}"`).catch(() => null);
+  }
+  return removed;
+}
+
+/** Every 15 minutes: retry backups that failed, then clear out server copies that are old and backed up. */
+export function startFileMaintenance() {
+  const tick = async () => {
+    try {
+      if (composioSignedIn() && isGoogleDriveConnected()) {
+        const pending = db()
+          .prepare("SELECT id FROM files WHERE drive_file_id IS NULL AND source = 'user' AND created_at > ? ORDER BY created_at LIMIT 3")
+          .all(Date.now() - RETENTION_MS) as { id: string }[];
+        for (const r of pending) await backupToDrive(r.id);
+      }
+      const removed = await reclaimBackedUp();
+      if (removed) console.log(`[files] Removed ${removed} server copies that were already backed up to Drive`);
+    } catch (err) {
+      console.warn("[files] maintenance failed:", err);
+    }
+  };
+  setTimeout(() => void tick(), 30_000);
+  setInterval(() => void tick(), 15 * 60_000);
+}
+
 export type DriveQuota = { limit: number | null; usage: number; usageInDrive: number; usageInTrash: number };
 let quotaCache: { at: number; value: DriveQuota } | null = null;
 

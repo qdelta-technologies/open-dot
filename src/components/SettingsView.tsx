@@ -129,7 +129,7 @@ export default function SettingsView() {
           id="storage"
           eyebrow="Storage & Files"
           title="Cloud & Local Storage"
-          description="Files you attach are kept on the server so your dots can read them. Your real Google Drive storage is shown for reference."
+          description="Files you attach are kept on the server so your dots can read them, and are backed up to your Google Drive. Server copies are cleaned up after 7 days once backed up."
         >
           <StorageManager />
         </Section>

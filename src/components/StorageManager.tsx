@@ -62,7 +62,7 @@ function fileIcon(mime: string) {
 
 export default function StorageManager() {
   const [data, setData] = useState<{
-    stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number };
+    stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number; diskUsedBytes: number | null; diskTotalBytes: number | null };
     googleDriveConnected: boolean;
     drive: { limit: number | null; usage: number; usageInDrive: number; usageInTrash: number } | null;
     driveError: string | null;
@@ -156,7 +156,7 @@ export default function StorageManager() {
     });
   };
 
-  const stats = data?.stats ?? { totalFiles: 0, totalBytes: 0, railwayLimitBytes: 500 * 1024 * 1024, percentUsed: 0 };
+  const stats = data?.stats ?? { totalFiles: 0, totalBytes: 0, railwayLimitBytes: 500 * 1024 * 1024, percentUsed: 0, diskUsedBytes: null, diskTotalBytes: null };
   const googleDriveConnected = data?.googleDriveConnected ?? false;
   const files = data?.files ?? [];
 
@@ -172,7 +172,7 @@ export default function StorageManager() {
               <span className="text-[13px] font-semibold text-foreground">Railway Disk</span>
             </div>
             <span className="font-mono text-[12px] font-medium text-foreground/60">
-              {formatBytes(stats.totalBytes)} / 500 MB ({stats.percentUsed}%)
+              {formatBytes(stats.diskUsedBytes ?? stats.totalBytes)} / {formatBytes(stats.railwayLimitBytes)} ({stats.percentUsed}%)
             </span>
           </div>
 
@@ -187,14 +187,14 @@ export default function StorageManager() {
           </div>
 
           <div className="flex items-center justify-between text-[12px] text-foreground/50">
-            <span>{stats.totalFiles} uploaded file{stats.totalFiles === 1 ? "" : "s"}</span>
+            <span>{stats.totalFiles} attachment{stats.totalFiles === 1 ? "" : "s"} on the server · {formatBytes(stats.totalBytes)}</span>
             <span>
               {stats.percentUsed > 85 ? (
                 <span className="text-rose-500 font-medium flex items-center gap-1">
                   <AlertTriangle className="size-3" /> Storage almost full
                 </span>
               ) : (
-                "500 MB Railway container limit"
+                "Server disk (real usage)"
               )}
             </span>
           </div>
@@ -220,7 +220,7 @@ export default function StorageManager() {
 
           <p className="text-[12px] text-foreground/60 leading-relaxed mb-3">
             {googleDriveConnected
-              ? "Google Drive is connected. Files you attach are currently kept on the server (Railway disk); saving them to Drive is not switched on yet."
+              ? "Google Drive is connected. Each attachment is copied to the “QDot Uploads” folder in your Drive. Server copies are removed after 7 days once they are safely backed up."
               : "Connect Google Drive to see your Drive storage here."}
           </p>
 
@@ -379,6 +379,12 @@ export default function StorageManager() {
                       <span className="truncate max-w-32">{f.dotName}</span>
                     </>
                   )}
+                  {f.driveFileId ? (
+                    <>
+                      <span>•</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">{f.localCopy ? "Backed up to Drive" : "In Drive only"}</span>
+                    </>
+                  ) : null}
                 </div>
               </div>
 

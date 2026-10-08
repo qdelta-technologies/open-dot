@@ -6,6 +6,7 @@ import { computerInfo } from "./snapshot";
 import { startScheduler } from "./scheduler";
 import { startEvents as startTriggerEvents } from "./triggers";
 import { refresh as refreshComposio, signedIn } from "./composio";
+import { startFileMaintenance } from "./files";
 
 export function boot() {
   // Nothing is running after a restart; don't leave dots stuck in "working".
@@ -13,6 +14,7 @@ export function boot() {
     if (dot.status === "working") repo.updateDot(dot.id, { status: repo.pendingCards(dot.id).length ? "waiting" : "idle" });
   }
   startScheduler();
+  startFileMaintenance();
   // Listen for Composio trigger events (only if the user added a Composio API key).
   void startTriggerEvents();
   // Learn which models the key can use, then tell any open windows (fills the model pickers).

@@ -585,7 +585,7 @@ export async function lockApp(): Promise<void> {
 // ---------------------------------------------------------------- Files & Storage
 
 export async function getStorageInfo(): Promise<{
-  stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number };
+  stats: { totalFiles: number; totalBytes: number; railwayLimitBytes: number; percentUsed: number; diskUsedBytes: number | null; diskTotalBytes: number | null };
   googleDriveConnected: boolean;
   drive: files.DriveQuota | null;
   driveError: string | null;
