@@ -110,7 +110,7 @@ function LoginForm() {
       <form
         key={shakeKey}
         onSubmit={handleSubmit}
-        className={`rounded-3xl border border-black/[0.08] bg-card/95 p-5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.18)] backdrop-blur-sm transition-colors focus-within:border-brand/40 sm:p-6 dark:border-white/[0.08] ${shakeKey > 0 && error ? "login-shake" : ""}`}
+        className={`rounded-3xl border border-black/[0.08] bg-card p-5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.18)] transition-colors focus-within:border-brand/40 sm:p-6 dark:border-white/[0.08] ${shakeKey > 0 && error ? "login-shake" : ""}`}
       >
         <label htmlFor="team-password" className="mb-2 block text-[13px] font-medium text-foreground/70">
           Team password
