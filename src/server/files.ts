@@ -41,6 +41,22 @@ function saveRecord(dotId: string, fileId: string, name: string, mime: string, s
   return { id: fileId, name, mime, size };
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 /** Upload to Google Drive via Composio. Returns the Drive file id. */
 async function uploadToDrive(name: string, mime: string, data: Buffer): Promise<string> {
   const b64 = data.toString("base64");
@@ -80,11 +96,11 @@ export async function upload(dotId: string, name: string, mime: string, data: Bu
   const clean = safeName(name);
   const mimeType = mime || guessMime(clean);
 
-  // Upload to Google Drive
-  const driveFileId = await uploadToDrive(clean, mimeType, data);
-
-  // Also write a copy to the dot's computer workspace for agent use
-  const boxPath = await computer.writeFile(dotId, `uploads/${clean}`, data);
+  // Upload to Google Drive and, at the same time, write a working copy to the dot's computer
+  const [driveFileId, boxPath] = await Promise.all([
+    withTimeout(uploadToDrive(clean, mimeType, data), 60_000, "Google Drive took too long to respond. Please try again."),
+    computer.writeFile(dotId, `uploads/${clean}`, data),
+  ]);
 
   const fileId = id("file");
   return { ...saveRecord(dotId, fileId, clean, mimeType, data.length, "user", boxPath, driveFileId), boxPath };

@@ -15,7 +15,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/dots/[id]/files
       if (err instanceof DriveNotConnectedError) {
         return Response.json({ error: "DRIVE_NOT_CONNECTED" }, { status: 402 });
       }
-      throw err;
+      console.error("[files] upload failed:", err);
+      return Response.json({ error: err instanceof Error ? err.message : "Upload failed." }, { status: 500 });
     }
   }
   return Response.json({ files: out });

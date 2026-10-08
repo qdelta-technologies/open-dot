@@ -388,13 +388,29 @@ function AttachItem({ icon, label, hint, onClick }: { icon: React.ReactNode; lab
 }
 
 async function uploadFiles(dotId: string, list: File[]): Promise<{ files?: Attachment[]; error?: string }> {
-  const form = new FormData();
-  for (const rawFile of list) {
-    const optimized = await compressImageIfLarge(rawFile).catch(() => rawFile);
-    form.append("file", optimized);
+  try {
+    const form = new FormData();
+    for (const rawFile of list) {
+      const optimized = await compressImageIfLarge(rawFile).catch(() => rawFile);
+      form.append("file", optimized);
+    }
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 120_000);
+    try {
+      const r = await fetch(`/api/dots/${dotId}/files`, { method: "POST", body: form, signal: ctl.signal });
+      const data = await r.json().catch(() => null);
+      return data ?? { error: `Upload failed (${r.status}).` };
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof DOMException && err.name === "AbortError"
+          ? "The upload took too long. Please try again."
+          : "Couldn't reach the server. Check your connection and try again.",
+    };
   }
-  const r = await fetch(`/api/dots/${dotId}/files`, { method: "POST", body: form });
-  return r.json();
 }
 
 function Composer({
@@ -415,6 +431,7 @@ function Composer({
   const [drivePrompt, setDrivePrompt] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [queued, setQueued] = useState(false);
   const attachRef = useRef<HTMLDivElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -608,12 +625,25 @@ function Composer({
       setIsListening(false);
     }
     const value = text.trim();
-    if ((!value && !ready.length) || busy) return;
+    if (!value && !ready.length && !busy) return;
+    if (busy) {
+      // a file is still uploading: send as soon as it finishes
+      setQueued(true);
+      return;
+    }
     setText("");
     uploads.forEach((u) => u.preview && URL.revokeObjectURL(u.preview));
     setUploads([]);
     onSend(value, ready);
   };
+
+  // Send automatically once the uploads finish (unless one failed or all were removed).
+  useEffect(() => {
+    if (!queued || busy) return;
+    setQueued(false);
+    if (uploads.length && !uploads.some((u) => u.state === "error")) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queued, busy]);
 
   if (dot.status === "paused") {
     return (
@@ -716,6 +746,7 @@ function Composer({
               </button>
             </div>
           ))}
+          {queued && <p className="basis-full pl-0.5 text-[12px] text-foreground/60">Will send as soon as the upload finishes…</p>}
         </div>
       )}
 
@@ -881,11 +912,11 @@ function Composer({
                 </button>
                 <button
                   className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-foreground text-background shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-                  disabled={pending || busy}
+                  disabled={pending || queued}
                   onClick={submit}
-                  aria-label="Send message"
+                  aria-label={queued ? "Sending when the upload finishes" : "Send message"}
                 >
-                  <ArrowUp className="size-4" strokeWidth={2.5} />
+                  {queued ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" strokeWidth={2.5} />}
                 </button>
               </div>
             ) : (
