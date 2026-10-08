@@ -17,7 +17,7 @@ export type Tab = "chat" | "computer" | "setup";
 
 function IconLink({ href, active, label, children, className = "" }: { href: string; active?: boolean; label: string; children: React.ReactNode; className?: string }) {
   return (
-    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-9 p-0 sm:size-8 ${active ? "bg-black/[0.06] text-foreground" : ""} ${className}`}>
+    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-8 p-0 min-[400px]:size-9 sm:size-8 ${active ? "bg-black/[0.06] text-foreground" : ""} ${className}`}>
       {children}
     </Link>
   );
@@ -71,7 +71,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
           </IconLink>
           {dot.status === "working" && (
             <button
-              className="flex size-9 items-center justify-center rounded-lg text-rose-500 sm:size-8 hover:bg-rose-500/10 transition-colors"
+              className="flex size-8 items-center justify-center rounded-lg text-rose-500 min-[400px]:size-9 sm:size-8 hover:bg-rose-500/10 transition-colors"
               disabled={pending}
               onClick={() => start(() => stopDot(dot.id))}
               title="Stop task"
@@ -86,7 +86,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             </button>
           ) : (
             <button
-              className="btn-quiet size-9 p-0 sm:size-8"
+              className="btn-quiet size-8 p-0 min-[400px]:size-9 sm:size-8"
               disabled={pending}
               title="Pause: any ongoing work will be stopped, and your dot will not message you until you resume it."
               aria-label="Pause"
