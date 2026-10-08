@@ -326,6 +326,64 @@ export function mcpTools(): McpTool[] {
   return st.tools;
 }
 
+// ---------- accounts of one app ----------
+
+export type AppAccount = { id: string; alias: string | null; status: string; label: string | null };
+
+const NAME_KEYS = ["user_name", "display_name", "account_name", "full_name", "name", "label", "username"];
+
+/** The connected accounts of one app. Parsed leniently; `raw` is returned only when nothing could be read. */
+export async function listAppAccounts(toolkit: string): Promise<{ accounts: AppAccount[]; raw: string }> {
+  const raw = await listAccounts(toolkit);
+  let data: unknown = null;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    const m = raw.match(/[\[{][\s\S]*[\]}]/);
+    if (m) {
+      try {
+        data = JSON.parse(m[0]);
+      } catch {
+        // not JSON
+      }
+    }
+  }
+  const accounts: AppAccount[] = [];
+  const seen = new Set<string>();
+  const walk = (v: unknown) => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : typeof o.account_id === "string" ? o.account_id : null;
+    if (id && typeof o.status === "string") {
+      if (seen.has(id)) return;
+      seen.add(id);
+      const email = JSON.stringify(o).match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0] ?? null;
+      const name = NAME_KEYS.map((k) => o[k]).find((x): x is string => typeof x === "string" && x.toLowerCase() !== toolkit.toLowerCase());
+      accounts.push({
+        id,
+        alias: typeof o.alias === "string" && o.alias.trim() ? o.alias : null,
+        status: o.status,
+        label: [name, email].filter(Boolean).join(" · ") || null,
+      });
+      return;
+    }
+    Object.values(o).forEach(walk);
+  };
+  walk(data);
+  return { accounts, raw: accounts.length ? "" : raw.slice(0, 800) };
+}
+
+/** Rename or remove one account. Returns an error message, or null on success. */
+export async function changeAppAccount(toolkit: string, action: "rename" | "remove", accountId: string, alias?: string): Promise<string | null> {
+  const out = await callTool("COMPOSIO_MANAGE_CONNECTIONS", {
+    toolkits: [{ name: toolkit, action, account_id: accountId, ...(action === "rename" ? { alias } : {}) }],
+  });
+  const failed = /"successful"\s*:\s*false/i.test(out) || /"error"\s*:\s*"[^"]+"/i.test(out);
+  await refresh().catch(() => {});
+  return failed ? out.slice(0, 300) : null;
+}
+
 // ---------- connecting an app ----------
 
 export async function isConnected(toolkit: string): Promise<boolean> {

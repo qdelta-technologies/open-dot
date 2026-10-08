@@ -417,6 +417,47 @@ export async function connectApp(toolkit: string): Promise<{ url?: string; error
   }
 }
 
+export async function getAppAccounts(toolkit: string): Promise<{ accounts: composio.AppAccount[]; raw: string; error?: string }> {
+  try {
+    return await composio.listAppAccounts(toolkit);
+  } catch (err) {
+    return { accounts: [], raw: "", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function renameAppAccount(toolkit: string, accountId: string, alias: string): Promise<string | null> {
+  if (!alias.trim()) return "Give the account a name.";
+  try {
+    return await composio.changeAppAccount(toolkit, "rename", accountId, alias.trim().slice(0, 60));
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+export async function removeAppAccount(toolkit: string, accountId: string): Promise<string | null> {
+  try {
+    const err = await composio.changeAppAccount(toolkit, "remove", accountId);
+    emit({ type: "composio", data: composio.apps() });
+    return err;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+/** Add another account of an app that may already be connected. Returns the sign-in URL to open. */
+export async function addAppAccount(toolkit: string, alias: string): Promise<{ url?: string; error?: string }> {
+  if (!alias.trim()) return { error: "Give the new account a name first." };
+  try {
+    const origin = await getRequestOrigin();
+    const r = await composio.startConnect(toolkit, origin ?? undefined, alias.trim().slice(0, 60));
+    if (r.already) return {};
+    void r.wait().catch(() => {});
+    return { url: r.url };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function refreshApps() {
   await composio.refresh();
 }

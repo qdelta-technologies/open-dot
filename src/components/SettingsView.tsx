@@ -31,7 +31,11 @@ import {
   getGroqKey,
   getOpenAIKey,
   getOpenRouterKey,
+  addAppAccount,
+  getAppAccounts,
   getProfile,
+  removeAppAccount,
+  renameAppAccount,
   saveProfile,
   lockApp,
   refreshApps,
@@ -47,6 +51,7 @@ import {
   signInComposio,
   signOutComposio,
 } from "@/app/actions";
+import type { AppAccount } from "@/server/composio";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { openAfter } from "@/lib/popup";
@@ -274,6 +279,127 @@ function ProfileSection() {
   );
 }
 
+/** One connected app. Expands to list its accounts, with rename, remove and add another. */
+function ConnectedApp({ app }: { app: { slug: string; name: string; logo?: string } }) {
+  const [open, setOpen] = useState(false);
+  const [accounts, setAccounts] = useState<AppAccount[] | null>(null);
+  const [raw, setRaw] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newAlias, setNewAlias] = useState("");
+  const [pending, start] = useTransition();
+
+  const load = () =>
+    getAppAccounts(app.slug).then((r) => {
+      setAccounts(r.accounts);
+      setRaw(r.raw);
+      if (r.error) setError(r.error);
+    });
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && accounts === null) start(() => load());
+  };
+
+  const run = (job: () => Promise<string | null>) =>
+    start(async () => {
+      setError(null);
+      const err = await job();
+      if (err) setError(err);
+      setEditing(null);
+      setConfirming(null);
+      await load();
+    });
+
+  return (
+    <div className={`bg-card ${open ? "sm:col-span-2" : ""}`}>
+      <button type="button" onClick={toggle} className="flex w-full items-center gap-3 px-4 py-2.5 text-left" aria-expanded={open}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={app.logo} alt="" className="size-5 rounded-xs object-contain" />
+        <span className="flex-1 truncate text-[14px]">{app.name}</span>
+        <span className="size-1.5 rounded-full bg-success" title="Connected" />
+        <span className="text-caption text-foreground/40">{open ? "Hide" : "Accounts"}</span>
+      </button>
+
+      {open && (
+        <div className="space-y-2 border-t border-black/[0.06] px-4 py-3">
+          {accounts === null && <div className="text-caption text-foreground/50">Loading accounts…</div>}
+          {accounts?.length === 0 && (
+            <div className="text-caption text-foreground/50">
+              Couldn&apos;t read the accounts list.
+              {raw && <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px]">{raw}</pre>}
+            </div>
+          )}
+          {accounts?.map((acc) => (
+            <div key={acc.id} className="rounded-lg border border-black/[0.08] p-3 dark:border-white/[0.1]">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-[13px] font-medium">{acc.alias ?? "Default (no name)"}</span>
+                <span className="rounded-xs bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-foreground/50 uppercase">{acc.status}</span>
+              </div>
+              {acc.label && <div className="mt-0.5 text-caption break-all text-foreground/60">{acc.label}</div>}
+              <div className="mt-0.5 font-mono text-[10px] break-all text-foreground/35">{acc.id}</div>
+
+              {editing === acc.id ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input className="field h-9 min-w-0 flex-1 basis-40 text-[13px]" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="New name, e.g. qdelta-page" autoFocus />
+                  <button className="btn-primary h-9 px-3 text-[13px]" disabled={pending} onClick={() => run(() => renameAppAccount(app.slug, acc.id, draft))}>Save</button>
+                  <button className="btn-quiet h-9 px-3 text-[13px]" onClick={() => setEditing(null)}>Cancel</button>
+                </div>
+              ) : confirming === acc.id ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] text-destructive">Remove this account for every dot?</span>
+                  <button className="btn-quiet h-9 px-3 text-[13px] text-destructive" disabled={pending} onClick={() => run(() => removeAppAccount(app.slug, acc.id))}>Remove</button>
+                  <button className="btn-quiet h-9 px-3 text-[13px]" onClick={() => setConfirming(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div className="mt-2 flex gap-2">
+                  <button className="btn-secondary h-9 px-3 text-[13px]" onClick={() => { setEditing(acc.id); setDraft(acc.alias ?? ""); }}>Rename</button>
+                  <button className="btn-quiet h-9 px-3 text-[13px] text-destructive" onClick={() => setConfirming(acc.id)}>Remove</button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {adding ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <input className="field h-9 min-w-0 flex-1 basis-40 text-[13px]" value={newAlias} onChange={(e) => setNewAlias(e.target.value)} placeholder={`Name for the new ${app.name} account`} autoFocus />
+              <button
+                className="btn-primary h-9 px-3 text-[13px]"
+                disabled={pending || !newAlias.trim()}
+                onClick={() =>
+                  start(() =>
+                    openAfter(() => addAppAccount(app.slug, newAlias), setError).then(() => {
+                      setAdding(false);
+                      setNewAlias("");
+                    })
+                  )
+                }
+              >
+                Sign in
+              </button>
+              <button className="btn-quiet h-9 px-3 text-[13px]" onClick={() => setAdding(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <button className="btn-secondary h-9 px-3 text-[13px]" onClick={() => setAdding(true)}>
+                <Plus className="size-3.5" strokeWidth={2} /> Add another {app.name} account
+              </button>
+              <button className="btn-quiet h-9 px-3 text-[13px]" disabled={pending} onClick={() => start(() => load())}>
+                <RefreshCw className="size-3.5" strokeWidth={1.75} /> Refresh
+              </button>
+            </div>
+          )}
+          {error && <div className="text-caption break-words text-destructive">{error}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AppsList() {
   const apps = useStore((s) => s.apps);
   const signedIn = useStore((s) => s.computer.composio);
@@ -337,12 +463,7 @@ function AppsList() {
       {connected.length > 0 && (
         <div className="surface grid gap-px overflow-hidden bg-black/[0.06] sm:grid-cols-2">
           {connected.map((a) => (
-            <div key={a.slug} className="flex items-center gap-3 bg-card px-4 py-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={a.logo} alt="" className="size-5 rounded-xs object-contain" />
-              <span className="flex-1 truncate text-[14px]">{a.name}</span>
-              <span className="size-1.5 rounded-full bg-success" title="Connected" />
-            </div>
+            <ConnectedApp key={a.slug} app={a} />
           ))}
         </div>
       )}
