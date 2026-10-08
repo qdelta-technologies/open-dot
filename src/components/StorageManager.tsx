@@ -187,16 +187,12 @@ export default function StorageManager() {
           </div>
 
           <div className="flex items-center justify-between text-[12px] text-foreground/50">
-            <span>{stats.totalFiles} attachment{stats.totalFiles === 1 ? "" : "s"} on the server · {formatBytes(stats.totalBytes)}</span>
-            <span>
-              {stats.percentUsed > 85 ? (
-                <span className="text-rose-500 font-medium flex items-center gap-1">
-                  <AlertTriangle className="size-3" /> Storage almost full
-                </span>
-              ) : (
-                "Server disk (real usage)"
-              )}
-            </span>
+            <span>{stats.totalFiles} attachment{stats.totalFiles === 1 ? "" : "s"} on the server</span>
+            {stats.percentUsed > 85 && (
+              <span className="text-rose-500 font-medium flex items-center gap-1">
+                <AlertTriangle className="size-3" /> Storage almost full
+              </span>
+            )}
           </div>
         </div>
 
@@ -220,12 +216,12 @@ export default function StorageManager() {
 
           <p className="text-[12px] text-foreground/60 leading-relaxed mb-3">
             {googleDriveConnected
-              ? "Google Drive is connected. Each attachment is copied to the “QDot Uploads” folder in your Drive. Server copies are removed after 7 days once they are safely backed up."
-              : "Connect Google Drive to see your Drive storage here."}
+              ? "Attachments are backed up to “QDot Uploads” in your Drive."
+              : "Connect Google Drive to back up attachments and see your storage."}
           </p>
 
           {googleDriveConnected && data?.drive && (
-            <div className="mb-3">
+            <div className="mb-2" title={`${formatBytes(data.drive.usageInDrive)} in Drive files · ${formatBytes(data.drive.usageInTrash)} in trash · the rest is Gmail and Photos`}>
               <div className="mb-1 flex items-baseline justify-between gap-2 text-[12px]">
                 <span className="font-mono font-medium text-foreground/75">
                   {formatBytes(data.drive.usage)} {data.drive.limit ? `of ${formatBytes(data.drive.limit)} used` : "used · unlimited"}
@@ -237,19 +233,16 @@ export default function StorageManager() {
                   <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(1.5, Math.min(100, (data.drive.usage / data.drive.limit) * 100))}%` }} />
                 </div>
               ) : null}
-              <p className="mt-1.5 text-[12px] text-foreground/55">
-                {formatBytes(data.drive.usageInDrive)} in Drive files · {formatBytes(data.drive.usageInTrash)} in trash · the rest is Gmail and Photos
-              </p>
             </div>
           )}
           {googleDriveConnected && !data?.drive && data && (
             <p className="mb-3 text-[12px] text-foreground/55" title={data.driveError ?? undefined}>
-              {data.driveError ? "Couldn't read your Drive storage right now. Press Verify to try again." : "Reading your Drive storage…"}
+              {data.driveError ? "Couldn't read your Drive storage right now. Press Refresh to try again." : "Reading your Drive storage…"}
             </p>
           )}
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <span className="text-[12px] text-foreground/50">Provider: Composio MCP</span>
+            <span />
             {!googleDriveConnected ? (
               <button
                 type="button"
@@ -271,18 +264,15 @@ export default function StorageManager() {
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400">
-                  Sync Enabled
-                </span>
                 <button
                   type="button"
                   onClick={() => {
                     void refreshApps().then(() => loadData());
                   }}
                   className="text-[12px] text-foreground/45 hover:text-foreground underline decoration-dotted transition-colors"
-                  title="Check connection status"
+                  title="Check the connection and refresh these numbers"
                 >
-                  Verify
+                  Refresh
                 </button>
               </div>
             )}
@@ -301,7 +291,7 @@ export default function StorageManager() {
         <div className="flex items-center gap-2 text-foreground/80">
           <Sparkles className="size-3.5 text-brand shrink-0" strokeWidth={2} />
           <span>
-            <strong>Smart Image Compression Active:</strong> Large images (e.g. 20 MB photos) are automatically resized and compressed to &lt;1.5 MB before upload.
+            Large photos are shrunk automatically before upload.
           </span>
         </div>
         <button
