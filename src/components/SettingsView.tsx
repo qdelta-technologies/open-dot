@@ -221,14 +221,14 @@ export default function SettingsView() {
 }
 
 function ProfileSection() {
-  const [form, setForm] = useState({ name: "", role: "", company: "", accounts: "" });
+  const [form, setForm] = useState({ name: "", role: "", company: "" });
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
 
   useEffect(() => {
     getProfile()
-      .then((p) => setForm({ name: p.name, role: p.role, company: p.company || p.defaultCompany, accounts: p.accounts }))
+      .then((p) => setForm({ name: p.name, role: p.role, company: p.company || p.defaultCompany }))
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
@@ -256,13 +256,6 @@ function ProfileSection() {
           value={form.company}
           disabled={!loaded}
           onChange={(e) => set({ company: e.target.value })}
-        />
-        <textarea
-          className="field min-h-24 resize-y"
-          placeholder={"Social accounts and pages your dots can use, one per line, e.g.\nLinkedIn personal: Sai Prabath\nLinkedIn page: QDelta Technologies\nLinkedIn page: QDelta Studio"}
-          value={form.accounts}
-          disabled={!loaded}
-          onChange={(e) => set({ accounts: e.target.value })}
         />
         <div className="flex items-center gap-3">
           {saved && <span className="text-caption text-foreground/45">Saved</span>}

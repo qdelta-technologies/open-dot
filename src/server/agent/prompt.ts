@@ -13,7 +13,7 @@ export type Trigger =
   | { kind: "dot"; from: string }
   | { kind: "channel"; channelId: string; name: string };
 
-export const PROFILE_KEYS = { name: "profile_name", role: "profile_role", company: "profile_company", accounts: "profile_accounts" } as const;
+export const PROFILE_KEYS = { name: "profile_name", role: "profile_role", company: "profile_company" } as const;
 
 export const DEFAULT_COMPANY = `- **About QDelta**: QDelta is a premium digital agency and studio specializing in high-converting landing pages, digital sales experiences, flagship brand websites, motion/3D experiences, and e-commerce stores.
 - **Promise & Tagline**: "A website that actually grows your business. Designed to be remembered. Built to perform."
@@ -37,10 +37,6 @@ export function systemPrompt(dot: Dot, trigger: Trigger): string {
   const ownerName = getSetting(PROFILE_KEYS.name)?.trim() || "";
   const ownerRole = getSetting(PROFILE_KEYS.role)?.trim() || "";
   const company = getSetting(PROFILE_KEYS.company)?.trim() || DEFAULT_COMPANY;
-  const accounts = getSetting(PROFILE_KEYS.accounts)?.trim() || "";
-  const accountsBlock = accounts
-    ? `\n\n# Social accounts and pages\nThe user manages these accounts and pages. Before posting or sending from any of them, name the exact account or page you will use and make sure it is the one the user meant. If the request does not say which one, ask first; never guess.\n${accounts}`
-    : "";
   const who = ownerName ? `**${ownerName}**${ownerRole ? ` (${ownerRole})` : ""}` : "the user";
   const ownerLine = ownerName ? `You work for ${who}. Address them by name only when natural.` : "You work for the user. You do not know their name, so do not guess one. The company notes below may name several team members; that does not tell you which of them you are talking to, so never greet anyone by name unless the user tells you their name in chat.";
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -137,7 +133,7 @@ ${sites.length ? `Saved logins exist for: ${sites.join(", ")}. On the site's sig
 
 # About the user and their company
 ${ownerLine}
-${company}${accountsBlock}
+${company}
 
 # Memory
 ${memories.length ? memories.map((m) => `- [${m.id}] ${m.text}`).join("\n") : "(empty)"}
