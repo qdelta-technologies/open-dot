@@ -90,7 +90,7 @@ export default function AppsDirectory({ apps }: { apps: CatalogApp[] }) {
               className={`flex items-center gap-2 rounded-[5px] px-3 text-[13px] transition-colors ${tab === id ? "bg-card shadow-xs" : "text-foreground/55 hover:text-foreground"}`}
             >
               {label}
-              <span className={`rounded-xs px-1.5 font-mono text-[10px] leading-4 ${tab === id ? "bg-black/[0.06] text-foreground/70" : "bg-black/[0.04] text-foreground/45"}`}>
+              <span className={`rounded-xs px-1.5 font-mono text-[11px] leading-4 ${tab === id ? "bg-black/[0.06] text-foreground/70" : "bg-black/[0.04] text-foreground/45"}`}>
                 {fmt(count)}
               </span>
             </button>
@@ -127,7 +127,7 @@ export default function AppsDirectory({ apps }: { apps: CatalogApp[] }) {
                   title={
                     <span className="flex items-center gap-2">
                       <Zap className="size-4 fill-brand text-brand" strokeWidth={1.5} /> Instant Apps
-                      <span className="rounded-xs border border-brand-readable/40 px-1.5 font-mono text-[10px] tracking-wider text-brand-readable uppercase">New</span>
+                      <span className="rounded-xs border border-brand-readable/40 px-1.5 font-mono text-[11px] tracking-wider text-brand-readable uppercase">New</span>
                     </span>
                   }
                   action={
@@ -314,11 +314,11 @@ function AppDrawer({ app, connected, signedIn, instant, onClose }: { app: Catalo
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {app.categories.map((c) => (
-                <span key={c} className="rounded-xs bg-black/[0.04] px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-foreground/55 uppercase">
+                <span key={c} className="rounded-xs bg-black/[0.04] px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-foreground/55 uppercase">
                   {c}
                 </span>
               ))}
-              {instant && <span className="rounded-xs bg-brand/15 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-brand-readable uppercase">Instant</span>}
+              {instant && <span className="rounded-xs bg-brand/15 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-brand-readable uppercase">Instant</span>}
             </div>
           </div>
           <button className="btn-quiet size-8 p-0" onClick={onClose} aria-label="Close">
@@ -393,7 +393,7 @@ function DetailBody({ slug }: { slug: string }) {
           {tools.slice(0, 200).map((t) => (
             <div key={t.slug} className="px-3 py-2">
               <div className="text-[13px]">{t.name || t.slug}</div>
-              <div className="font-mono text-[10px] text-foreground/40">{t.slug}</div>
+              <div className="font-mono text-[11px] text-foreground/40">{t.slug}</div>
               {t.description && <div className="mt-0.5 line-clamp-2 text-caption text-foreground/55">{t.description}</div>}
             </div>
           ))}

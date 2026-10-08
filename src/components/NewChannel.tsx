@@ -55,7 +55,7 @@ export default function NewChannel() {
                   {on && (
                     <button
                       onClick={() => setLead(d.id)}
-                      className={`flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] tracking-wider uppercase ${leadId === d.id ? "bg-highlight text-highlight-foreground" : "text-foreground/40 hover:text-foreground"}`}
+                      className={`flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] tracking-wider uppercase ${leadId === d.id ? "bg-highlight text-highlight-foreground" : "text-foreground/40 hover:text-foreground"}`}
                     >
                       <Crown className="size-3" strokeWidth={2} /> {leadId === d.id ? "Lead" : "Make lead"}
                     </button>

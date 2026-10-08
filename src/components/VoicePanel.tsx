@@ -38,7 +38,7 @@ export default function VoicePanel() {
           <Link href={`/dots/${dot.id}?c=${call.conversationId}`} className="block truncate text-[15px] font-medium">
             {dot.name}
           </Link>
-          <div className="flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase">
+          <div className="flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase">
             <span
               className={`size-1.5 rounded-full ${call.status === "error" ? "bg-destructive" : call.status === "speaking" ? "live-dot bg-brand text-brand" : call.status === "connecting" ? "bg-warning" : "bg-success"}`}
             />

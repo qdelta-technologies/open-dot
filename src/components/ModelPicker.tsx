@@ -663,11 +663,11 @@ export default function ModelPicker({
   ];
 
   const providerIcon = (provider: string) => {
-    if (provider === "google") return <span className="text-[10px] font-bold text-blue-500">G</span>;
-    if (provider === "anthropic") return <span className="text-[9px] font-bold text-violet-500">A</span>;
-    if (provider === "openrouter") return <span className="text-[9px] font-bold text-emerald-500">OR</span>;
-    if (provider === "groq") return <span className="text-[9px] font-bold text-orange-500">GQ</span>;
-    if (provider === "openai") return <span className="text-[9px] font-bold text-green-500">AI</span>;
+    if (provider === "google") return <span className="text-[11px] font-bold text-blue-500">G</span>;
+    if (provider === "anthropic") return <span className="text-[11px] font-bold text-violet-500">A</span>;
+    if (provider === "openrouter") return <span className="text-[11px] font-bold text-emerald-500">OR</span>;
+    if (provider === "groq") return <span className="text-[11px] font-bold text-orange-500">GQ</span>;
+    if (provider === "openai") return <span className="text-[11px] font-bold text-green-500">AI</span>;
     return <Cloud className="size-3.5 text-amber-500 shrink-0" strokeWidth={1.75} />;
   };
 
@@ -677,7 +677,7 @@ export default function ModelPicker({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center gap-1 sm:gap-1.5 rounded-lg border border-black/10 dark:border-white/10 bg-card hover:bg-popover font-mono tracking-wide text-foreground/80 transition-all hover:border-black/25 dark:hover:border-white/25 hover:text-foreground active:scale-[0.98] ${
-          compact ? "h-7.5 px-1.5 sm:px-2.5 text-[11px]" : "h-9 px-3 text-[12px]"
+          compact ? "h-7.5 px-1.5 sm:px-2.5 text-[12px]" : "h-9 px-3 text-[12px]"
         }`}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -685,7 +685,7 @@ export default function ModelPicker({
       >
         {providerIcon(currentProvider)}
         {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
-        <span className="max-w-[72px] min-[400px]:max-w-[96px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
+        <span className="max-w-[72px] min-[400px]:max-w-[96px] sm:max-w-44 truncate font-sans text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
         </span>
         <ChevronDown
@@ -756,7 +756,7 @@ export default function ModelPicker({
                   <div className="flex items-center gap-2 min-w-0">
                     <Sparkles className="size-3.5 text-brand shrink-0" />
                     <span className="text-[13px] font-medium text-foreground">Default Model</span>
-                    <span className="font-mono text-[10px] text-foreground/45 truncate">
+                    <span className="font-mono text-[11px] text-foreground/45 truncate">
                       ({fallback ? parseModelId(fallback).name : "Meta Llama 4 Scout 17B"})
                     </span>
                   </div>
@@ -781,7 +781,7 @@ export default function ModelPicker({
                       <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
                       <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
                       {m.badge && (
-                        <span className={`shrink-0 rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
+                        <span className={`shrink-0 rounded-xs px-1.5 py-0.2 font-mono text-[11px] font-semibold uppercase ${
                           m.badge.includes("Video") ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                           : m.badge.includes("Photo") || m.badge.includes("Vision") ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
                           : "bg-black/[0.05] dark:bg-white/[0.08] text-foreground/60"
@@ -789,8 +789,8 @@ export default function ModelPicker({
                           {m.badge}
                         </span>
                       )}
-                      {m.params && <span className="shrink-0 font-mono text-[10px] text-foreground/45">{m.params}</span>}
-                      {m.ctx && <span className="shrink-0 font-mono text-[10px] text-foreground/40">· {m.ctx}</span>}
+                      {m.params && <span className="shrink-0 font-mono text-[11px] text-foreground/45">{m.params}</span>}
+                      {m.ctx && <span className="shrink-0 font-mono text-[11px] text-foreground/40">· {m.ctx}</span>}
                       </span>
                     </div>
                     {selected && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}

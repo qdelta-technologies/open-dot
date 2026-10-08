@@ -137,7 +137,7 @@ export default function Home() {
                     <ArrowUpRight className="size-4 text-foreground/30 transition-colors group-hover:text-foreground" strokeWidth={1.5} />
                   </div>
                   <p className="mt-0.5 line-clamp-2 text-body-sm text-foreground/55">{d.purpose || "General helper"}</p>
-                  <div className="mt-2.5 flex items-center gap-1.5 font-mono text-[10px] tracking-wider text-foreground/45 uppercase">
+                  <div className="mt-2.5 flex items-center gap-1.5 font-mono text-[11px] tracking-wider text-foreground/45 uppercase">
                     <span className={`size-1.5 rounded-full ${statusDot(d)}`} />
                     {d.status === "working" ? d.activity ?? "Working" : statusLabel(d)}
                   </div>
@@ -158,10 +158,10 @@ export default function Home() {
                   <Link key={m.id} href={`/dots/${d.id}`} onClick={() => markRead(d.id)} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-popover">
                     <DotOrb look={d.look} status={d.status} size={24} />
                     <span className="w-20 shrink-0 truncate text-[14px]">{d.name}</span>
-                    {m.role === "card" && <span className="shrink-0 rounded-xs bg-warning/15 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-warning uppercase">Needs you</span>}
-                    {m.title && <span className="shrink-0 rounded-xs bg-highlight px-1.5 py-0.5 font-mono text-[10px] tracking-wider uppercase">{m.title}</span>}
+                    {m.role === "card" && <span className="shrink-0 rounded-xs bg-warning/15 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-warning uppercase">Needs you</span>}
+                    {m.title && <span className="shrink-0 rounded-xs bg-highlight px-1.5 py-0.5 font-mono text-[11px] tracking-wider uppercase">{m.title}</span>}
                     <span className="min-w-0 flex-1 truncate text-body-sm text-foreground/55">{m.role === "card" ? m.card?.title : m.text.replace(/[#*_`>|]/g, "").slice(0, 200)}</span>
-                    <span className="shrink-0 font-mono text-[10px] tracking-wider text-foreground/35 uppercase">{timeAgo(m.createdAt)}</span>
+                    <span className="shrink-0 font-mono text-[11px] tracking-wider text-foreground/35 uppercase">{timeAgo(m.createdAt)}</span>
                   </Link>
                 );
               })}
@@ -203,7 +203,7 @@ function AppsStrip() {
           </>
         )}
       </div>
-      <span className="font-mono text-[10px] tracking-wider text-brand-readable uppercase">{signedIn ? "Manage" : "Sign in with Composio"}</span>
+      <span className="font-mono text-[11px] tracking-wider text-brand-readable uppercase">{signedIn ? "Manage" : "Sign in with Composio"}</span>
     </Link>
   );
 }

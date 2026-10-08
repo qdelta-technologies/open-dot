@@ -186,7 +186,7 @@ export function DotTriggers({ dot }: { dot: Dot }) {
               <div className="min-w-0 flex-1">
                 <div className="text-[14px]">{t.name}</div>
                 <div className="mt-0.5 line-clamp-2 text-body-sm text-foreground/55">{t.instruction}</div>
-                <div className={`mt-1 font-mono text-[10px] tracking-wider uppercase ${t.lastError ? "text-destructive" : "text-foreground/40"}`}>
+                <div className={`mt-1 font-mono text-[11px] tracking-wider uppercase ${t.lastError ? "text-destructive" : "text-foreground/40"}`}>
                   {t.lastError ?? (t.enabled ? (t.lastFiredAt ? `Last fired ${when(t.lastFiredAt)}` : "Waiting for the first event") : "Paused")}
                 </div>
               </div>
@@ -319,7 +319,7 @@ function AddTrigger({ dot, apps, appsError, loadingApps, reloadApps, onDone }: {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logo(a.slug)} alt="" className="size-4 object-contain" />
                 {busy === a.slug ? "Opening…" : a.name}
-                {!a.connected && <span className="text-[11px] text-foreground/40">Connect</span>}
+                {!a.connected && <span className="text-[12px] text-foreground/40">Connect</span>}
               </button>
             ))}
           </div>

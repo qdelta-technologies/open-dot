@@ -166,7 +166,7 @@ export default function StorageManager() {
               <HardDrive className="size-4 text-brand" strokeWidth={1.75} />
               <span className="text-[13px] font-semibold text-foreground">Railway Disk</span>
             </div>
-            <span className="font-mono text-[11px] font-medium text-foreground/60">
+            <span className="font-mono text-[12px] font-medium text-foreground/60">
               {formatBytes(stats.totalBytes)} / 500 MB ({stats.percentUsed}%)
             </span>
           </div>
@@ -181,7 +181,7 @@ export default function StorageManager() {
             />
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-foreground/50">
+          <div className="flex items-center justify-between text-[12px] text-foreground/50">
             <span>{stats.totalFiles} uploaded file{stats.totalFiles === 1 ? "" : "s"}</span>
             <span>
               {stats.percentUsed > 85 ? (
@@ -203,11 +203,11 @@ export default function StorageManager() {
               <span className="text-[13px] font-semibold text-foreground">Google Drive Cloud Storage</span>
             </div>
             {googleDriveConnected ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-500 uppercase">
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono text-[12px] font-semibold text-emerald-500 uppercase">
                 <CheckCircle2 className="size-3" /> 15 GB Free Active
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-500 uppercase">
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 font-mono text-[12px] font-semibold text-amber-500 uppercase">
                 Not Connected
               </span>
             )}
@@ -220,13 +220,13 @@ export default function StorageManager() {
           </p>
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <span className="text-[11px] text-foreground/50">Provider: Composio MCP</span>
+            <span className="text-[12px] text-foreground/50">Provider: Composio MCP</span>
             {!googleDriveConnected ? (
               <button
                 type="button"
                 onClick={handleConnectGoogleDrive}
                 disabled={connecting || pending}
-                className="btn-primary h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1.5 disabled:opacity-60 cursor-pointer shadow-xs"
+                className="btn-primary h-7 px-3 text-[12px] font-medium inline-flex items-center gap-1.5 disabled:opacity-60 cursor-pointer shadow-xs"
               >
                 {connecting ? (
                   <>
@@ -242,7 +242,7 @@ export default function StorageManager() {
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400">
                   Sync Enabled
                 </span>
                 <button
@@ -250,7 +250,7 @@ export default function StorageManager() {
                   onClick={() => {
                     void refreshApps().then(() => loadData());
                   }}
-                  className="text-[11px] text-foreground/45 hover:text-foreground underline decoration-dotted transition-colors"
+                  className="text-[12px] text-foreground/45 hover:text-foreground underline decoration-dotted transition-colors"
                   title="Check connection status"
                 >
                   Verify
@@ -260,7 +260,7 @@ export default function StorageManager() {
           </div>
 
           {connectError && (
-            <p className="mt-2 text-[11px] text-destructive leading-tight bg-destructive/10 p-2 rounded-md">
+            <p className="mt-2 text-[12px] text-destructive leading-tight bg-destructive/10 p-2 rounded-md">
               {connectError}
             </p>
           )}
@@ -278,7 +278,7 @@ export default function StorageManager() {
         <button
           onClick={loadData}
           disabled={loading || pending}
-          className="btn-quiet h-7 px-2 text-[11px] flex items-center gap-1"
+          className="btn-quiet h-7 px-2 text-[12px] flex items-center gap-1"
           title="Refresh storage"
         >
           <RefreshCw className={`size-3 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -303,19 +303,19 @@ export default function StorageManager() {
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-destructive font-medium">Delete all {files.length} files?</span>
+                <span className="text-[12px] text-destructive font-medium">Delete all {files.length} files?</span>
                 <button
                   type="button"
                   onClick={handleClearAll}
                   disabled={pending}
-                  className="rounded-lg bg-destructive px-2 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+                  className="rounded-lg bg-destructive px-2 py-1 text-[12px] font-semibold text-white hover:opacity-90"
                 >
                   Yes, delete all
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmClear(false)}
-                  className="btn-quiet h-6 px-2 text-[11px]"
+                  className="btn-quiet h-6 px-2 text-[12px]"
                 >
                   Cancel
                 </button>
@@ -342,7 +342,7 @@ export default function StorageManager() {
                 >
                   {f.name}
                 </a>
-                <div className="flex items-center gap-2 text-[11px] text-foreground/45">
+                <div className="flex items-center gap-2 text-[12px] text-foreground/45">
                   <span>{formatDate(f.createdAt)}</span>
                   {f.dotName && (
                     <>
@@ -354,7 +354,7 @@ export default function StorageManager() {
               </div>
 
               <div className="shrink-0 text-right pr-2">
-                <span className="font-mono text-[11px] text-foreground/60">{formatBytes(f.size)}</span>
+                <span className="font-mono text-[12px] text-foreground/60">{formatBytes(f.size)}</span>
               </div>
 
               <button

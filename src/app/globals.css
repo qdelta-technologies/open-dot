@@ -120,7 +120,7 @@
   .text-caption { @apply font-sans text-xs leading-normal tracking-default; }
   .text-mono-md { @apply font-mono text-[13px] leading-relaxed; }
   .text-mono-sm { @apply font-mono text-[11px] leading-snug; }
-  .text-mono-xs { @apply font-mono text-[10px] leading-snug; }
+  .text-mono-xs { @apply font-mono text-[11px] leading-snug; }
 }
 
 /* ── Shared app components ─────────────────────────────────────────────── */

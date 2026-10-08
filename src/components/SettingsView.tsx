@@ -208,7 +208,7 @@ export default function SettingsView() {
                 Turn on
               </button>
             )}
-            {permission === "granted" && <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">On</span>}
+            {permission === "granted" && <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-success uppercase">On</span>}
           </div>
         </Section>
 
@@ -324,17 +324,17 @@ function ConnectedApp({ app }: { app: { slug: string; name: string; logo?: strin
           {accounts?.length === 0 && (
             <div className="text-caption text-foreground/50">
               Couldn&apos;t read the accounts list.
-              {raw && <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px]">{raw}</pre>}
+              {raw && <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px]">{raw}</pre>}
             </div>
           )}
           {accounts?.map((acc) => (
             <div key={acc.id} className="rounded-lg border border-black/[0.08] p-3 dark:border-white/[0.1]">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-[13px] font-medium">{acc.alias ?? "Default (no name)"}</span>
-                <span className="rounded-xs bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-foreground/50 uppercase">{acc.status}</span>
+                <span className="rounded-xs bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-foreground/50 uppercase">{acc.status}</span>
               </div>
               {acc.label && <div className="mt-0.5 text-caption break-all text-foreground/60">{acc.label}</div>}
-              <div className="mt-0.5 font-mono text-[10px] break-all text-foreground/35">{acc.id}</div>
+              <div className="mt-0.5 font-mono text-[11px] break-all text-foreground/35">{acc.id}</div>
 
               {editing === acc.id ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -444,7 +444,7 @@ function AppsList() {
           <div className="text-[14px]">Composio For You</div>
           <div className="text-caption text-foreground/50">Signed in · {connected.length} app{connected.length === 1 ? "" : "s"} connected</div>
         </div>
-        <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">Connected</span>
+        <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-success uppercase">Connected</span>
         <button className="btn-quiet" disabled={pending} onClick={() => start(() => refreshApps())} title="Refresh">
           <RefreshCw className="size-3.5" strokeWidth={1.75} />
         </button>
@@ -650,7 +650,7 @@ function CloudflareWorkerKey() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
-            Cloudflare AI Worker <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">Recommended · Fast</span>
+            Cloudflare AI Worker <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-success uppercase">Recommended · Fast</span>
           </div>
           <div className="text-body-sm text-foreground/55">
             {computer.cloudflare?.source === "env"
@@ -664,7 +664,7 @@ function CloudflareWorkerKey() {
         </div>
         {saved && !editing && (
           computer.cloudflare?.source === "env" || computer.cloudflare?.source === "default"
-            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[11px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
             : <div className="flex items-center gap-2">
                 <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
                 <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
@@ -766,7 +766,7 @@ function GoogleKey() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
-            Google Gemini <span className="rounded-xs bg-blue-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-blue-600 dark:text-blue-400 uppercase">Free · Reliable</span>
+            Google Gemini <span className="rounded-xs bg-blue-500/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-blue-600 dark:text-blue-400 uppercase">Free · Reliable</span>
           </div>
           <div className="text-body-sm text-foreground/55">
             {computer.google === "env"
@@ -778,7 +778,7 @@ function GoogleKey() {
         </div>
         {saved && !editing && (
           computer.google === "env"
-            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[11px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
             : <div className="flex items-center gap-2">
                 <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
                 <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
@@ -861,7 +861,7 @@ function OpenModelsKey() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
-            OpenRouter <span className="rounded-xs bg-emerald-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">Open Models</span>
+            OpenRouter <span className="rounded-xs bg-emerald-500/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">Open Models</span>
           </div>
           <div className="text-body-sm text-foreground/55">
             {computer.openRouter === "env"
@@ -873,7 +873,7 @@ function OpenModelsKey() {
         </div>
         {saved && !editing && (
           computer.openRouter === "env"
-            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[11px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
             : <div className="flex items-center gap-2">
                 <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
                 <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
@@ -953,7 +953,7 @@ function AnthropicKey() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
-            Anthropic <span className="rounded-xs bg-violet-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-violet-600 dark:text-violet-400 uppercase">Claude Models</span>
+            Anthropic <span className="rounded-xs bg-violet-500/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-violet-600 dark:text-violet-400 uppercase">Claude Models</span>
           </div>
           <div className="text-body-sm text-foreground/55">
             {computer.anthropic === "env"
@@ -965,7 +965,7 @@ function AnthropicKey() {
         </div>
         {saved && !editing && (
           computer.anthropic === "env"
-            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[11px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
             : <div className="flex items-center gap-2">
                 <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
                 <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
@@ -1042,7 +1042,7 @@ function GroqKey() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
-            Groq <span className="rounded-xs bg-orange-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-orange-600 dark:text-orange-400 uppercase">Ultra-Fast LPU</span>
+            Groq <span className="rounded-xs bg-orange-500/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-orange-600 dark:text-orange-400 uppercase">Ultra-Fast LPU</span>
           </div>
           <div className="text-body-sm text-foreground/55">
             {computer.groq === "env"
@@ -1054,7 +1054,7 @@ function GroqKey() {
         </div>
         {saved && !editing && (
           computer.groq === "env"
-            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[11px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
             : <div className="flex items-center gap-2">
                 <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
                 <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
@@ -1131,7 +1131,7 @@ function OpenAIKey() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex items-center gap-2 text-[14px]">
-            OpenAI <span className="rounded-xs bg-green-500/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-green-600 dark:text-green-400 uppercase">GPT Models</span>
+            OpenAI <span className="rounded-xs bg-green-500/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-green-600 dark:text-green-400 uppercase">GPT Models</span>
           </div>
           <div className="text-body-sm text-foreground/55">
             {computer.keySource === "env"
@@ -1143,7 +1143,7 @@ function OpenAIKey() {
         </div>
         {saved && !editing && (
           computer.keySource === "env"
-            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[10px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
+            ? <span className="rounded-md bg-foreground/[0.06] px-2.5 py-1 font-mono text-[11px] text-foreground/45 uppercase tracking-wider">Environment variable</span>
             : <div className="flex items-center gap-2">
                 <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>Remove</button>
                 <button className="btn-secondary h-8 px-3 text-[13px]" onClick={handleStartEdit}>Change</button>
@@ -1278,7 +1278,7 @@ function AccessSecuritySection() {
               {auth.enabled ? "Password Protection Active" : "Password Protection Inactive"}
             </span>
             {auth.enabled && (
-              <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">
+              <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-success uppercase">
                 Secured
               </span>
             )}
@@ -1373,7 +1373,7 @@ function InstallAppSection() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[14px] font-medium">Installed & Running Standalone</span>
-                <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-success uppercase">
+                <span className="rounded-xs bg-success/12 px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-success uppercase">
                   Active
                 </span>
               </div>

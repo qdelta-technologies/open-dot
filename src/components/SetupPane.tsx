@@ -102,10 +102,10 @@ export default function SetupPane({ dot }: { dot: Dot }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[14px]">{r.name}</span>
-                        <code className="rounded-xs bg-black/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-foreground/55">{r.schedule}</code>
+                        <code className="rounded-xs bg-black/[0.04] px-1.5 py-0.5 font-mono text-[11px] text-foreground/55">{r.schedule}</code>
                       </div>
                       <div className="mt-0.5 line-clamp-2 text-body-sm text-foreground/55">{r.instruction}</div>
-                      <div className="mt-1 font-mono text-[10px] tracking-wider text-foreground/40 uppercase">
+                      <div className="mt-1 font-mono text-[11px] tracking-wider text-foreground/40 uppercase">
                         {r.enabled && r.nextRunAt ? `Next ${new Date(r.nextRunAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}` : "Paused"}
                         {r.lastRunAt ? ` · Last ${new Date(r.lastRunAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}` : ""}
                       </div>

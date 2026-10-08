@@ -210,14 +210,14 @@ export default function Sidebar() {
                   <DotOrb look={d.look} status={d.status} size={40} />
                   {d.status !== "idle" && <span className={`absolute right-0 bottom-0.5 size-2.5 rounded-full ring-2 ring-card ${statusDot(d)}`} />}
                 </span>
-                <span className="w-full truncate text-center text-[11px] text-foreground/70">{d.name}</span>
+                <span className="w-full truncate text-center text-[12px] text-foreground/70">{d.name}</span>
               </Link>
             ))}
             <Link href="/new" className="flex w-[54px] shrink-0 flex-col items-center gap-1 rounded-lg py-1.5 text-foreground/45 hover:bg-black/[0.03] hover:text-foreground" title="New dot">
               <span className="flex size-10 items-center justify-center rounded-full border border-dashed border-black/20">
                 <Plus className="size-4" strokeWidth={1.75} />
               </span>
-              <span className="text-[11px]">New</span>
+              <span className="text-[12px]">New</span>
             </Link>
           </div>
         </div>
@@ -252,7 +252,7 @@ export default function Sidebar() {
                   <span className="flex items-baseline gap-2">
                     <span className="truncate text-[15px] font-medium">{c.title}</span>
                     {unread(c) && <span className="size-2 shrink-0 self-center rounded-full bg-brand" />}
-                    <span className="ml-auto shrink-0 font-mono text-[10px] text-foreground/35 group-hover:invisible">{timeAgo(c.updatedAt).replace(" ago", "")}</span>
+                    <span className="ml-auto shrink-0 font-mono text-[11px] text-foreground/35 group-hover:invisible">{timeAgo(c.updatedAt).replace(" ago", "")}</span>
                   </span>
                   <span className="block truncate text-[13px] text-foreground/50">
                     <span className="text-foreground/65">{d.name}</span>

@@ -117,7 +117,7 @@ export default function ChannelView({ channelId }: { channelId: string }) {
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5 px-1">
           {members.map((d) => (
-            <button key={d.id} className="font-mono text-[10px] tracking-wider text-foreground/40 uppercase hover:text-foreground" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}@${d.name} `)}>
+            <button key={d.id} className="font-mono text-[11px] tracking-wider text-foreground/40 uppercase hover:text-foreground" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}@${d.name} `)}>
               @{d.name}
             </button>
           ))}

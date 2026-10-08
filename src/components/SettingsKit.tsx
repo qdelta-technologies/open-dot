@@ -66,7 +66,7 @@ export function RuleEditor({ dotId, name }: { dotId: string | null; name: string
                 <span className="min-w-0 flex-1 text-body-sm text-foreground/60">
                   When {name} wants to <span className="text-foreground">{r.action}</span>
                 </span>
-                <span className={`shrink-0 rounded-xs px-1.5 py-0.5 font-mono text-[10px] tracking-wider uppercase ${d.tone}`}>{d.label}</span>
+                <span className={`shrink-0 rounded-xs px-1.5 py-0.5 font-mono text-[11px] tracking-wider uppercase ${d.tone}`}>{d.label}</span>
                 <RemoveButton label="Delete rule" onClick={() => start(() => actions.deleteRule(r.id))} />
               </div>
             );

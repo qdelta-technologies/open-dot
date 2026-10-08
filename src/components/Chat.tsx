@@ -319,7 +319,7 @@ function Welcome({ dot, onPick }: { dot: Dot; onPick: (text: string) => void }) 
         <Dot3DLazy look={dot.look} status={dot.status} size={130} />
       </div>
       <div className="eyebrow mt-3 text-brand-readable/90">Autonomous Assistant</div>
-      <h1 className="text-h1 mt-1 font-medium tracking-tight">How can I help you today?</h1>
+      <h1 className="text-h1 mt-1">How can I help you today?</h1>
       {dot.purpose && (
         <div className="mt-2.5 max-w-[540px] rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card px-4 py-1.5 text-body-sm text-foreground/75">
           <span className="font-semibold mr-1.5 text-foreground/90">Focus:</span>
@@ -605,7 +605,7 @@ function Composer({
             >
               <Paperclip className="size-3" strokeWidth={1.75} />
               <span className="max-w-40 truncate">{u.name}</span>
-              {u.state === "uploading" && <span className="font-mono text-[10px] text-foreground/40">…</span>}
+              {u.state === "uploading" && <span className="font-mono text-[11px] text-foreground/40">…</span>}
               <button
                 onClick={() => setUploads((x) => x.filter((y) => y.key !== u.key))}
                 aria-label={`Remove ${u.name}`}
@@ -865,7 +865,7 @@ function Attachments({ items, align = "start" }: { items: Attachment[]; align?: 
           <FileText className="size-4 shrink-0 text-foreground/45" strokeWidth={1.5} />
           <span className="min-w-0">
             <span className="block max-w-56 truncate text-[13px] font-medium">{a.name}</span>
-            <span className="block font-mono text-[10px] text-foreground/40 uppercase">{size(a.size)}</span>
+            <span className="block font-mono text-[11px] text-foreground/40 uppercase">{size(a.size)}</span>
           </span>
           <Download className="size-3.5 text-foreground/35" strokeWidth={1.75} />
         </a>
@@ -987,7 +987,7 @@ function sanitizeAssistantText(text: string): string {
             </div>
           )}
           {m.title && m.title.trim().toLowerCase() !== "null" && m.title.trim().toLowerCase() !== "undefined" && (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-highlight px-2 py-0.5 font-mono text-[10px] tracking-wider text-highlight-foreground uppercase font-medium">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-highlight px-2 py-0.5 font-mono text-[11px] tracking-wider text-highlight-foreground uppercase font-medium">
               <Sparkles className="size-3" strokeWidth={2} />
               {m.title}
             </span>
@@ -1020,7 +1020,7 @@ function CardRow({ m }: { m: Message }) {
       <div className="flex max-w-[560px] items-center gap-2.5 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-card/60 px-3.5 py-2.5">
         <Icon className={`size-3.5 shrink-0 ${tone}`} strokeWidth={2} />
         <span className="truncate text-body-sm text-foreground/65 font-medium">{card.title}</span>
-        <span className={`ml-auto shrink-0 font-mono text-[10px] tracking-wider uppercase ${tone}`}>
+        <span className={`ml-auto shrink-0 font-mono text-[11px] tracking-wider uppercase ${tone}`}>
           {card.status === "answered" ? `Answered · ${card.answer}` : card.kind === "connect" && card.status === "approved" ? "Connected" : card.status}
         </span>
       </div>
@@ -1114,7 +1114,7 @@ function NewDivider() {
   return (
     <div className="flex items-center gap-3 py-2">
       <span className="h-px flex-1 bg-brand/40" />
-      <span className="font-mono text-[10px] tracking-wider text-brand-readable uppercase font-medium">New</span>
+      <span className="font-mono text-[11px] tracking-wider text-brand-readable uppercase font-medium">New</span>
       <span className="h-px flex-1 bg-brand/40" />
     </div>
   );
@@ -1123,5 +1123,5 @@ function NewDivider() {
 function DateSeparator({ ts }: { ts: number }) {
   const d = new Date(ts);
   const label = d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  return <div className="py-3 text-center font-mono text-[10px] tracking-wider text-foreground/35 uppercase">{label}</div>;
+  return <div className="py-3 text-center font-mono text-[11px] tracking-wider text-foreground/35 uppercase">{label}</div>;
 }

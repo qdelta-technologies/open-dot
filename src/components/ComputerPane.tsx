@@ -55,7 +55,7 @@ export default function ComputerPane({ dot }: { dot: Dot }) {
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
             <div className="eyebrow">Computer</div>
-            <h1 className="text-h2 mt-1.5">{dot.name}&apos;s computer</h1>
+            <h1 className="text-h1 mt-1.5">{dot.name}&apos;s computer</h1>
             <p className="mt-1 text-body-sm text-foreground/55">
               {cloud
                 ? "A Linux desktop in the cloud. It keeps working while you're away and sleeps when idle."
@@ -99,7 +99,7 @@ export default function ComputerPane({ dot }: { dot: Dot }) {
               {cloud ? <Cloud className="size-3" strokeWidth={1.75} /> : <MonitorSmartphone className="size-3" strokeWidth={1.75} />}
               {dot.name.toLowerCase()}.{cloud ? "cloud" : "browser"}
             </span>
-            <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase">
+            <span className="flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase">
               <span className={`size-1.5 rounded-full ${takenOver ? "bg-warning" : live || cloud || watching ? "live-dot bg-brand text-brand" : "bg-foreground/25"}`} />
               <span className="text-foreground/50">{takenOver ? "You're in control" : live || cloud || watching ? "Live" : "Idle"}</span>
             </span>
@@ -133,7 +133,7 @@ export default function ComputerPane({ dot }: { dot: Dot }) {
               <Terminal className="size-4 text-foreground/50" strokeWidth={1.5} />
               <h2 className="text-[15px] font-medium">Where it runs</h2>
               <span
-                className={`ml-auto rounded-xs px-1.5 py-0.5 font-mono text-[10px] tracking-wider uppercase ${computer.mode === "local" ? "bg-warning/15 text-warning" : "bg-success/12 text-success"}`}
+                className={`ml-auto rounded-xs px-1.5 py-0.5 font-mono text-[11px] tracking-wider uppercase ${computer.mode === "local" ? "bg-warning/15 text-warning" : "bg-success/12 text-success"}`}
               >
                 {computer.mode === "cloud" ? "Cloud" : computer.mode === "docker" ? "Container" : "This Mac"}
               </span>

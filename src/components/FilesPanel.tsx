@@ -30,7 +30,7 @@ function List({ dotId, nonce }: { dotId: string; nonce: number }) {
           <span className={`min-w-0 flex-1 truncate text-[13px] ${f.isDir ? "text-foreground/60" : ""}`}>{f.path.split("/").pop()}</span>
           {!f.isDir && (
             <>
-              <span className="font-mono text-[10px] text-foreground/40">{size(f.size)}</span>
+              <span className="font-mono text-[11px] text-foreground/40">{size(f.size)}</span>
               <a href={`/api/dots/${dotId}/workspace?path=${encodeURIComponent(f.path)}`} className="text-foreground/35 hover:text-foreground" aria-label={`Download ${f.path}`}>
                 <Download className="size-3.5" strokeWidth={1.75} />
               </a>
