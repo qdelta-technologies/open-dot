@@ -685,7 +685,7 @@ export default function ModelPicker({
       >
         {providerIcon(currentProvider)}
         {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
-        <span className="max-w-[96px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
+        <span className="max-w-[72px] min-[400px]:max-w-[96px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
         </span>
         <ChevronDown

@@ -15,9 +15,9 @@ import { MenuButton } from "./MobileBar";
 
 export type Tab = "chat" | "computer" | "setup";
 
-function IconLink({ href, active, label, children }: { href: string; active?: boolean; label: string; children: React.ReactNode }) {
+function IconLink({ href, active, label, children, className = "" }: { href: string; active?: boolean; label: string; children: React.ReactNode; className?: string }) {
   return (
-    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-9 p-0 sm:size-8 ${active ? "bg-black/[0.06] text-foreground" : ""}`}>
+    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-9 p-0 sm:size-8 ${active ? "bg-black/[0.06] text-foreground" : ""} ${className}`}>
       {children}
     </Link>
   );
@@ -38,7 +38,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
       <header className="relative flex h-14 shrink-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-4">
         <MenuButton />
         {/* Dot pill */}
-        <Link href={base} className="flex min-w-0 max-w-28 sm:max-w-none items-center gap-1.5 sm:gap-2 rounded-full bg-background py-1 pr-2.5 sm:pr-3.5 pl-1 transition-colors hover:bg-black/[0.06]">
+        <Link href={base} className="flex shrink-0 sm:shrink min-w-0 max-w-28 sm:max-w-none items-center gap-1.5 sm:gap-2 rounded-full bg-background py-1 pr-2.5 sm:pr-3.5 pl-1 transition-colors hover:bg-black/[0.06]">
           <DotOrb look={dot.look} status={dot.status} size={26} />
           <span className="hidden truncate text-[14px] font-medium sm:inline">{dot.name}</span>
           {dot.status !== "idle" && (
@@ -55,7 +55,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             <span className="mx-0.5 sm:mx-1 h-5 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
           </span>
           {tab === "chat" ? (
-            <IconLink href={`${base}?c=new`} label="New chat">
+            <IconLink href={`${base}?c=new`} label="New chat" className="hidden min-[400px]:flex">
               <SquarePen className="size-4" strokeWidth={1.75} />
             </IconLink>
           ) : (
