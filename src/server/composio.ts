@@ -286,8 +286,14 @@ export async function executeTool(slug: string, args: Record<string, unknown>): 
   const run = async () => {
     if (!metaSession) {
       const found = await callTool("COMPOSIO_SEARCH_TOOLS", { queries: [{ use_case: `run ${slug}` }], session: { generate_id: true } });
-      metaSession = found.match(/"session_id"\s*:\s*"([^"]+)"/)?.[1] ?? null;
-      if (!metaSession) throw new Error(`Composio did not return a session id: ${found.slice(0, 200)}`);
+      metaSession =
+        found.match(/"[A-Za-z_]*session[A-Za-z_]*"\s*:\s*"([^"]{4,})"/i)?.[1] ??
+        found.match(/"session"\s*:\s*\{[^{}]*?"id"\s*:\s*"([^"]+)"/i)?.[1] ??
+        null;
+      if (!metaSession) {
+        const at = found.search(/session/i);
+        throw new Error(`Composio did not return a session id. Around "session": ${at >= 0 ? found.slice(Math.max(0, at - 60), at + 260) : "(not mentioned) " + found.slice(0, 160)}`);
+      }
     }
     return callTool("COMPOSIO_MULTI_EXECUTE_TOOL", {
       tools: [{ tool_slug: slug, arguments: args }],
