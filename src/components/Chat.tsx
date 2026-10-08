@@ -234,11 +234,11 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
         onScroll={handleScroll}
         className="flex flex-1 flex-col-reverse overflow-y-auto"
       >
-        <div className="mx-auto flex min-h-full w-full max-w-[820px] shrink-0 flex-col px-4 sm:px-6">
+        <div className="mx-auto flex min-h-full w-full max-w-[820px] shrink-0 flex-col px-4 sm:px-6 xl:max-w-[920px] 2xl:max-w-[1040px]">
           <div className="flex-1" />
 
           {fresh && (
-            <div className="mx-auto w-full max-w-[760px] py-4">
+            <div className="mx-auto w-full max-w-[760px] py-4 xl:max-w-[860px] 2xl:max-w-[980px]">
               <Welcome dot={dot} onPick={(t) => send(t)} />
             </div>
           )}
@@ -282,7 +282,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
       )}
 
       {/* Bottom Composer Area */}
-      <div className="mx-auto w-full max-w-[820px] px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="mx-auto w-full max-w-[820px] px-4 pb-4 sm:px-6 sm:pb-6 xl:max-w-[920px] 2xl:max-w-[1040px]">
         {!hasKey && (
           <div className="mb-3 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/[0.08] px-3.5 py-2 text-body-sm text-foreground/80">
             <ShieldAlert className="size-4 text-warning" strokeWidth={1.75} />

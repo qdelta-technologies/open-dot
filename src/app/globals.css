@@ -10,9 +10,9 @@
  */
 
 :root {
-  --background: #f6f6f6;
+  --background: #eceef2;
   --card: #ffffff;
-  --popover: #fafafa;
+  --popover: #f6f7f9;
   --foreground: #0f0f0f;
 
   --brand: #51a2ff;
@@ -23,8 +23,8 @@
   --highlight: #d4ff4a;
   --highlight-foreground: #0f0f0f;
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border: rgba(0, 0, 0, 0.12);
+  --border-subtle: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.18);
   --ring: oklch(0.708 0 0);
 
@@ -127,7 +127,7 @@
 
 /* The recurring category label: mono, uppercase, wide tracking. */
 @utility eyebrow {
-  @apply font-mono text-[11px] leading-snug tracking-wider text-foreground/50 uppercase;
+  @apply font-mono text-[11px] leading-snug tracking-wider text-foreground/60 uppercase;
 }
 
 @utility btn {
@@ -143,7 +143,7 @@
   @apply btn bg-brand text-card hover:bg-brand-hover active:bg-brand-active;
 }
 @utility btn-quiet {
-  @apply btn h-8 px-2.5 text-[13px] text-foreground/60 hover:bg-black/[0.04] hover:text-foreground dark:hover:bg-white/[0.06];
+  @apply btn h-8 px-2.5 text-[13px] text-foreground/65 hover:bg-black/[0.04] hover:text-foreground dark:hover:bg-white/[0.06];
 }
 
 @utility field {
@@ -284,7 +284,7 @@
   @apply text-[14px];
 }
 .dot-prose :where(th) {
-  @apply font-mono text-[11px] tracking-wider text-foreground/50 uppercase;
+  @apply font-mono text-[11px] tracking-wider text-foreground/60 uppercase;
 }
 .dot-prose :where(a) {
   @apply no-underline hover:underline;
@@ -475,4 +475,28 @@ html[data-splash="off"] .qdot-splash {
 input::-ms-reveal,
 input::-ms-clear {
   display: none;
+}
+
+
+/* Light theme: lift muted greys to WCAG AA (4.5:1) and firm up hairlines.
+   :where() keeps specificity at one class so hover colours still win. */
+@layer utilities {
+  :where(:root:not(.dark)) :is(.text-foreground\/25, .text-foreground\/30, .text-foreground\/35, .text-foreground\/40, .text-foreground\/45, .text-foreground\/50) {
+    color: color-mix(in srgb, var(--foreground) 60%, transparent);
+  }
+  :where(:root:not(.dark)) .text-foreground\/55 {
+    color: color-mix(in srgb, var(--foreground) 63%, transparent);
+  }
+  :where(:root:not(.dark)) .text-foreground\/60 {
+    color: color-mix(in srgb, var(--foreground) 67%, transparent);
+  }
+  :where(:root:not(.dark)) :is(.border-black\/\[0\.05\], .border-black\/\[0\.06\], .border-black\/\[0\.08\]) {
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  :where(:root:not(.dark)) .divide-black\/\[0\.06\] > :not(:last-child) {
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  :where(:root:not(.dark)) .placeholder\:text-foreground\/35::placeholder {
+    color: color-mix(in srgb, var(--foreground) 50%, transparent);
+  }
 }
