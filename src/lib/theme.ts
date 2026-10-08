@@ -18,9 +18,12 @@ function getStoredTheme(): Theme {
 
 function applyTheme(theme: Theme) {
   if (typeof window === "undefined") return;
+  // The login page is always light
+  const onLogin = window.location.pathname.startsWith("/login");
   const isDark =
-    theme === "dark" ||
-    (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    !onLogin &&
+    (theme === "dark" ||
+      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches));
 
   if (isDark) {
     document.documentElement.classList.add("dark");

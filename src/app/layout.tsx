@@ -45,6 +45,7 @@ const themeScript = `(function() {
   try {
     var stored = localStorage.getItem('qdot-theme');
     var isDark = stored === 'dark' || ((!stored || stored === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (location.pathname.indexOf('/login') === 0) isDark = false;
     if (isDark) {
       document.documentElement.classList.add('dark');
       document.documentElement.dataset.theme = 'dark';
