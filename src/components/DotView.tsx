@@ -15,10 +15,11 @@ import { MenuButton } from "./MobileBar";
 
 export type Tab = "chat" | "computer" | "setup";
 
-function IconLink({ href, active, label, children, className = "" }: { href: string; active?: boolean; label: string; children: React.ReactNode; className?: string }) {
+function IconLink({ href, active, label, text, children, className = "" }: { href: string; active?: boolean; label: string; text?: string; children: React.ReactNode; className?: string }) {
   return (
-    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-8 p-0 min-[400px]:size-9 sm:size-8 ${active ? "bg-black/[0.06] text-foreground" : ""} ${className}`}>
+    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-8 p-0 min-[400px]:size-9 sm:size-8 ${text ? "xl:w-auto xl:gap-1.5 xl:px-2.5" : ""} ${active ? "bg-black/[0.06] text-foreground" : ""} ${className}`}>
       {children}
+      {text && <span className="hidden text-[13px] xl:inline">{text}</span>}
     </Link>
   );
 }
@@ -35,7 +36,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
   const base = `/dots/${dot.id}`;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="relative flex h-14 shrink-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-4">
+      <header className="relative flex h-14 shrink-0 items-center gap-1.5 border-b border-black/[0.08] px-2 sm:gap-2 sm:px-4 dark:border-white/[0.08]">
         <MenuButton />
         {/* Dot pill */}
         <Link href={base} className="flex shrink-0 sm:shrink min-w-0 max-w-28 sm:max-w-none items-center gap-1.5 sm:gap-2 rounded-full bg-background py-1 pr-2.5 sm:pr-3.5 pl-1 transition-colors hover:bg-black/[0.06]">
@@ -55,29 +56,30 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             <span className="mx-0.5 sm:mx-1 h-5 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
           </span>
           {tab === "chat" ? (
-            <IconLink href={`${base}?c=new`} label="New chat" className="hidden min-[400px]:flex">
+            <IconLink href={`${base}?c=new`} label="New chat" text="New chat" className="hidden min-[400px]:flex">
               <SquarePen className="size-4" strokeWidth={1.75} />
             </IconLink>
           ) : (
-            <IconLink href={base} label="Back to chat">
+            <IconLink href={base} label="Back to chat" text="Chat">
               <MessageSquare className="size-4" strokeWidth={1.75} />
             </IconLink>
           )}
-          <IconLink href={`${base}?tab=computer`} active={tab === "computer"} label={`${dot.name}'s computer`}>
+          <IconLink href={`${base}?tab=computer`} active={tab === "computer"} label={`${dot.name}'s computer`} text="Computer">
             <Monitor className="size-4" strokeWidth={1.75} />
           </IconLink>
-          <IconLink href={`${base}?tab=setup`} active={tab === "setup"} label="Setup: rules, routines, memory, skills">
+          <IconLink href={`${base}?tab=setup`} active={tab === "setup"} label="Setup: rules, routines, memory, skills" text="Setup">
             <SlidersHorizontal className="size-4" strokeWidth={1.75} />
           </IconLink>
           {dot.status === "working" && (
             <button
-              className="flex size-8 items-center justify-center rounded-lg text-rose-500 min-[400px]:size-9 sm:size-8 hover:bg-rose-500/10 transition-colors"
+              className="flex size-8 items-center justify-center gap-1.5 rounded-lg text-rose-500 min-[400px]:size-9 sm:size-8 xl:w-auto xl:px-2.5 hover:bg-rose-500/10 transition-colors"
               disabled={pending}
               onClick={() => start(() => stopDot(dot.id))}
               title="Stop task"
               aria-label="Stop task"
             >
               <Square className="size-3.5 fill-current" />
+              <span className="hidden text-[13px] xl:inline">Stop</span>
             </button>
           )}
           {dot.status === "paused" ? (
@@ -86,13 +88,14 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             </button>
           ) : (
             <button
-              className="btn-quiet size-8 p-0 min-[400px]:size-9 sm:size-8"
+              className="btn-quiet size-8 p-0 min-[400px]:size-9 sm:size-8 xl:w-auto xl:gap-1.5 xl:px-2.5"
               disabled={pending}
               title="Pause: any ongoing work will be stopped, and your dot will not message you until you resume it."
               aria-label="Pause"
               onClick={() => start(() => pauseDot(dot.id))}
             >
               <Pause className="size-4" strokeWidth={1.75} />
+              <span className="hidden text-[13px] xl:inline">Pause</span>
             </button>
           )}
         </div>

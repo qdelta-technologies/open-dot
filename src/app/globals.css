@@ -500,3 +500,12 @@ input::-ms-clear {
     color: color-mix(in srgb, var(--foreground) 50%, transparent);
   }
 }
+
+/* Slim scrollbars in both themes (replaces the chunky default). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
