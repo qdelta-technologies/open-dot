@@ -12,6 +12,7 @@ import ComputerPane from "./ComputerPane";
 import SetupPane from "./SetupPane";
 import ModelPicker from "./ModelPicker";
 import { MenuButton } from "./MobileBar";
+import { DotPageSkeleton } from "./Skeletons";
 
 export type Tab = "chat" | "computer" | "setup";
 
@@ -30,7 +31,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
   const [pending, start] = useTransition();
 
   if (!dot) {
-    return <div className="flex flex-1 items-center justify-center text-body-sm text-foreground/45">{loaded ? "This dot doesn't exist." : "Loading…"}</div>;
+    return <DotPageSkeleton missing={loaded} />;
   }
 
   const base = `/dots/${dot.id}`;

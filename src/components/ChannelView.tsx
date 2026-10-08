@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 import DotOrb from "./DotOrb";
 import { ThinkingOrb } from "thinking-orbs";
 import { MessageRow } from "./Chat";
+import { DotPageSkeleton } from "./Skeletons";
 import type { Dot } from "@/lib/types";
 
 export default function ChannelView({ channelId }: { channelId: string }) {
@@ -22,7 +23,7 @@ export default function ChannelView({ channelId }: { channelId: string }) {
   const [pending, start] = useTransition();
 
   if (!channel) {
-    return <div className="flex flex-1 items-center justify-center text-body-sm text-foreground/45">{loaded ? "This channel doesn't exist." : "Loading…"}</div>;
+    return <DotPageSkeleton missing={loaded} what="channel" />;
   }
 
   const byId = new Map(dots.map((d) => [d.id, d]));
