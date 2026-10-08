@@ -685,7 +685,7 @@ export default function ModelPicker({
       >
         {providerIcon(currentProvider)}
         {value === null && allowDefault ? <span className="hidden sm:inline text-foreground/45">Default ·</span> : null}
-        <span className="max-w-[70px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
+        <span className="max-w-[96px] sm:max-w-44 truncate font-sans text-[11px] sm:text-[12px] font-medium text-foreground/90">
           {currentParsed ? currentParsed.name : "Select model…"}
         </span>
         <ChevronDown
@@ -777,8 +777,9 @@ export default function ModelPicker({
                       selected ? "bg-black/[0.06] dark:bg-white/[0.08]" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                     }`}
                   >
-                    <div className="min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                    <div className="min-w-0 flex flex-col gap-0.5 overflow-hidden sm:flex-row sm:items-center sm:gap-1.5 sm:flex-nowrap">
                       <span className="truncate text-[13px] font-medium text-foreground">{m.name}</span>
+                      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
                       {m.badge && (
                         <span className={`shrink-0 rounded-xs px-1.5 py-0.2 font-mono text-[9px] font-semibold uppercase ${
                           m.badge.includes("Video") ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
@@ -790,6 +791,7 @@ export default function ModelPicker({
                       )}
                       {m.params && <span className="shrink-0 font-mono text-[10px] text-foreground/45">{m.params}</span>}
                       {m.ctx && <span className="shrink-0 font-mono text-[10px] text-foreground/40">· {m.ctx}</span>}
+                      </span>
                     </div>
                     {selected && <Check className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
                   </button>

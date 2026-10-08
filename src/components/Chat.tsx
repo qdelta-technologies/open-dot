@@ -774,14 +774,14 @@ function AssistantActions({ text, ts, onRetry }: { text: string; ts?: number; on
       <button
         onClick={copy}
         title="Copy response"
-        className="flex size-7 items-center justify-center rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors"
+        className="flex size-9 items-center justify-center rounded-md sm:size-7 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors"
       >
         {copied ? <Check className="size-3.5 text-emerald-500" strokeWidth={2} /> : <Copy className="size-3.5" strokeWidth={1.75} />}
       </button>
       <button
         onClick={() => setLiked(liked === true ? null : true)}
         title="Good response"
-        className={`flex size-7 items-center justify-center rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors ${
+        className={`flex size-9 items-center justify-center rounded-md sm:size-7 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors ${
           liked === true ? "text-brand" : ""
         }`}
       >
@@ -790,7 +790,7 @@ function AssistantActions({ text, ts, onRetry }: { text: string; ts?: number; on
       <button
         onClick={() => setLiked(liked === false ? null : false)}
         title="Bad response"
-        className={`flex size-7 items-center justify-center rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors ${
+        className={`flex size-9 items-center justify-center rounded-md sm:size-7 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors ${
           liked === false ? "text-destructive" : ""
         }`}
       >
@@ -799,7 +799,7 @@ function AssistantActions({ text, ts, onRetry }: { text: string; ts?: number; on
       <button
         onClick={toggleSpeak}
         title={speaking ? "Stop speaking" : "Read aloud"}
-        className={`flex size-7 items-center justify-center rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors ${
+        className={`flex size-9 items-center justify-center rounded-md sm:size-7 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors ${
           speaking ? "text-brand animate-pulse" : ""
         }`}
       >
@@ -809,7 +809,7 @@ function AssistantActions({ text, ts, onRetry }: { text: string; ts?: number; on
         <button
           onClick={onRetry}
           title="Regenerate response"
-          className="flex size-7 items-center justify-center rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors"
+          className="flex size-9 items-center justify-center rounded-md sm:size-7 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-foreground transition-colors"
         >
           <RotateCcw className="size-3.5" strokeWidth={1.75} />
         </button>

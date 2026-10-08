@@ -17,7 +17,7 @@ export type Tab = "chat" | "computer" | "setup";
 
 function IconLink({ href, active, label, children }: { href: string; active?: boolean; label: string; children: React.ReactNode }) {
   return (
-    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-8 p-0 ${active ? "bg-black/[0.06] text-foreground" : ""}`}>
+    <Link href={href} title={label} aria-label={label} className={`btn-quiet size-9 p-0 sm:size-8 ${active ? "bg-black/[0.06] text-foreground" : ""}`}>
       {children}
     </Link>
   );
@@ -40,7 +40,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
         {/* Dot pill */}
         <Link href={base} className="flex min-w-0 max-w-28 sm:max-w-none items-center gap-1.5 sm:gap-2 rounded-full bg-background py-1 pr-2.5 sm:pr-3.5 pl-1 transition-colors hover:bg-black/[0.06]">
           <DotOrb look={dot.look} status={dot.status} size={26} />
-          <span className="truncate text-[14px] font-medium">{dot.name}</span>
+          <span className="hidden truncate text-[14px] font-medium sm:inline">{dot.name}</span>
           {dot.status !== "idle" && (
             <span className="flex items-center gap-1.5 text-[12px] text-foreground/50">
               <span className={`size-1.5 rounded-full ${statusDot(dot)}`} />
@@ -71,7 +71,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
           </IconLink>
           {dot.status === "working" && (
             <button
-              className="flex size-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
+              className="flex size-9 items-center justify-center rounded-lg text-rose-500 sm:size-8 hover:bg-rose-500/10 transition-colors"
               disabled={pending}
               onClick={() => start(() => stopDot(dot.id))}
               title="Stop task"
@@ -86,7 +86,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             </button>
           ) : (
             <button
-              className="btn-quiet size-8 p-0"
+              className="btn-quiet size-9 p-0 sm:size-8"
               disabled={pending}
               title="Pause: any ongoing work will be stopped, and your dot will not message you until you resume it."
               aria-label="Pause"

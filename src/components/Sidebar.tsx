@@ -129,8 +129,8 @@ export default function Sidebar() {
             setSidebarOpen(false);
           }
         }}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[300px] max-w-[85vw] shrink-0 flex-col bg-background shadow-2xl transition-all duration-200 ease-in-out md:static md:z-auto md:shadow-none ${
-          drawerOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        className={`fixed inset-y-0 left-0 z-50 flex w-[300px] max-w-[85vw] shrink-0 flex-col bg-background transition-all duration-200 ease-in-out md:static md:z-auto md:shadow-none ${
+          drawerOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
         } ${desktopOpen ? "md:ml-0 md:opacity-100" : "md:-ml-[300px] md:opacity-0 md:pointer-events-none"}`}
       >
       {/* Header */}
@@ -246,7 +246,7 @@ export default function Sidebar() {
           const line = preview(messages, c.id);
           return (
             <div key={c.id} className={`group relative flex items-center rounded-xl transition-colors ${c.id === activeConv ? "bg-card shadow-2xs" : "hover:bg-black/[0.03]"}`}>
-              <Link href={`/dots/${d.id}?c=${c.id}`} onClick={() => markRead(d.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2.5 py-2.5">
+              <Link href={`/dots/${d.id}?c=${c.id}`} onClick={() => markRead(d.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2.5 py-2.5 [@media(hover:none)]:pr-12">
                 <DotOrb look={d.look} status={d.status} size={42} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
@@ -261,7 +261,7 @@ export default function Sidebar() {
                 </span>
               </Link>
               <button
-                className="absolute top-2 right-2 hidden size-6 items-center justify-center rounded text-foreground/40 group-hover:flex hover:bg-black/[0.05] hover:text-destructive"
+                className="absolute top-2 right-2 hidden size-6 items-center justify-center rounded text-foreground/40 group-hover:flex hover:bg-black/[0.05] hover:text-destructive [@media(hover:none)]:top-1/2 [@media(hover:none)]:right-1.5 [@media(hover:none)]:flex [@media(hover:none)]:size-10 [@media(hover:none)]:-translate-y-1/2 [@media(hover:none)]:rounded-full"
                 onClick={() => setConfirming(c.id)}
                 aria-label={`Delete ${c.title}`}
                 title="Delete chat"

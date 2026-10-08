@@ -72,7 +72,7 @@ function LoginForm() {
                 setPassword(e.target.value);
                 if (error) setError(null);
               }}
-              placeholder="Enter ACCESS_PASSWORD"
+              placeholder="Enter team password"
               autoFocus
               required
               disabled={pending}
@@ -117,7 +117,7 @@ function LoginForm() {
       {/* Security note */}
       <div className="mt-6 flex items-center justify-center gap-1.5 border-t border-black/[0.06] pt-4 text-center text-xs text-foreground/45 dark:border-white/[0.06]">
         <ShieldCheck className="size-3.5 text-success" strokeWidth={2} />
-        <span>Protected with ACCESS_PASSWORD</span>
+        <span>Team access only</span>
       </div>
     </div>
   );
