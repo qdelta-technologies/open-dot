@@ -29,8 +29,8 @@
   --ring: oklch(0.708 0 0);
 
   --destructive: oklch(0.577 0.215 27.3);
-  --success: oklch(0.546 0.16 155.8);
-  --warning: oklch(0.666 0.16 75);
+  --success: oklch(0.48 0.15 155.8);
+  --warning: oklch(0.55 0.14 70);
 
   color-scheme: light;
 }
