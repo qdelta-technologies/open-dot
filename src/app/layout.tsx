@@ -7,6 +7,7 @@ import Toasts from "@/components/Toasts";
 import VoicePanel from "@/components/VoicePanel";
 import MobileBar from "@/components/MobileBar";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import SplashIntro from "@/components/SplashIntro";
 import "./globals.css";
 
 // Same pairing as the Composio landing site: Geist Sans (local variable font) + JetBrains Mono.
@@ -54,13 +55,17 @@ const themeScript = `(function() {
   } catch (e) {}
 })();`;
 
+const splashScript = `(function(){try{if(sessionStorage.getItem('qdot-splash-seen'))document.documentElement.dataset.splash='off';}catch(e){}})();`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${jetbrainsMono.variable} h-full`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: splashScript }} />
       </head>
       <body className="flex h-full overflow-hidden">
+        <SplashIntro />
         <Suspense>
           <Sidebar />
         </Suspense>

@@ -305,3 +305,82 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+
+/* QDot intro splash: three dots join, the name fades in, then the screen fades out */
+.qdot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  cursor: pointer;
+  animation: qdot-splash-out 0.4s ease 1.45s forwards;
+}
+html[data-splash="off"] .qdot-splash {
+  display: none;
+}
+.qdot-splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.qdot-splash-dots {
+  display: flex;
+}
+.qdot-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 4px var(--background);
+  opacity: 0;
+}
+.qdot-dot + .qdot-dot {
+  margin-left: -9px;
+}
+.qdot-dot-1 {
+  background: var(--foreground);
+  animation: qdot-join-left 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) 0.1s forwards;
+}
+.qdot-dot-2 {
+  background: var(--brand);
+  animation: qdot-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s forwards;
+}
+.qdot-dot-3 {
+  background: var(--highlight);
+  animation: qdot-join-right 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) 0.4s forwards;
+}
+.qdot-splash-name {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: qdot-rise 0.5s ease 0.85s forwards;
+}
+@keyframes qdot-pop {
+  from { opacity: 0; transform: scale(0.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes qdot-join-left {
+  from { opacity: 0; transform: translateX(-46px) scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes qdot-join-right {
+  from { opacity: 0; transform: translateX(46px) scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes qdot-rise {
+  to { opacity: 1; transform: none; }
+}
+@keyframes qdot-splash-out {
+  to { opacity: 0; visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qdot-dot, .qdot-splash-name { animation-duration: 0.01s; animation-delay: 0s; }
+  .qdot-splash { animation-delay: 0.6s; }
+}
