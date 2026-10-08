@@ -408,7 +408,18 @@ html[data-splash="off"] .qdot-splash {
   opacity: var(--o);
   filter: blur(var(--b));
   will-change: transform;
+  scale: 1;
+  translate: calc(var(--px, 0) * var(--z, 1) * 22px) calc(var(--py, 0) * var(--z, 1) * 22px);
+  transition: translate 0.7s ease-out, scale 0.8s ease, opacity 0.6s ease;
   animation: login-float var(--d) ease-in-out var(--dl) infinite alternate;
+}
+.login-scene.is-typing .login-bubble {
+  scale: 1.12;
+}
+.login-scene.is-leaving .login-bubble {
+  scale: 1.7;
+  opacity: 0 !important;
+  transition-duration: 0.35s;
 }
 @keyframes login-float {
   from { transform: translate3d(0, 0, 0) scale(1); }
@@ -452,4 +463,5 @@ html[data-splash="off"] .qdot-splash {
 }
 @media (prefers-reduced-motion: reduce) {
   .login-card-in, .login-shake, .login-bubble, .login-dot { animation: none !important; }
+  .login-bubble { transition: none !important; translate: none !important; }
 }

@@ -1,29 +1,57 @@
 "use client";
 
-import { Suspense, useEffect, useState, useTransition } from "react";
+import { Suspense, useEffect, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { verifyAccessPassword } from "@/app/actions";
 
-// Soft brand-coloured circles drifting slowly behind the card.
+// Soft brand-coloured circles drifting slowly behind the card. z = how strongly they follow the pointer.
 const BUBBLES = [
-  { x: 6, y: 14, s: 84, c: "var(--brand)", o: 0.5, b: 0, d: 20, dx: 30, dy: 24, dl: 0 },
-  { x: 82, y: 10, s: 46, c: "var(--highlight)", o: 0.9, b: 0, d: 16, dx: -24, dy: 30, dl: -4 },
-  { x: 90, y: 46, s: 120, c: "var(--brand)", o: 0.16, b: 6, d: 26, dx: -30, dy: -20, dl: -8 },
-  { x: 12, y: 62, s: 64, c: "var(--highlight)", o: 0.7, b: 0, d: 22, dx: 26, dy: -30, dl: -2 },
-  { x: 70, y: 80, s: 90, c: "var(--brand)", o: 0.38, b: 0, d: 24, dx: -20, dy: -26, dl: -10 },
-  { x: 30, y: 86, s: 30, c: "var(--foreground)", o: 0.85, b: 0, d: 14, dx: 20, dy: -22, dl: -6 },
-  { x: 46, y: 6, s: 26, c: "var(--brand)", o: 0.9, b: 0, d: 15, dx: -18, dy: 20, dl: -3 },
-  { x: 94, y: 78, s: 40, c: "var(--foreground)", o: 0.8, b: 0, d: 18, dx: -22, dy: -18, dl: -9 },
-  { x: 3, y: 88, s: 110, c: "var(--highlight)", o: 0.28, b: 8, d: 28, dx: 24, dy: -20, dl: -12 },
-  { x: 60, y: 22, s: 18, c: "var(--highlight)", o: 0.95, b: 0, d: 13, dx: -14, dy: 18, dl: -5 },
-  { x: 22, y: 38, s: 22, c: "var(--brand)", o: 0.6, b: 0, d: 17, dx: 18, dy: -16, dl: -7 },
-  { x: 76, y: 62, s: 24, c: "var(--highlight)", o: 0.8, b: 0, d: 19, dx: -16, dy: 16, dl: -11 },
+  { x: 6, y: 14, s: 84, c: "var(--brand)", o: 0.5, b: 0, d: 20, dx: 30, dy: 24, dl: 0, z: 0.8 },
+  { x: 82, y: 10, s: 46, c: "var(--highlight)", o: 0.9, b: 0, d: 16, dx: -24, dy: 30, dl: -4, z: 1.2 },
+  { x: 90, y: 46, s: 120, c: "var(--brand)", o: 0.16, b: 6, d: 26, dx: -30, dy: -20, dl: -8, z: 0.4 },
+  { x: 12, y: 62, s: 64, c: "var(--highlight)", o: 0.7, b: 0, d: 22, dx: 26, dy: -30, dl: -2, z: 1 },
+  { x: 70, y: 80, s: 90, c: "var(--brand)", o: 0.38, b: 0, d: 24, dx: -20, dy: -26, dl: -10, z: 0.7 },
+  { x: 30, y: 86, s: 30, c: "var(--foreground)", o: 0.85, b: 0, d: 14, dx: 20, dy: -22, dl: -6, z: 1.4 },
+  { x: 46, y: 6, s: 26, c: "var(--brand)", o: 0.9, b: 0, d: 15, dx: -18, dy: 20, dl: -3, z: 1.3 },
+  { x: 94, y: 78, s: 40, c: "var(--foreground)", o: 0.8, b: 0, d: 18, dx: -22, dy: -18, dl: -9, z: 1.1 },
+  { x: 3, y: 88, s: 110, c: "var(--highlight)", o: 0.28, b: 8, d: 28, dx: 24, dy: -20, dl: -12, z: 0.4 },
+  { x: 60, y: 22, s: 18, c: "var(--highlight)", o: 0.95, b: 0, d: 13, dx: -14, dy: 18, dl: -5, z: 1.5 },
+  { x: 22, y: 38, s: 22, c: "var(--brand)", o: 0.6, b: 0, d: 17, dx: 18, dy: -16, dl: -7, z: 1.3 },
+  { x: 76, y: 62, s: 24, c: "var(--highlight)", o: 0.8, b: 0, d: 19, dx: -16, dy: 16, dl: -11, z: 1.2 },
+  { x: 36, y: 14, s: 14, c: "var(--highlight)", o: 0.9, b: 0, d: 12, dx: 12, dy: 16, dl: -2, z: 1.6 },
+  { x: 88, y: 24, s: 16, c: "var(--brand)", o: 0.7, b: 0, d: 15, dx: -12, dy: 14, dl: -6, z: 1.5 },
+  { x: 8, y: 40, s: 12, c: "var(--foreground)", o: 0.7, b: 0, d: 14, dx: 14, dy: -12, dl: -8, z: 1.6 },
+  { x: 54, y: 92, s: 16, c: "var(--brand)", o: 0.8, b: 0, d: 16, dx: -14, dy: -14, dl: -3, z: 1.5 },
+  { x: 84, y: 90, s: 14, c: "var(--highlight)", o: 0.9, b: 0, d: 13, dx: -10, dy: -16, dl: -10, z: 1.6 },
+  { x: 18, y: 8, s: 12, c: "var(--brand)", o: 0.6, b: 0, d: 17, dx: 12, dy: 12, dl: -5, z: 1.6 },
 ];
 
-function LoginScene() {
+function LoginScene({ typing, leaving }: { typing: boolean; leaving: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // On devices with a mouse, the circles lean gently toward the pointer.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia("(hover: hover)").matches) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = ref.current;
+        if (!el) return;
+        el.style.setProperty("--px", String((e.clientX / window.innerWidth - 0.5) * 2));
+        el.style.setProperty("--py", String((e.clientY / window.innerHeight - 0.5) * 2));
+      });
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <div className="login-scene" aria-hidden="true">
+    <div ref={ref} className={`login-scene ${typing ? "is-typing" : ""} ${leaving ? "is-leaving" : ""}`} aria-hidden="true">
       {BUBBLES.map((b, i) => (
         <span
           key={i}
@@ -40,6 +68,7 @@ function LoginScene() {
               "--dx": `${b.dx}px`,
               "--dy": `${b.dy}px`,
               "--dl": `${b.dl}s`,
+              "--z": b.z,
             } as React.CSSProperties
           }
         />
@@ -48,7 +77,7 @@ function LoginScene() {
   );
 }
 
-function LoginForm() {
+function LoginForm({ onTyping, onLeave }: { onTyping: (v: boolean) => void; onLeave: () => void }) {
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "/";
 
@@ -60,9 +89,18 @@ function LoginForm() {
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  useEffect(() => {
+    onTyping(password.length > 0);
+  }, [password, onTyping]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim() || pending || done) return;
+    if (pending || done) return;
+    if (!password.trim()) {
+      setError("Enter the team password to continue.");
+      setShakeKey((k) => k + 1);
+      return;
+    }
 
     setError(null);
     startTransition(async () => {
@@ -70,6 +108,7 @@ function LoginForm() {
         const res = await verifyAccessPassword(password.trim());
         if (res.success) {
           setDone(true);
+          onLeave();
           setTimeout(() => {
             window.location.href = from;
           }, 350);
@@ -166,8 +205,8 @@ function LoginForm() {
 
         <button
           type="submit"
-          disabled={busy || !password.trim()}
-          className="btn-primary mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-medium shadow-sm transition-all active:scale-[0.985] enabled:hover:shadow-md disabled:opacity-40"
+          disabled={busy}
+          className="btn-primary mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-medium shadow-sm transition-all active:scale-[0.985] enabled:hover:-translate-y-px enabled:hover:shadow-md disabled:opacity-80"
         >
           {busy ? (
             <>
@@ -192,11 +231,13 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const [typing, setTyping] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   return (
     <div className="login-bg relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-5 py-10">
-      <LoginScene />
+      <LoginScene typing={typing} leaving={leaving} />
       <Suspense fallback={<div className="text-sm text-foreground/50">Loading…</div>}>
-        <LoginForm />
+        <LoginForm onTyping={setTyping} onLeave={() => setLeaving(true)} />
       </Suspense>
     </div>
   );
