@@ -387,50 +387,32 @@ html[data-splash="off"] .qdot-splash {
 
 
 /* Login page */
-.login-bg::before {
-  content: "";
+.login-bg {
+  background-image: linear-gradient(180deg, #fbfcff 0%, #eef2f9 100%);
+}
+.login-scene {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--foreground) 14%, transparent) 1px, transparent 0);
-  background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 78%);
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 78%);
+  --k: 1;
 }
-.login-blob {
+@media (max-width: 640px) {
+  .login-scene { --k: 0.62; }
+}
+.login-bubble {
   position: absolute;
+  width: calc(var(--s) * var(--k));
+  height: calc(var(--s) * var(--k));
   border-radius: 9999px;
-  filter: blur(70px);
-  pointer-events: none;
+  background: var(--c);
+  opacity: var(--o);
+  filter: blur(var(--b));
   will-change: transform;
+  animation: login-float var(--d) ease-in-out var(--dl) infinite alternate;
 }
-.login-blob-a {
-  width: 40vmax;
-  height: 40vmax;
-  left: -12vmax;
-  top: -16vmax;
-  background: var(--brand);
-  opacity: 0.32;
-  animation: login-drift-a 22s ease-in-out infinite alternate;
-}
-.login-blob-b {
-  width: 32vmax;
-  height: 32vmax;
-  right: -12vmax;
-  bottom: -14vmax;
-  background: var(--highlight);
-  opacity: 0.26;
-  animation: login-drift-b 26s ease-in-out infinite alternate;
-}
-.dark .login-blob-a { opacity: 0.2; }
-.dark .login-blob-b { opacity: 0.12; }
-@keyframes login-drift-a {
-  from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(7vmax, 5vmax) scale(1.1); }
-}
-@keyframes login-drift-b {
-  from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(-6vmax, -5vmax) scale(1.12); }
+@keyframes login-float {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(var(--dx), var(--dy), 0) scale(1.08); }
 }
 .login-dot {
   animation: login-dot-in 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) both, login-bob 3.2s ease-in-out infinite;
@@ -469,5 +451,5 @@ html[data-splash="off"] .qdot-splash {
   80% { transform: translateX(2px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .login-card-in, .login-shake, .login-blob, .login-dot { animation: none !important; }
+  .login-card-in, .login-shake, .login-bubble, .login-dot { animation: none !important; }
 }

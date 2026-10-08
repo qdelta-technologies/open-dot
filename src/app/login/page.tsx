@@ -5,6 +5,49 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { verifyAccessPassword } from "@/app/actions";
 
+// Soft brand-coloured circles drifting slowly behind the card.
+const BUBBLES = [
+  { x: 6, y: 14, s: 84, c: "var(--brand)", o: 0.5, b: 0, d: 20, dx: 30, dy: 24, dl: 0 },
+  { x: 82, y: 10, s: 46, c: "var(--highlight)", o: 0.9, b: 0, d: 16, dx: -24, dy: 30, dl: -4 },
+  { x: 90, y: 46, s: 120, c: "var(--brand)", o: 0.16, b: 6, d: 26, dx: -30, dy: -20, dl: -8 },
+  { x: 12, y: 62, s: 64, c: "var(--highlight)", o: 0.7, b: 0, d: 22, dx: 26, dy: -30, dl: -2 },
+  { x: 70, y: 80, s: 90, c: "var(--brand)", o: 0.38, b: 0, d: 24, dx: -20, dy: -26, dl: -10 },
+  { x: 30, y: 86, s: 30, c: "var(--foreground)", o: 0.85, b: 0, d: 14, dx: 20, dy: -22, dl: -6 },
+  { x: 46, y: 6, s: 26, c: "var(--brand)", o: 0.9, b: 0, d: 15, dx: -18, dy: 20, dl: -3 },
+  { x: 94, y: 78, s: 40, c: "var(--foreground)", o: 0.8, b: 0, d: 18, dx: -22, dy: -18, dl: -9 },
+  { x: 3, y: 88, s: 110, c: "var(--highlight)", o: 0.28, b: 8, d: 28, dx: 24, dy: -20, dl: -12 },
+  { x: 60, y: 22, s: 18, c: "var(--highlight)", o: 0.95, b: 0, d: 13, dx: -14, dy: 18, dl: -5 },
+  { x: 22, y: 38, s: 22, c: "var(--brand)", o: 0.6, b: 0, d: 17, dx: 18, dy: -16, dl: -7 },
+  { x: 76, y: 62, s: 24, c: "var(--highlight)", o: 0.8, b: 0, d: 19, dx: -16, dy: 16, dl: -11 },
+];
+
+function LoginScene() {
+  return (
+    <div className="login-scene" aria-hidden="true">
+      {BUBBLES.map((b, i) => (
+        <span
+          key={i}
+          className="login-bubble"
+          style={
+            {
+              left: `${b.x}%`,
+              top: `${b.y}%`,
+              "--s": `${b.s}px`,
+              "--c": b.c,
+              "--o": b.o,
+              "--b": `${b.b}px`,
+              "--d": `${b.d}s`,
+              "--dx": `${b.dx}px`,
+              "--dy": `${b.dy}px`,
+              "--dl": `${b.dl}s`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 function LoginForm() {
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "/";
@@ -151,8 +194,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="login-bg relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-5 py-10">
-      <div className="login-blob login-blob-a" aria-hidden="true" />
-      <div className="login-blob login-blob-b" aria-hidden="true" />
+      <LoginScene />
       <Suspense fallback={<div className="text-sm text-foreground/50">Loading…</div>}>
         <LoginForm />
       </Suspense>
