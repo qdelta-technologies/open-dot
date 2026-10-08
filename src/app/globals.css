@@ -509,3 +509,35 @@ input::-ms-clear {
 .dark * {
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
+
+/* Sidebar / top bar drawn in their saved state from the first paint (state is set on <html> by a script in <head>). */
+.qdot-sidebar-ph,
+.qdot-bar-ph {
+  display: none;
+}
+.qdot-bar-ph {
+  height: 3rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+@media (max-width: 767px) {
+  .qdot-bar-ph { display: block; }
+}
+@media (min-width: 768px) {
+  .qdot-sidebar-ph {
+    display: block;
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--background);
+  }
+  html[data-sidebar="closed"] .qdot-sidebar-ph { display: none; }
+  html[data-sidebar="closed"] .qdot-bar-ph { display: block; }
+  html[data-sidebar="closed"] aside[data-sidebar-root] {
+    margin-left: -300px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  html[data-sidebar="closed"] [data-mobilebar-root] { display: flex !important; }
+  html[data-sidebar="closed"] [data-menu-btn] { display: flex !important; }
+}
+html[data-nobar] .qdot-bar-ph { display: none !important; }

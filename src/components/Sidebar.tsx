@@ -123,6 +123,7 @@ export default function Sidebar() {
       {/* Phones / narrow windows: the sidebar is a drawer over a dimmed backdrop */}
       {drawerOpen && <div className="fixed inset-0 z-40 bg-black/25 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside
+        data-sidebar-root
         // Picking anything in the drawer closes it on mobile.
         onClickCapture={(e) => {
           if (typeof window !== "undefined" && window.innerWidth < 768 && (e.target as HTMLElement).closest("a")) {

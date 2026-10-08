@@ -56,6 +56,9 @@ const themeScript = `(function() {
   } catch (e) {}
 })();`;
 
+// Runs before the first paint so the sidebar and top bar are drawn in their saved state (no flash or jump).
+const layoutScript = `(function(){try{var d=document.documentElement;if(localStorage.getItem('qdot-sidebar-desktop')==='closed')d.dataset.sidebar='closed';var p=location.pathname;if(p.indexOf('/login')===0||p.indexOf('/dots/')===0)d.dataset.nobar='1';}catch(e){}})();`;
+
 const splashScript = `(function(){try{if(sessionStorage.getItem('qdot-splash-seen'))document.documentElement.dataset.splash='off';}catch(e){}})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -64,14 +67,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: splashScript }} />
+        <script dangerouslySetInnerHTML={{ __html: layoutScript }} />
       </head>
       <body className="flex h-full overflow-hidden">
         <SplashIntro />
-        <Suspense>
+        <Suspense fallback={<div className="qdot-sidebar-ph" aria-hidden="true" />}>
           <Sidebar />
         </Suspense>
         <main className="flex min-w-0 flex-1 flex-col bg-card">
-          <Suspense>
+          <Suspense fallback={<div className="qdot-bar-ph" aria-hidden="true" />}>
             <MobileBar />
           </Suspense>
           {children}

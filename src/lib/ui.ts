@@ -38,6 +38,7 @@ export function setDesktopSidebarOpen(value: boolean) {
     try {
       localStorage.setItem("qdot-sidebar-desktop", value ? "open" : "closed");
     } catch {}
+    document.documentElement.dataset.sidebar = value ? "open" : "closed";
   }
   for (const l of desktopListeners) l();
 }

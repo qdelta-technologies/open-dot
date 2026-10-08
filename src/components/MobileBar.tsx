@@ -15,6 +15,7 @@ export function MenuButton() {
   const desktopOpen = useDesktopSidebarOpen();
   return (
     <button
+      data-menu-btn
       className={`btn-quiet size-9 shrink-0 p-0 ${desktopOpen ? "md:hidden" : "flex"}`}
       onClick={() => {
         if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -40,6 +41,7 @@ export default function MobileBar() {
 
   return (
     <div
+      data-mobilebar-root
       className={`flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 ${
         desktopOpen ? "md:hidden" : "flex"
       }`}
