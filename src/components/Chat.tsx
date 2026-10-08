@@ -55,6 +55,7 @@ import Dot3DLazy from "./Dot3DLazy";
 import DotOrb from "./DotOrb";
 import { ThinkingOrb, type OrbState } from "thinking-orbs";
 import { compressImageIfLarge } from "@/lib/imageCompression";
+import { useDesktopSidebarOpen } from "@/lib/ui";
 import { StreamingMarkdown } from "./StreamingMarkdown";
 import { VoiceInputPill } from "./VoiceWaveform";
 import type { Attachment, Dot, Message } from "@/lib/types";
@@ -99,6 +100,10 @@ function HistoryLoader({ convId }: { convId: string }) {
 /** `conversation`: a conversation id, "new" for a fresh chat, or undefined for the dot's latest chat. */
 export default function Chat({ dot, conversation }: { dot: Dot; conversation?: string }) {
   const router = useRouter();
+  // With the sidebar closed, the chat column grows into the freed space.
+  const sidebarOpen = useDesktopSidebarOpen();
+  const colWidth = sidebarOpen ? "xl:max-w-[920px] 2xl:max-w-[1040px]" : "xl:max-w-[1100px] 2xl:max-w-[1240px]";
+  const innerWidth = sidebarOpen ? "xl:max-w-[860px] 2xl:max-w-[980px]" : "xl:max-w-[1040px] 2xl:max-w-[1180px]";
   const all = useStore((s) => s.messages);
   const conversations = useStore((s) => s.conversations);
   const liveDot = useStore((s) => s.dots.find((d) => d.id === dot.id)) ?? dot;
@@ -234,11 +239,11 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
         onScroll={handleScroll}
         className="flex flex-1 flex-col-reverse overflow-y-auto"
       >
-        <div className="mx-auto flex min-h-full w-full max-w-[820px] shrink-0 flex-col px-4 sm:px-6 xl:max-w-[920px] 2xl:max-w-[1040px]">
+        <div className={`mx-auto flex min-h-full w-full max-w-[820px] shrink-0 flex-col px-4 transition-[max-width] duration-300 sm:px-6 ${colWidth}`}>
           <div className="flex-1" />
 
           {fresh && (
-            <div className="mx-auto w-full max-w-[760px] py-4 xl:max-w-[860px] 2xl:max-w-[980px]">
+            <div className={`mx-auto w-full max-w-[760px] py-4 transition-[max-width] duration-300 ${innerWidth}`}>
               <Welcome dot={dot} onPick={(t) => send(t)} />
             </div>
           )}
@@ -282,7 +287,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
       )}
 
       {/* Bottom Composer Area */}
-      <div className="mx-auto w-full max-w-[820px] px-4 pb-4 sm:px-6 sm:pb-6 xl:max-w-[920px] 2xl:max-w-[1040px]">
+      <div className={`mx-auto w-full max-w-[820px] px-4 pb-4 transition-[max-width] duration-300 sm:px-6 sm:pb-6 ${colWidth}`}>
         {!hasKey && (
           <div className="mb-3 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/[0.08] px-3.5 py-2 text-body-sm text-foreground/80">
             <ShieldAlert className="size-4 text-warning" strokeWidth={1.75} />
