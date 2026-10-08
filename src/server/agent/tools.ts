@@ -7,6 +7,7 @@ import { credentialFor } from "../vault";
 import { emit } from "../bus";
 import * as composio from "../composio";
 import * as files from "../files";
+import { createFileToken, isSafeWorkspacePath } from "../links";
 import type { Dot, RuleDecision } from "@/lib/types";
 
 export type ToolCtx = { dot: Dot; signal: AbortSignal; depth: number };
@@ -252,6 +253,25 @@ export const TOOLS: ToolDef[] = [
       repo.addMessage({ dotId: ctx.dot.id, role: "dot", text, attachments: [att] });
       emit({ type: "notify", dotId: ctx.dot.id, title: `${ctx.dot.name} sent ${att.name}`, body: text.slice(0, 160) });
       return `Shared ${att.name} (${att.size} bytes) with the user. Don't repeat its contents unless asked.`;
+    },
+  },
+  {
+    name: "public_file_link",
+    label: "Creating a temporary link",
+    description:
+      "Make a private web link (valid for 10 minutes, covers only that one file) for a file in your workspace, so another service can fetch it, for example to put an attached photo or video into Google Drive, or to give Instagram a public address for media. Attached files are in your workspace at uploads/<filename>. Create the link right before you use it.",
+    parameters: obj({ path: str("Path of the file in your workspace, for example uploads/photo.jpg") }),
+    describe: (a) => `create a temporary web link for "${s(a.path)}"`,
+    defaultDecision: () => "allow",
+    execute: async (a, ctx) => {
+      const p = s(a.path).trim().replace(/^\.\//, "");
+      if (!isSafeWorkspacePath(p)) return "That path is not allowed. Use a path inside your workspace, such as uploads/photo.jpg.";
+      const data = await computer.readFile(ctx.dot.id, p).catch(() => null);
+      if (!data) return `I couldn't find "${p}" in your workspace. Check the name with ls uploads.`;
+      const { token, expiresAt } = createFileToken(ctx.dot.id, p);
+      const url = `${composio.getAppUrl()}/api/public-files/${token}`;
+      const mins = Math.round((expiresAt - Date.now()) / 60_000);
+      return `Link for ${p} (${data.length} bytes), valid for about ${mins} minutes: ${url}`;
     },
   },
   {

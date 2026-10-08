@@ -17,6 +17,7 @@ export async function middleware(request: NextRequest) {
     pathname === "/login" ||
     pathname.startsWith("/api/auth") ||
     pathname === "/api/composio/oauth" ||
+    pathname.startsWith("/api/public-files/") ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/sw.js"
   ) {
