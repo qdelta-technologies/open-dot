@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Open-source personal AI agents that work on their own, on their own computers",
     start_url: "/",
     display: "standalone",
-    background_color: "#0d0f14",
-    theme_color: "#0d0f14",
+    background_color: "#fafafa",
+    theme_color: "#fafafa",
     orientation: "portrait",
     categories: ["productivity", "utilities"],
     icons: [

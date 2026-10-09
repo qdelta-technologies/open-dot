@@ -15,10 +15,7 @@ const geistSans = localFont({ src: "../fonts/Geist-Variable.woff2", weight: "100
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" });
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f6f6" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d0f14" },
-  ],
+  themeColor: "#f6f6f6",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
