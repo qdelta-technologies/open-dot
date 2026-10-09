@@ -39,7 +39,8 @@ export async function postInstagram(url: string, caption: string, kind: "photo" 
   while (Date.now() < deadline) {
     await sleep(kind === "reel" ? 6000 : 3000);
     last = await executeTool("INSTAGRAM_GET_POST_STATUS", { creation_id: creationId });
-    if (/FINISHED|PUBLISHED/i.test(last) && !/ERROR/i.test(last)) {
+    // Composio replies always carry an "error": null field, so only the status value itself decides
+    if (/"status_code"\s*:\s*"?(FINISHED|PUBLISHED)/i.test(last) || /\bFinished: Media is ready/i.test(last) || (/\bFINISHED\b/.test(last) && !/"status_code"\s*:\s*"?(ERROR|EXPIRED|IN_PROGRESS)/i.test(last))) {
       ready = true;
       break;
     }
