@@ -7,6 +7,7 @@ import { credentialFor } from "../vault";
 import { emit } from "../bus";
 import * as composio from "../composio";
 import * as files from "../files";
+import * as leads from "../leads";
 import { postVideo as postLinkedInVideo } from "../linkedinVideo";
 import { createFileToken, createStoredFileToken, isSafeWorkspacePath } from "../links";
 import type { Dot, RuleDecision } from "@/lib/types";
@@ -328,7 +329,69 @@ Account: your connected LinkedIn account`,
     parameters: obj({ url: str("URL to open") }),
     describe: (a) => `open ${s(a.url)} in its browser`,
     defaultDecision: () => "allow",
-    execute: (a, ctx) => computer.openUrl(ctx.dot.id, s(a.url)),
+    execute: async (a, ctx) => {
+      const url = s(a.url);
+      const onLinkedIn = leads.isLinkedIn(url);
+      if (onLinkedIn) {
+        const stop = await leads.linkedInGate(ctx.dot.id);
+        if (stop) return stop;
+      }
+      const out = await computer.openUrl(ctx.dot.id, url);
+      if (onLinkedIn && leads.looksLikeLinkedInCheck(`${url} ${out}`)) {
+        leads.pauseLinkedIn(`a check or login wall appeared at ${url.slice(0, 120)}`);
+        return `${out}\n\nSTOP: LinkedIn is showing a check, login wall or warning. Do NOT try to solve it, retry, or go around it. Tell the user plainly what you see and wait for them.`;
+      }
+      return out;
+    },
+  },
+  {
+    name: "save_lead",
+    label: "Saving a lead",
+    description:
+      "Save one lead you found by reading a real page. Required: name, the full profile link, and evidence: the exact text you read on the page (headline, role, company). Never fill any field from memory or guess; leave unknown fields empty. Duplicates are skipped.",
+    parameters: obj({
+      name: str("Full name as shown on the page"),
+      headline: nullableStr("Headline or role as shown"),
+      company: nullableStr("Company as shown"),
+      location: nullableStr("Location as shown"),
+      profile_url: str("Full link of the profile page you read"),
+      source_url: nullableStr("The search or list page where you found them"),
+      evidence: str("The exact text you read on the page for this person"),
+      notes: nullableStr("Why they fit, in a short line"),
+    }),
+    describe: (a) => `save the lead ${s(a.name)}`,
+    defaultDecision: () => "allow",
+    execute: async (a, ctx) => {
+      const r = leads.addLead(ctx.dot.id, {
+        name: s(a.name), headline: s(a.headline), company: s(a.company), location: s(a.location),
+        profileUrl: s(a.profile_url), sourceUrl: s(a.source_url), evidence: s(a.evidence), notes: s(a.notes),
+      });
+      if (!r.ok) return `Not saved: ${r.reason}`;
+      return r.duplicate ? `${r.lead.name} was already saved.` : `Saved ${r.lead.name}. ${leads.countLeads()} lead(s) in total.`;
+    },
+  },
+  {
+    name: "list_leads",
+    label: "Checking saved leads",
+    description: "List the leads saved so far (newest first), so you do not repeat work.",
+    parameters: obj({}),
+    defaultDecision: () => "allow",
+    execute: async () => {
+      const all = leads.listLeads(40);
+      return all.length ? all.map((l) => `${l.name} | ${l.headline} | ${l.company} | ${l.profileUrl}`).join("\n") : "No leads saved yet.";
+    },
+  },
+  {
+    name: "linkedin_resume",
+    label: "Resuming LinkedIn",
+    description: "Only after the user has told you they dealt with LinkedIn's check or warning themselves: allow LinkedIn browsing again.",
+    parameters: obj({}),
+    describe: () => "resume LinkedIn browsing",
+    defaultDecision: () => "ask",
+    execute: async () => {
+      leads.resumeLinkedIn();
+      return "LinkedIn browsing is allowed again. Go slowly.";
+    },
   },
   {
     name: "read_page",

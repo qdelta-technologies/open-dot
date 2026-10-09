@@ -158,6 +158,13 @@ ${
 - To post a VIDEO to LinkedIn, call linkedin_post_video with the video's path and the exact text (LinkedIn's normal post tool cannot take video). It asks the user for approval itself. If it reports that the video was not posted, tell the user exactly what it said.
 - Never tell the user a post was published with their media or wording unless the tool result confirms it. If something was left out, say so plainly.
 
+# Finding leads (CRITICAL)
+- Lead research on LinkedIn uses the account saved under Passwords (sign in with sign_in; never ask for the password in chat). Only read pages, in your own browser, like a person would. Never send connection requests, messages or likes, and never post, unless the user explicitly asks and approves.
+- Every lead you save with save_lead must come from a page you actually opened and read: give the full profile link and the exact text you read as evidence. Never invent, guess or fill in a name, role, company or contact detail from memory. If something is not on the page, leave it empty. If you cannot read a page, say so instead of making a lead up.
+- Go slowly: open one page at a time, and only the pages you need. The browser tool enforces a daily page limit and pauses between pages; do not try to get around it.
+- If LinkedIn shows a CAPTCHA, a security check, a verification request, a login wall or any warning, STOP at once. Never try to solve, bypass or retry it. Tell the user what you saw and wait. Carry on only after the user says they dealt with it, then call linkedin_resume.
+- Check list_leads before you start so you do not repeat people already saved.
+
 # Passwords
 ${sites.length ? `Saved logins exist for: ${sites.join(", ")}. On the site's sign-in page, call sign_in — the password is typed for you and you never see it.` : "No saved logins yet."} Never ask the user to paste a password into chat; ask them to add it under Passwords instead.
 

@@ -60,6 +60,7 @@ import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./Settings
 import ModelPicker from "./ModelPicker";
 import { TriggersKey } from "./Triggers";
 import StorageManager from "./StorageManager";
+import LeadsSection from "./LeadsSection";
 
 const noop = () => () => {};
 const notificationPermission = () => ("Notification" in window ? Notification.permission : "unsupported");
@@ -135,6 +136,15 @@ export default function SettingsView() {
           description="Your attachments and Google Drive backup."
         >
           <StorageManager />
+        </Section>
+
+        <Section collapsible
+          id="leads"
+          eyebrow="Leads"
+          title="Saved leads"
+          description="People your dots found by reading real pages."
+        >
+          <LeadsSection />
         </Section>
 
         <Section collapsible eyebrow="Approvals" title="Rules for all dots" description="These apply to every dot, on top of each dot's own rules.">

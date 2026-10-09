@@ -17,6 +17,7 @@ import { cloudflareWorkerToken, cloudflareWorkerUrl, cloudflareWorkerUrls, saveC
 import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
 import * as files from "@/server/files";
+import * as leads from "@/server/leads";
 import * as voice from "@/server/voice";
 import { autoTitle } from "@/server/titles";
 import { cookies, headers } from "next/headers";
@@ -620,3 +621,17 @@ export async function deleteAllUploadedFiles(): Promise<{ count: number; freedBy
 }
 
 
+
+// ---------------------------------------------------------------- Leads
+
+export async function getLeadsSummary(): Promise<{ total: number; recent: leads.Lead[]; paused: string | null }> {
+  return { total: leads.countLeads(), recent: leads.listLeads(8), paused: leads.linkedInPaused() };
+}
+
+export async function removeLead(leadId: string): Promise<void> {
+  leads.deleteLead(leadId);
+}
+
+export async function resumeLinkedInBrowsing(): Promise<void> {
+  leads.resumeLinkedIn();
+}
