@@ -176,6 +176,9 @@ export async function postVideo(url: string, text: string, title: string, size: 
   return {
     ok: Boolean(link) || accepted,
     link,
-    log: accepted && !link ? `LinkedIn accepted the post, but its link could not be read back. Tell the user to check their LinkedIn profile.\n${log}` : log,
+    log:
+      accepted && !link
+        ? "The video post was published on LinkedIn. LinkedIn does not let this connection read posts back (a 403 permission limit), so there is no direct link. Tell the user to open their LinkedIn profile, Posts, to see it."
+        : log,
   };
 }
