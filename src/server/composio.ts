@@ -310,6 +310,34 @@ export async function executeTool(slug: string, args: Record<string, unknown>): 
   return out;
 }
 
+/**
+ * Put a file (fetched from a short-lived public link) into Composio's own storage and return the key app tools
+ * ask for in their "file" fields (the `s3key`). Runs a small fixed script in Composio's workbench; nothing is posted.
+ */
+export async function uploadFileForTools(url: string, name: string): Promise<{ s3key: string | null; raw: string }> {
+  const client = await ensureClient();
+  const listed = (await client.listTools()).tools.find((t) => t.name === "COMPOSIO_REMOTE_WORKBENCH");
+  if (!listed) throw new Error("Composio's file upload helper isn't available on this connection.");
+  const props = Object.keys(((listed.inputSchema as { properties?: Record<string, unknown> })?.properties ?? {}) as Record<string, unknown>);
+  const codeKey = props.find((k) => /code/i.test(k)) ?? "code_to_execute";
+  const safe = name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80) || "file";
+  const code = [
+    "import requests, json",
+    `r = requests.get(${JSON.stringify(url)}, timeout=60)`,
+    "r.raise_for_status()",
+    `p = "/tmp/${safe}"`,
+    'open(p, "wb").write(r.content)',
+    "res = upload_local_file(p)",
+    'print("QDOT_UPLOAD_RESULT", json.dumps(res, default=str))',
+  ].join("\n");
+  const args: Record<string, unknown> = { [codeKey]: code };
+  if (props.includes("thought")) args.thought = "QDot is uploading an attached file so an app can use it";
+  if (props.includes("session_id") && metaSession) args.session_id = metaSession;
+  const raw = await callTool("COMPOSIO_REMOTE_WORKBENCH", args);
+  const key = raw.match(/s3key["']?\s*[:=]\s*["']([^"'\s]+)["']/i)?.[1] ?? null;
+  return { s3key: key, raw: clip(raw, 2000) };
+}
+
 // ---------- read vs write, for approvals ----------
 
 const READ_VERB = /(?:^|_)(GET|LIST|SEARCH|FETCH|FIND|READ|RETRIEVE|QUERY|DESCRIBE|LOOKUP|VIEW|CHECK|COUNT|EXPORT|DOWNLOAD)(_|$)/i;

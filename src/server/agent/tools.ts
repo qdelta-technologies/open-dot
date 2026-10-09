@@ -275,6 +275,30 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
+    name: "app_file_key",
+    label: "Preparing a file for an app",
+    description:
+      "Get the file key that an app tool needs in its file or image field (named s3key), for a file in your workspace. Use it before posting a photo or video with LinkedIn and similar tools: then pass {name, mimetype, s3key} in the tool's images or file field. Attached files are in your workspace at uploads/<filename>.",
+    parameters: obj({ path: str("Path of the file in your workspace, for example uploads/photo.jpg") }),
+    describe: (a) => `prepare "${s(a.path)}" for an app`,
+    defaultDecision: () => "allow",
+    execute: async (a, ctx) => {
+      const p = s(a.path).trim().replace(/^\.\//, "");
+      if (!isSafeWorkspacePath(p)) return "That path is not allowed. Use a path inside your workspace, such as uploads/photo.jpg.";
+      const data = await computer.readFile(ctx.dot.id, p).catch(() => null);
+      if (!data) return `I couldn't find "${p}" in your workspace. Check the name with ls uploads.`;
+      const { token } = createFileToken(ctx.dot.id, p, 5 * 60_000);
+      const name = p.split("/").pop() ?? p;
+      try {
+        const out = await composio.uploadFileForTools(`${composio.getAppUrl()}/api/public-files/${token}`, name);
+        if (!out.s3key) return `The upload ran but I could not read a file key from it. Raw result: ${out.raw}`;
+        return `File key for ${name}: use {"name": "${name}", "mimetype": "${files.guessMime(name)}", "s3key": "${out.s3key}"} in the tool's images/file field.`;
+      } catch (err) {
+        return `Could not prepare the file: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+  },
+  {
     name: "open_url",
     label: "Browsing the web",
     description: "Open a URL in your browser (you'll see it via the computer tool / read_page). Your browser keeps its logins.",
