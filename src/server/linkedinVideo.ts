@@ -19,11 +19,13 @@ VERSIONS = ["202510", "202509", "202506", "202504", "202411"]
 def say(step, msg):
     print("QDOT_STEP", step, msg, flush=True)
 
-def px(method, endpoint, body=None, headers=None):
+def px(method, endpoint, body=None, headers=None, query=None):
     sig = inspect.signature(proxy_execute).parameters
     kw = dict(method=method, endpoint=endpoint, toolkit="linkedin")
     if body is not None:
         kw["body"] = body
+    if query:
+        kw["query_params"] = query
     if headers:
         if "headers" in sig:
             kw["headers"] = headers
@@ -115,8 +117,29 @@ out, err = unpack(res)
 txt = json.dumps(out, default=str) if not isinstance(out, str) else out
 say(5, "created the post: " + txt[:600] + (" " + str(err) if err else ""))
 m = re.search(r"urn:li:(?:share|ugcPost):\d+", txt)
+if not m and not err:
+    # LinkedIn answers a created post with an empty body and puts its id in a header, so look the post up
+    import time
+    time.sleep(4)
+    ghdr = {"LinkedIn-Version": used, "X-Restli-Protocol-Version": "2.0.0"}
+    for author_q in (AUTHOR, AUTHOR.replace(":", "%3A")):
+        res = px("GET", "/rest/posts", None, ghdr, {"author": author_q, "q": "author", "count": "10", "sortBy": "LAST_MODIFIED"})
+        out, err2 = unpack(res)
+        d = as_dict(out)
+        found = None
+        for el in (d.get("elements") or []):
+            if el.get("commentary") == TEXT:
+                found = el
+                break
+        if found:
+            m = re.search(r"urn:li:(?:share|ugcPost):\d+", json.dumps(found))
+            say(6, "found the new post: " + str(found.get("id") or ""))
+            break
+        say(6, "post lookup found nothing yet: " + (json.dumps(out, default=str)[:300] if not isinstance(out, str) else out[:300]) + (" " + str(err2) if err2 else ""))
 if m:
     say("DONE", "https://www.linkedin.com/feed/update/" + m.group(0))
+elif not err:
+    say("ACCEPTED", "LinkedIn accepted the post (no error), but its link could not be read back")
 `;
 
 export type LinkedInVideoResult = { ok: boolean; link: string | null; log: string };
@@ -149,5 +172,10 @@ export async function postVideo(url: string, text: string, title: string, size: 
   const lines = raw.split("\n").filter((l) => l.includes("QDOT_STEP") || /error|traceback|exception/i.test(l));
   const log = (lines.join("\n") || raw).slice(0, 3000);
   const link = raw.match(/QDOT_STEP DONE (https:\/\/www\.linkedin\.com\/feed\/update\/\S+)/)?.[1] ?? null;
-  return { ok: Boolean(link), link, log };
+  const accepted = raw.includes("QDOT_STEP ACCEPTED");
+  return {
+    ok: Boolean(link) || accepted,
+    link,
+    log: accepted && !link ? `LinkedIn accepted the post, but its link could not be read back. Tell the user to check their LinkedIn profile.\n${log}` : log,
+  };
 }
