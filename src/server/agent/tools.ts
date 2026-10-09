@@ -9,6 +9,7 @@ import * as composio from "../composio";
 import * as files from "../files";
 import * as leads from "../leads";
 import { postVideo as postLinkedInVideo } from "../linkedinVideo";
+import { postInstagram } from "../instagramPost";
 import { createFileToken, createStoredFileToken, isSafeWorkspacePath } from "../links";
 import type { Dot, RuleDecision } from "@/lib/types";
 
@@ -345,6 +346,31 @@ Account: your connected LinkedIn account`,
     },
   },
   {
+    name: "instagram_post",
+    label: "Posting to Instagram",
+    description:
+      "Publish a photo or a Reel (video) to the user's connected Instagram account. Give the file's path (uploads/<name>), the exact caption the user wants, and kind: photo or reel. Needs an Instagram Business or Creator account. The user must approve it first.",
+    parameters: obj({
+      path: str("Path of the photo or video in your workspace, for example uploads/photo.jpg"),
+      caption: str("The exact caption, word for word as the user gave it"),
+      kind: str("photo or reel"),
+    }),
+    describe: (a) => `post "${s(a.path)}" to Instagram`,
+    detail: (a) => `Caption: ${s(a.caption)}\nMedia: ${s(a.kind) || "photo"} ${s(a.path)}\nAccount: your connected Instagram account`,
+    defaultDecision: () => "ask",
+    execute: async (a, ctx) => {
+      const link = await fileLink(ctx.dot.id, s(a.path), 30);
+      if ("error" in link) return link.error;
+      const kind = /reel|video/i.test(s(a.kind)) || /^video\//i.test(link.mime) ? "reel" : "photo";
+      try {
+        const r = await postInstagram(link.url, s(a.caption).trim(), kind, link.mime, link.size);
+        return r.ok ? `${r.message} Tell the user in one plain sentence.` : `NOT posted. Tell the user in plain words, with no JSON or code: ${r.message}`;
+      } catch (err) {
+        return `NOT posted: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+  },
+  {
     name: "save_lead",
     label: "Saving a lead",
     description:
@@ -632,20 +658,20 @@ function composioTools(): ToolDef[] {
 }
 
 /** A short-lived private link to one of the dot's files: from its workspace, or the stored attachment (even if only in Drive now). */
-async function fileLink(dotId: string, rawPath: string): Promise<{ url: string; name: string; size: number } | { error: string }> {
+async function fileLink(dotId: string, rawPath: string, ttlMin = 10): Promise<{ url: string; name: string; size: number; mime: string } | { error: string }> {
   const p = rawPath.trim().replace(/^\.\//, "");
   if (!isSafeWorkspacePath(p)) return { error: "That path is not allowed. Use a path inside your workspace, such as uploads/photo.jpg." };
   const name = p.split("/").pop() ?? p;
   const base = composio.getAppUrl();
   const data = await computer.readFile(dotId, p).catch(() => null);
-  if (data) return { url: `${base}/api/public-files/${createFileToken(dotId, p, 10 * 60_000).token}`, name, size: data.length };
+  if (data) return { url: `${base}/api/public-files/${createFileToken(dotId, p, ttlMin * 60_000).token}`, name, size: data.length, mime: files.guessMime(name) };
   const found = files.findForDot(dotId, name);
   const names = new Set(found.map((f) => f.name.toLowerCase()));
   if (!found.length) return { error: `I couldn't find "${name}" in your workspace or among your attachments. Ask the user to attach it again.` };
   if (names.size > 1) return { error: `Several attachments match "${name}": ${[...names].slice(0, 8).join(", ")}. Ask the user which one they mean.` };
   const content = await files.readContent(found[0].id);
   if (!content.length) return { error: `"${name}" is in the list but its content could not be read from the server or Google Drive. Tell the user.` };
-  return { url: `${base}/api/public-files/${createStoredFileToken(found[0].id, 10 * 60_000).token}`, name, size: content.length };
+  return { url: `${base}/api/public-files/${createStoredFileToken(found[0].id, ttlMin * 60_000).token}`, name, size: content.length, mime: files.guessMime(name) };
 }
 
 export const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
@@ -658,7 +684,7 @@ export function findTool(name: string): ToolDef | undefined {
 export function toolsForDot(dot: Dot): ToolDef[] {
   const signedIn = composio.signedIn();
   return [
-    ...TOOLS.filter((t) => (t.name !== "run_on_my_computer" || dot.localAccess) && ((t.name !== "app_connect" && t.name !== "linkedin_post_video") || signedIn)),
+    ...TOOLS.filter((t) => (t.name !== "run_on_my_computer" || dot.localAccess) && ((t.name !== "app_connect" && t.name !== "linkedin_post_video" && t.name !== "instagram_post") || signedIn)),
     ...(signedIn ? composioTools() : []),
   ];
 }
