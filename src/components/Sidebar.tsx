@@ -68,6 +68,7 @@ export default function Sidebar() {
     checkAuthStatus().then((s) => setAuthEnabled(s.enabled));
     try {
       const v = localStorage.getItem("qdot-sidebar-scope");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (v === "all" || v === "dot") setScope(v);
       setAutoOpen(localStorage.getItem("qdot-sidebar-automations") === "1");
     } catch {
@@ -355,7 +356,7 @@ export default function Sidebar() {
                   <span className="flex items-baseline gap-2">
                     <span className="truncate text-[15px] font-medium">{c.title}</span>
                     {unread(c) && <span className="size-2 shrink-0 self-center rounded-full bg-brand" />}
-                    <span className="ml-auto shrink-0 font-mono text-[11px] text-foreground/35 group-hover:invisible">{timeAgo(c.updatedAt).replace(" ago", "")}</span>
+                    <span className="ml-auto shrink-0 font-mono text-[11px] text-foreground/35 group-hover:invisible">{timeAgo(c.createdAt).replace(" ago", "")}</span>
                   </span>
                   <span className="block truncate text-[13px] text-foreground/50">
                     <span className="text-foreground/65">{d.name}</span>
