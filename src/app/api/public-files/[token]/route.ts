@@ -1,6 +1,6 @@
 import * as computer from "@/server/computer";
 import { mimeForPath, verifyFileToken } from "@/server/links";
-import { get as getStoredFile } from "@/server/files";
+import { get as getStoredFile, readContent } from "@/server/files";
 
 // A short-lived, signed link to one workspace file. No login: the signature and expiry are the access control.
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -10,7 +10,8 @@ async function load(token: string) {
   if (!link) return null;
   if (link.kind === "stored") {
     const f = getStoredFile(link.fileId);
-    const data = f?.data();
+    // the server copy may be gone after the 7-day cleanup: readContent falls back to the Drive backup
+    const data = f ? await readContent(link.fileId) : null;
     if (!f || !data || !data.length || data.length > MAX_BYTES) return null;
     return { data, name: f.name, mime: f.mime || mimeForPath(f.name) };
   }

@@ -7,7 +7,7 @@ import { credentialFor } from "../vault";
 import { emit } from "../bus";
 import * as composio from "../composio";
 import * as files from "../files";
-import { createFileToken, isSafeWorkspacePath } from "../links";
+import { createFileToken, createStoredFileToken, isSafeWorkspacePath } from "../links";
 import type { Dot, RuleDecision } from "@/lib/types";
 
 export type ToolCtx = { dot: Dot; signal: AbortSignal; depth: number };
@@ -285,10 +285,21 @@ export const TOOLS: ToolDef[] = [
     execute: async (a, ctx) => {
       const p = s(a.path).trim().replace(/^\.\//, "");
       if (!isSafeWorkspacePath(p)) return "That path is not allowed. Use a path inside your workspace, such as uploads/photo.jpg.";
-      const data = await computer.readFile(ctx.dot.id, p).catch(() => null);
-      if (!data) return `I couldn't find "${p}" in your workspace. Check the name with ls uploads.`;
-      const { token } = createFileToken(ctx.dot.id, p, 5 * 60_000);
       const name = p.split("/").pop() ?? p;
+      let token: string;
+      const data = await computer.readFile(ctx.dot.id, p).catch(() => null);
+      if (data) {
+        token = createFileToken(ctx.dot.id, p, 5 * 60_000).token;
+      } else {
+        // not in the workspace any more: look for the attachment itself, which may only be in the Drive backup now
+        const found = files.findForDot(ctx.dot.id, name);
+        const names = new Set(found.map((f) => f.name.toLowerCase()));
+        if (!found.length) return `I couldn't find "${name}" in your workspace or among your attachments. Ask the user to attach it again.`;
+        if (names.size > 1) return `Several attachments match "${name}": ${[...names].slice(0, 8).join(", ")}. Ask the user which one they mean.`;
+        const content = await files.readContent(found[0].id);
+        if (!content.length) return `"${name}" is in the list but its content could not be read from the server or Google Drive. Tell the user.`;
+        token = createStoredFileToken(found[0].id, 5 * 60_000).token;
+      }
       try {
         const out = await composio.uploadFileForTools(`${composio.getAppUrl()}/api/public-files/${token}`, name);
         if (!out.s3key) return `The upload ran but I could not read a file key from it. Raw result: ${out.raw}`;

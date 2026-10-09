@@ -113,6 +113,30 @@ export function get(fileId: string): (Attachment & { dotId: string; boxPath: str
   };
 }
 
+/** A file's bytes: the server copy, or (once that was cleaned up) the Google Drive backup. Empty if neither exists. */
+export async function readContent(fileId: string): Promise<Buffer> {
+  const f = get(fileId);
+  if (!f) return Buffer.alloc(0);
+  const local = f.data();
+  if (local.length || !f.driveFileId) return local;
+  return fetchFromDrive(f.driveFileId).catch((err) => {
+    console.warn("[files] Drive fetch failed:", err instanceof Error ? err.message : err);
+    return Buffer.alloc(0);
+  });
+}
+
+/** Attachments of one dot whose name matches: an exact (case-insensitive) name wins; otherwise partial matches, newest first. */
+export function findForDot(dotId: string, query: string): { id: string; name: string; createdAt: number }[] {
+  const q = query.trim().split("/").pop()?.toLowerCase() ?? "";
+  if (!q) return [];
+  const rows = db()
+    .prepare("SELECT id, name, created_at FROM files WHERE dot_id = ? ORDER BY created_at DESC")
+    .all(dotId) as { id: string; name: string; created_at: number }[];
+  const all = rows.map((r) => ({ id: r.id, name: r.name, createdAt: Number(r.created_at) }));
+  const exact = all.filter((r) => r.name.toLowerCase() === q);
+  return exact.length ? exact : all.filter((r) => r.name.toLowerCase().includes(q));
+}
+
 export function boxPathOf(fileId: string): string | null {
   return get(fileId)?.boxPath ?? null;
 }
