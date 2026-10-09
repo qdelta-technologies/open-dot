@@ -712,10 +712,11 @@ async function execTool(dot: Dot, call: ResponseFunctionToolCall, signal: AbortS
   repo.setActivity(dot.id, def.label);
   activity(dot.id, def.label, summarize(args));
   try {
-    // 35-second timeout guard: ensures network/browser tools never freeze automations indefinitely
+    // Timeout guard (35s unless the tool asks for more): ensures network/browser tools never freeze automations indefinitely
     let timeoutId: NodeJS.Timeout | undefined;
+    const limit = def.timeoutMs ?? 35_000;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(`Tool ${def.name} timed out after 35s`)), 35_000);
+      timeoutId = setTimeout(() => reject(new Error(`Tool ${def.name} timed out after ${Math.round(limit / 1000)}s`)), limit);
       signal.addEventListener("abort", () => clearTimeout(timeoutId), { once: true });
     });
 

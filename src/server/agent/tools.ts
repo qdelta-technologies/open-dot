@@ -31,6 +31,8 @@ export type ToolDef = {
   defaultDecision?: (ctx: ToolCtx, args: Record<string, unknown>) => RuleDecision | Promise<RuleDecision>;
   /** Runs before rules/approval; a returned string short-circuits as the tool's output (e.g. "app not connected"). */
   precheck?: (args: Record<string, unknown>, ctx: ToolCtx) => Promise<string | null>;
+  /** How long the tool may run before the dot is told it timed out (default 35s). Posting tools wait on other services and need longer. */
+  timeoutMs?: number;
   /** Extra detail for the approval card (e.g. the exact tool and arguments). */
   detail?: (args: Record<string, unknown>) => string;
   /** "pause" tools stop the run and wait for the user (question / approval / connect-an-app card). */
@@ -280,6 +282,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "app_file_key",
     label: "Preparing a file for an app",
+    timeoutMs: 2 * 60_000,
     description:
       "Get the file key that an app tool needs in its file or image field (named s3key), for a file in your workspace. Use it before posting a photo or video with LinkedIn and similar tools: then pass {name, mimetype, s3key} in the tool's images or file field. Attached files are in your workspace at uploads/<filename>.",
     parameters: obj({ path: str("Path of the file in your workspace, for example uploads/photo.jpg") }),
@@ -301,6 +304,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "linkedin_post_video",
     label: "Posting a video to LinkedIn",
+    timeoutMs: 4 * 60_000,
     description:
       "Publish a LinkedIn post with an attached video. LinkedIn's normal post tool cannot take video, so use this one. Give the video's path (uploads/<name>) and the exact post text the user wants. The user must approve it first.",
     parameters: obj({ path: str("Path of the video in your workspace, for example uploads/clip.mp4"), text: str("The exact post text, word for word as the user gave it") }),
@@ -314,13 +318,15 @@ Account: your connected LinkedIn account`,
       if ("error" in link) return link.error;
       const text = s(a.text).trim();
       if (!text) return "No post text was given. Ask the user for the exact wording.";
-      try {
-        const r = await postLinkedInVideo(link.url, text, "", link.size);
-        if (r.ok) return r.link ? `Published on LinkedIn. Link: ${r.link}. Tell the user in one plain sentence.` : `${r.log} Reply in two plain sentences, with no JSON or code.`;
-        return `The video was NOT posted. Tell the user in plain words, with no JSON or code: ${r.log}`;
-      } catch (err) {
-        return `The video was NOT posted: ${err instanceof Error ? err.message : String(err)}`;
-      }
+      return runOnce(`linkedin-video|${link.name}|${text}`, async () => {
+        try {
+          const r = await postLinkedInVideo(link.url, text, "", link.size);
+          if (r.ok) return r.link ? `Published on LinkedIn. Link: ${r.link}. Tell the user in one plain sentence.` : `${r.log} Reply in two plain sentences, with no JSON or code.`;
+          return `The video was NOT posted. Tell the user in plain words, with no JSON or code: ${r.log}`;
+        } catch (err) {
+          return `The video was NOT posted: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      });
     },
   },
   {
@@ -348,6 +354,7 @@ Account: your connected LinkedIn account`,
   {
     name: "instagram_post",
     label: "Posting to Instagram",
+    timeoutMs: 6 * 60_000,
     description:
       "Publish a photo or a Reel (video) to the user's connected Instagram account. Give the file's path (uploads/<name>), the exact caption the user wants, and kind: photo or reel. Needs an Instagram Business or Creator account. The user must approve it first.",
     parameters: obj({
@@ -362,12 +369,14 @@ Account: your connected LinkedIn account`,
       const link = await fileLink(ctx.dot.id, s(a.path), 30);
       if ("error" in link) return link.error;
       const kind = /reel|video/i.test(s(a.kind)) || /^video\//i.test(link.mime) ? "reel" : "photo";
-      try {
-        const r = await postInstagram(link.url, s(a.caption).trim(), kind, link.mime, link.size);
-        return r.ok ? `${r.message} Tell the user in one plain sentence.` : `NOT posted. Tell the user in plain words, with no JSON or code: ${r.message}`;
-      } catch (err) {
-        return `NOT posted: ${err instanceof Error ? err.message : String(err)}`;
-      }
+      return runOnce(`instagram|${link.name}|${s(a.caption).trim()}`, async () => {
+        try {
+          const r = await postInstagram(link.url, s(a.caption).trim(), kind, link.mime, link.size);
+          return r.ok ? `${r.message} Tell the user in one plain sentence.` : `NOT posted. Tell the user in plain words, with no JSON or code: ${r.message}`;
+        } catch (err) {
+          return `NOT posted: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      });
     },
   },
   {
@@ -633,6 +642,10 @@ function composioTools(): ToolDef[] {
       return {
         ...base,
         label: "Using your apps",
+        precheck: async (a) =>
+          composio.executeItems(a).some((i) => /^INSTAGRAM_(CREATE_MEDIA_CONTAINER|POST_IG_USER_MEDIA|POST_IG_USER_MEDIA_PUBLISH|CREATE_POST)/i.test(String(i.tool_slug ?? "")))
+            ? "Do not post to Instagram with these generic tools. Use the instagram_post tool (path, caption, kind). It checks the file and asks the user first."
+            : null,
         describe: (a) => composio.describeExecute(a),
         defaultDecision: (_ctx, a) => composio.executeDecision(a),
         detail: (a) => composio.executeDetail(a),
@@ -690,3 +703,19 @@ export function toolsForDot(dot: Dot): ToolDef[] {
 }
 
 export const COMPUTER_ENABLED = (process.env.DOTS_COMPUTER_TOOL ?? "computer") !== "off";
+
+/**
+ * Posting tools run at most once per identical request. While one is still running, a retry waits for the same run; after a success
+ * the earlier result is returned and nothing is sent again. Only a clear failure lets the same request be tried again.
+ */
+const postRuns = new Map<string, { at: number; promise: Promise<string> }>();
+async function runOnce(key: string, run: () => Promise<string>): Promise<string> {
+  const now = Date.now();
+  for (const [k, v] of postRuns) if (now - v.at > 30 * 60_000) postRuns.delete(k);
+  const prev = postRuns.get(key);
+  if (prev) return `${await prev.promise}\n\n(This exact post was already requested, so it was NOT sent a second time. Do not try again unless the result above says it failed.)`;
+  const promise = run();
+  postRuns.set(key, { at: now, promise });
+  promise.then((r) => (/NOT posted/i.test(r) ? postRuns.delete(key) : undefined)).catch(() => postRuns.delete(key));
+  return promise;
+}
