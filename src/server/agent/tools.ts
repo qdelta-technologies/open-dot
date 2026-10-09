@@ -7,6 +7,7 @@ import { credentialFor } from "../vault";
 import { emit } from "../bus";
 import * as composio from "../composio";
 import * as files from "../files";
+import { postVideo as postLinkedInVideo } from "../linkedinVideo";
 import { createFileToken, createStoredFileToken, isSafeWorkspacePath } from "../links";
 import type { Dot, RuleDecision } from "@/lib/types";
 
@@ -283,29 +284,43 @@ export const TOOLS: ToolDef[] = [
     describe: (a) => `prepare "${s(a.path)}" for an app`,
     defaultDecision: () => "allow",
     execute: async (a, ctx) => {
-      const p = s(a.path).trim().replace(/^\.\//, "");
-      if (!isSafeWorkspacePath(p)) return "That path is not allowed. Use a path inside your workspace, such as uploads/photo.jpg.";
-      const name = p.split("/").pop() ?? p;
-      let token: string;
-      const data = await computer.readFile(ctx.dot.id, p).catch(() => null);
-      if (data) {
-        token = createFileToken(ctx.dot.id, p, 5 * 60_000).token;
-      } else {
-        // not in the workspace any more: look for the attachment itself, which may only be in the Drive backup now
-        const found = files.findForDot(ctx.dot.id, name);
-        const names = new Set(found.map((f) => f.name.toLowerCase()));
-        if (!found.length) return `I couldn't find "${name}" in your workspace or among your attachments. Ask the user to attach it again.`;
-        if (names.size > 1) return `Several attachments match "${name}": ${[...names].slice(0, 8).join(", ")}. Ask the user which one they mean.`;
-        const content = await files.readContent(found[0].id);
-        if (!content.length) return `"${name}" is in the list but its content could not be read from the server or Google Drive. Tell the user.`;
-        token = createStoredFileToken(found[0].id, 5 * 60_000).token;
-      }
+      const link = await fileLink(ctx.dot.id, s(a.path));
+      if ("error" in link) return link.error;
+      const { url, name } = link;
       try {
-        const out = await composio.uploadFileForTools(`${composio.getAppUrl()}/api/public-files/${token}`, name);
+        const out = await composio.uploadFileForTools(url, name);
         if (!out.s3key) return `The upload ran but I could not read a file key from it. Raw result: ${out.raw}`;
         return `File key for ${name}: use {"name": "${name}", "mimetype": "${files.guessMime(name)}", "s3key": "${out.s3key}"} in the tool's images/file field.`;
       } catch (err) {
         return `Could not prepare the file: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+  },
+  {
+    name: "linkedin_post_video",
+    label: "Posting a video to LinkedIn",
+    description:
+      "Publish a LinkedIn post with an attached video. LinkedIn's normal post tool cannot take video, so use this one. Give the video's path (uploads/<name>) and the exact post text the user wants. The user must approve it first.",
+    parameters: obj({ path: str("Path of the video in your workspace, for example uploads/clip.mp4"), text: str("The exact post text, word for word as the user gave it") }),
+    describe: (a) => `post the video "${s(a.path)}" to LinkedIn`,
+    detail: (a) => `Post text: ${s(a.text)}
+Media: video ${s(a.path)}
+Account: your connected LinkedIn account`,
+    defaultDecision: () => "ask",
+    execute: async (a, ctx) => {
+      const link = await fileLink(ctx.dot.id, s(a.path));
+      if ("error" in link) return link.error;
+      const text = s(a.text).trim();
+      if (!text) return "No post text was given. Ask the user for the exact wording.";
+      try {
+        const r = await postLinkedInVideo(link.url, text, link.name, link.size);
+        return r.ok ? `Published. Link: ${r.link}
+
+Steps:
+${r.log}` : `The video was NOT posted. Tell the user exactly this:
+${r.log}`;
+      } catch (err) {
+        return `The video was NOT posted: ${err instanceof Error ? err.message : String(err)}`;
       }
     },
   },
@@ -556,6 +571,23 @@ function composioTools(): ToolDef[] {
   });
 }
 
+/** A short-lived private link to one of the dot's files: from its workspace, or the stored attachment (even if only in Drive now). */
+async function fileLink(dotId: string, rawPath: string): Promise<{ url: string; name: string; size: number } | { error: string }> {
+  const p = rawPath.trim().replace(/^\.\//, "");
+  if (!isSafeWorkspacePath(p)) return { error: "That path is not allowed. Use a path inside your workspace, such as uploads/photo.jpg." };
+  const name = p.split("/").pop() ?? p;
+  const base = composio.getAppUrl();
+  const data = await computer.readFile(dotId, p).catch(() => null);
+  if (data) return { url: `${base}/api/public-files/${createFileToken(dotId, p, 10 * 60_000).token}`, name, size: data.length };
+  const found = files.findForDot(dotId, name);
+  const names = new Set(found.map((f) => f.name.toLowerCase()));
+  if (!found.length) return { error: `I couldn't find "${name}" in your workspace or among your attachments. Ask the user to attach it again.` };
+  if (names.size > 1) return { error: `Several attachments match "${name}": ${[...names].slice(0, 8).join(", ")}. Ask the user which one they mean.` };
+  const content = await files.readContent(found[0].id);
+  if (!content.length) return { error: `"${name}" is in the list but its content could not be read from the server or Google Drive. Tell the user.` };
+  return { url: `${base}/api/public-files/${createStoredFileToken(found[0].id, 10 * 60_000).token}`, name, size: content.length };
+}
+
 export const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 /** Look up a tool by name, including Composio's dynamic ones. */
@@ -566,7 +598,7 @@ export function findTool(name: string): ToolDef | undefined {
 export function toolsForDot(dot: Dot): ToolDef[] {
   const signedIn = composio.signedIn();
   return [
-    ...TOOLS.filter((t) => (t.name !== "run_on_my_computer" || dot.localAccess) && (t.name !== "app_connect" || signedIn)),
+    ...TOOLS.filter((t) => (t.name !== "run_on_my_computer" || dot.localAccess) && ((t.name !== "app_connect" && t.name !== "linkedin_post_video") || signedIn)),
     ...(signedIn ? composioTools() : []),
   ];
 }
