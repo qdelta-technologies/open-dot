@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "QDot",
-  description: "Open-source personal AI agents that work on their own, on their own computers",
+  description: "QDot – your team's AI agents, working on their own",
   applicationName: "QDot",
   appleWebApp: {
     capable: true,

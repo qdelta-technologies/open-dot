@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "QDot",
     short_name: "QDot",
-    description: "Open-source personal AI agents that work on their own, on their own computers",
+    description: "QDot – your team's AI agents, working on their own",
     start_url: "/",
     display: "standalone",
     background_color: "#fafafa",
