@@ -28,7 +28,7 @@ type Pending = {
   cardId: string | null; // card the run is waiting on
   trigger: Trigger;
 };
-type InboxItem = { text: string; trigger: Trigger; conversationId: string; attachments?: Attachment[] };
+type InboxItem = { text: string; trigger: Trigger; conversationId: string; attachments?: Attachment[]; done?: (error?: string) => void };
 // `after`: work queued while the dot was busy (e.g. an approval answered in another conversation).
 type RunState = { running: boolean; abort: AbortController | null; inbox: InboxItem[]; after: (() => void)[] };
 
@@ -97,10 +97,19 @@ export function runRoutine(routine: Routine) {
   if (routine.once) repo.updateRoutine(routine.id, { enabled: false });
   const conv = repo.workConversation(dot.id, "chat", `routine:${routine.id}`, `Routine · ${routine.name}`);
   repo.addMessage({ dotId: dot.id, role: "system", text: `Routine "${routine.name}" started`, from: `routine:${routine.name}`, conversationId: conv });
-  state(dot.id).inbox.push({ text: `[Routine: ${routine.name}] ${routine.instruction}`, trigger: { kind: "routine", name: routine.name }, conversationId: conv });
-  void pump(dot.id)
-    .then(() => finishRoutine(routine, dot.name, conv, startedAt, null))
-    .catch((err: unknown) => finishRoutine(routine, dot.name, conv, startedAt, err instanceof Error ? err.message : String(err)));
+  let finished = false;
+  const finish = (error: string | null) => {
+    if (finished) return;
+    finished = true;
+    finishRoutine(routine, dot.name, conv, startedAt, error);
+  };
+  state(dot.id).inbox.push({
+    text: `[Routine: ${routine.name}] ${routine.instruction}`,
+    trigger: { kind: "routine", name: routine.name },
+    conversationId: conv,
+    done: (error) => finish(error ?? null),
+  });
+  void pump(dot.id).catch((err: unknown) => finish(err instanceof Error ? err.message : String(err)));
 }
 
 /** After a routine run: remember the result, write the log, and delete a one-time routine that is done. */
@@ -159,7 +168,9 @@ export function runTrigger(t: AppTrigger, event: Record<string, unknown>) {
 
 export function stop(dotId: string) {
   const s = state(dotId);
+  const dropped = s.inbox;
   s.inbox = [];
+  for (const i of dropped) i.done?.("It was stopped before it could run.");
   s.abort?.abort();
   repo.setActivity(dotId, null);
   const dot = repo.getDot(dotId);
@@ -254,6 +265,7 @@ async function pump(dotId: string) {
   const voice = conversationId ? repo.takeVoiceTranscript(conversationId, dot.name) : "";
   if (voice) text = `[Voice call in this chat since your last turn — you (on the call) and the user said:]\n${voice}\n\n[Now:]\n${text}`;
   await withRun(dotId, (signal) => turn(dotId, text, trigger, signal, attachments, conversationId));
+  for (const b of batch) b.done?.();
 }
 
 async function withRun(dotId: string, fn: (signal: AbortSignal) => Promise<void>) {
