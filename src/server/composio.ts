@@ -506,3 +506,21 @@ export async function startConnect(toolkit: string, originOverride?: string, ali
     },
   };
 }
+
+/** The `toolkits` argument of COMPOSIO_MANAGE_CONNECTIONS as a list, even when a model sends it as text. */
+export function toolkitList(args: Record<string, unknown>): { action?: string }[] {
+  const raw = args.toolkits;
+  let v: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      v = JSON.parse(raw);
+    } catch {
+      try {
+        v = JSON.parse(raw.replace(/'/g, '"'));
+      } catch {
+        v = [];
+      }
+    }
+  }
+  return Array.isArray(v) ? (v.filter((k) => k && typeof k === "object") as { action?: string }[]) : [];
+}

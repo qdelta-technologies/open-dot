@@ -645,12 +645,12 @@ function composioTools(): ToolDef[] {
         label: "Checking app connections",
         // New connections go through app_connect so the user gets a proper Connect card.
         precheck: async (a) =>
-          ((a.toolkits as { action?: string }[] | undefined) ?? []).some((k) => (k.action ?? "add") === "add")
+          composio.toolkitList(a).some((k) => (k.action ?? "add") === "add")
             ? "To connect an app, call app_connect with the toolkit slug instead (it shows the user a Connect card)."
             : null,
         describe: (a) => `change app connections (${JSON.stringify(a.toolkits ?? []).slice(0, 120)})`,
         defaultDecision: (_ctx, a) =>
-          ((a.toolkits as { action?: string }[] | undefined) ?? []).every((k) => k.action === "list") ? "allow" : "ask",
+          composio.toolkitList(a).every((k) => k.action === "list") ? "allow" : "ask",
       };
     }
     return { ...base, label: t.name === "COMPOSIO_SEARCH_TOOLS" ? "Finding app tools" : "Checking app tools" };
