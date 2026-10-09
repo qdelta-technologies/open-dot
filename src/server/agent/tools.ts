@@ -10,6 +10,7 @@ import * as files from "../files";
 import * as leads from "../leads";
 import { postVideo as postLinkedInVideo } from "../linkedinVideo";
 import { postInstagram } from "../instagramPost";
+import { collectInstagramLeads } from "../instagramLeads";
 import { createFileToken, createStoredFileToken, isSafeWorkspacePath } from "../links";
 import type { Dot, RuleDecision } from "@/lib/types";
 
@@ -406,6 +407,35 @@ Account: your connected LinkedIn account`,
     },
   },
   {
+    name: "instagram_collect_leads",
+    label: "Collecting Instagram leads",
+    timeoutMs: 4 * 60_000,
+    description:
+      "Save people who already reached out on the user's connected Instagram account as leads: those who commented on the account's recent posts, and optionally those who sent a direct message. Each lead keeps the exact comment or message as evidence. It cannot search for strangers.",
+    parameters: obj({
+      posts: { type: "integer", description: "How many of the most recent posts to read comments from (1 to 10)" },
+      include_dms: { type: "boolean", description: "Also save people who sent a direct message" },
+    }),
+    describe: () => "collect leads from Instagram comments and messages",
+    defaultDecision: () => "allow",
+    execute: async (a, ctx) => {
+      try {
+        const r = await collectInstagramLeads(ctx.dot.id, { posts: Math.min(Math.max(Number(a.posts) || 5, 1), 10), dms: a.include_dms === true });
+        const names = r.saved.slice(0, 15).join(", ");
+        return [
+          `Saved ${r.saved.length} new lead(s)${names ? `: ${names}` : ""}.`,
+          r.duplicates ? `${r.duplicates} were already saved.` : "",
+          r.notes.join(" "),
+          "Tell the user in plain words; they can see the leads in Settings, Saved leads.",
+        ]
+          .filter(Boolean)
+          .join(" ");
+      } catch (err) {
+        return `Could not collect Instagram leads: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+  },
+  {
     name: "list_leads",
     label: "Checking saved leads",
     description: "List the leads saved so far (newest first), so you do not repeat work.",
@@ -697,7 +727,7 @@ export function findTool(name: string): ToolDef | undefined {
 export function toolsForDot(dot: Dot): ToolDef[] {
   const signedIn = composio.signedIn();
   return [
-    ...TOOLS.filter((t) => (t.name !== "run_on_my_computer" || dot.localAccess) && ((t.name !== "app_connect" && t.name !== "linkedin_post_video" && t.name !== "instagram_post") || signedIn)),
+    ...TOOLS.filter((t) => (t.name !== "run_on_my_computer" || dot.localAccess) && ((t.name !== "app_connect" && t.name !== "linkedin_post_video" && t.name !== "instagram_post" && t.name !== "instagram_collect_leads") || signedIn)),
     ...(signedIn ? composioTools() : []),
   ];
 }
