@@ -1,6 +1,7 @@
 import "server-only";
 import * as repo from "../repo";
 import { getSetting } from "../db";
+import { nowInZone, userTimeZone } from "../timezone";
 import * as computer from "../computer";
 import { COMPUTER_ENABLED } from "./tools";
 import { apps as composioApps, signedIn as composioSignedIn } from "../composio";
@@ -57,7 +58,7 @@ export function systemPrompt(dot: Dot, trigger: Trigger): string {
   const company = getSetting(PROFILE_KEYS.company)?.trim() || DEFAULT_COMPANY;
   const who = ownerName ? `**${ownerName}**${ownerRole ? ` (${ownerRole})` : ""}` : "the user";
   const ownerLine = ownerName ? `You work for ${who}. Address them by name only when natural.` : "You work for the user. You do not know their name, so do not guess one. The company notes below may name several team members; that does not tell you which of them you are talking to, so never greet anyone by name unless the user tells you their name in chat.";
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tz = userTimeZone();
   const rules = repo.rulesFor(dot.id);
   const memories = repo.listMemories();
   const skills = repo.listSkills(dot.id);
@@ -184,13 +185,13 @@ When you figure out a repeatable process, save it with save_skill.
 
 # Routines
 ${routines.length ? routines.map((r) => `- [${r.id}] ${r.name} — "${r.schedule}"${r.enabled ? "" : " (paused)"}: ${r.instruction}`).join("\n") : "(none)"}
-To do something on a schedule, call create_routine (cron in the user's timezone, ${tz}). To modify an existing routine (e.g. change time, schedule, name, or instruction), call update_routine. To delete one, call delete_routine.
+To do something on a schedule, call create_routine (cron in the user's timezone, ${tz}). For a ONE-TIME task ("tomorrow at 9", "once at 5pm"), call create_routine with run_once_at (the local date and time, like 2026-10-10T09:00): it runs once and then deletes itself, and the deletion is logged. Use a cron schedule only for tasks that repeat. After creating a routine, tell the user in plain words the name, when it will run (in their time) and whether it repeats or runs once. To modify an existing routine (e.g. change time, schedule, name, or instruction), call update_routine. To delete one, call delete_routine.
 
 # Other dots
 ${others.length ? others.map((d) => `- ${d.name}${d.purpose ? `: ${d.purpose}` : ""}`).join("\n") + "\nUse message_dot to consult or delegate." : "(you're the only dot)"}
 
 # Now
-${new Date().toString()} (timezone ${tz}).
+${nowInZone(tz)} (timezone ${tz}).
 ${
   trigger.kind === "trigger"
     ? `This run was started by your trigger "${trigger.name}": something just happened in one of the user's apps (the event data is below). The user is not watching. Follow the trigger's instruction; anything that sends, posts, pays or changes something still needs approval. Report back with send_update (with a title) only if there's something worth telling them. Once you've sent it you're done, so don't add a closing message.`

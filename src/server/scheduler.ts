@@ -3,6 +3,7 @@ import { Cron } from "croner";
 import * as repo from "./repo";
 import { onEvent } from "./bus";
 import { runRoutine } from "./agent/runtime";
+import { recordAutomation } from "./automationLog";
 
 // Routines are cron jobs that wake a dot with an instruction.
 
@@ -16,6 +17,32 @@ function schedule(routineId: string) {
   if (!routine?.enabled) return;
 
   const tz = routine.timezone || "UTC";
+
+  // A one-time routine fires once at its moment. If the server was down at that moment it still runs on restart, within a day;
+  // after that it is dropped and logged instead of surprising anyone later.
+  if (routine.once) {
+    if (!routine.runAt) return;
+    const late = Date.now() - routine.runAt;
+    if (late > 24 * 60 * 60 * 1000) {
+      const dotName = repo.getDot(routine.dotId)?.name ?? "";
+      repo.deleteRoutine(routine.id);
+      recordAutomation({
+        kind: "deleted", routineId: routine.id, routineName: routine.name, dotId: routine.dotId, dotName, status: "deleted",
+        summary: "One-time routine was missed (the server was off for more than a day) and was deleted without running.",
+      });
+      return;
+    }
+    if (late >= 0) {
+      void Promise.resolve().then(() => runRoutine(routine));
+      return;
+    }
+    jobs.set(routineId, new Cron(new Date(routine.runAt), { protect: true }, () => {
+      const fresh = repo.getRoutine(routineId);
+      if (fresh) runRoutine(fresh);
+    }));
+    return;
+  }
+
   const cron = new Cron(routine.schedule, { protect: true, timezone: tz }, () => {
     const fresh = repo.getRoutine(routineId);
     if (fresh) runRoutine(fresh);

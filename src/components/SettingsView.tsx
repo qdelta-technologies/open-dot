@@ -61,6 +61,7 @@ import ModelPicker from "./ModelPicker";
 import { TriggersKey } from "./Triggers";
 import StorageManager from "./StorageManager";
 import LeadsSection from "./LeadsSection";
+import AutomationsSection from "./AutomationsSection";
 
 const noop = () => () => {};
 const notificationPermission = () => ("Notification" in window ? Notification.permission : "unsupported");
@@ -127,6 +128,15 @@ export default function SettingsView() {
           description="Your attachments and Google Drive backup."
         >
           <StorageManager />
+        </Section>
+
+        <Section collapsible
+          id="automations"
+          eyebrow="Automations"
+          title="Routines & record"
+          description="Everything your dots run on a schedule, and what each one did."
+        >
+          <AutomationsSection />
         </Section>
 
         <Section collapsible

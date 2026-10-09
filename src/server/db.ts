@@ -33,6 +33,11 @@ CREATE TABLE IF NOT EXISTS files (
   id TEXT PRIMARY KEY, dot_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL,
   source TEXT NOT NULL, box_path TEXT, created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS automation_log (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, routine_id TEXT, routine_name TEXT NOT NULL, dot_id TEXT, dot_name TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', drive_file_id TEXT, created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS automation_log_time ON automation_log(created_at);
 CREATE TABLE IF NOT EXISTS leads (
   id TEXT PRIMARY KEY, dot_id TEXT NOT NULL, name TEXT NOT NULL, headline TEXT NOT NULL DEFAULT '', company TEXT NOT NULL DEFAULT '',
   location TEXT NOT NULL DEFAULT '', profile_url TEXT NOT NULL UNIQUE, source_url TEXT NOT NULL DEFAULT '',
@@ -87,6 +92,8 @@ function migrate(conn: DatabaseSync) {
   const routineCols = conn.prepare("PRAGMA table_info(routines)").all().map((c) => (c as { name: string }).name);
   if (!routineCols.includes("last_error")) conn.exec("ALTER TABLE routines ADD COLUMN last_error TEXT");
   if (!routineCols.includes("timezone")) conn.exec("ALTER TABLE routines ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'");
+  if (!routineCols.includes("once")) conn.exec("ALTER TABLE routines ADD COLUMN once INTEGER NOT NULL DEFAULT 0");
+  if (!routineCols.includes("run_at")) conn.exec("ALTER TABLE routines ADD COLUMN run_at INTEGER");
   const fileCols = conn.prepare("PRAGMA table_info(files)").all().map((c) => (c as { name: string }).name);
   if (!fileCols.includes("drive_file_id")) conn.exec("ALTER TABLE files ADD COLUMN drive_file_id TEXT");
   if (!msgCols.includes("conversation_id")) {

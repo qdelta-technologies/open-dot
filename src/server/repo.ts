@@ -459,9 +459,9 @@ export function deleteSkill(skillId: string) {
 
 // ---------- routines ----------
 
-function nextRun(schedule: string): number | null {
+function nextRun(schedule: string, timezone = "UTC"): number | null {
   try {
-    return new Cron(schedule, { paused: true }).nextRun()?.getTime() ?? null;
+    return new Cron(schedule, { paused: true, timezone }).nextRun()?.getTime() ?? null;
   } catch {
     return null;
   }
@@ -471,7 +471,9 @@ const toRoutine = (r: Row): Routine => ({
   id: r.id as string, dotId: r.dot_id as string, name: r.name as string, instruction: r.instruction as string,
   schedule: r.schedule as string, timezone: (r.timezone as string) || "UTC", enabled: r.enabled === 1,
   lastRunAt: (r.last_run_at as number) ?? null, lastError: (r.last_error as string) ?? null,
-  nextRunAt: r.enabled === 1 ? nextRun(r.schedule as string) : null, createdAt: r.created_at as number,
+  once: r.once === 1, runAt: (r.run_at as number) ?? null,
+  nextRunAt: r.enabled !== 1 ? null : r.once === 1 ? ((r.run_at as number) ?? null) : nextRun(r.schedule as string, (r.timezone as string) || "UTC"),
+  createdAt: r.created_at as number,
 });
 
 export function listRoutines(dotId?: string): Routine[] {
@@ -490,10 +492,11 @@ export function validSchedule(schedule: string): boolean {
   return nextRun(schedule) !== null;
 }
 
-export function addRoutine(input: { dotId: string; name: string; instruction: string; schedule: string }): Routine {
+export function addRoutine(input: { dotId: string; name: string; instruction: string; schedule: string; timezone?: string; runAt?: number | null }): Routine {
   const routineId = id("rtn");
-  db().prepare("INSERT INTO routines (id, dot_id, name, instruction, schedule, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(routineId, input.dotId, input.name, input.instruction, input.schedule, now());
+  const once = input.runAt ? 1 : 0;
+  db().prepare("INSERT INTO routines (id, dot_id, name, instruction, schedule, timezone, once, run_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(routineId, input.dotId, input.name, input.instruction, once ? "once" : input.schedule, input.timezone || "UTC", once, input.runAt ?? null, now());
   const routine = getRoutine(routineId)!;
   emit({ type: "routine", data: routine });
   return routine;

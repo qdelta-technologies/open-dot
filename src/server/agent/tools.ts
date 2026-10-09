@@ -8,6 +8,8 @@ import { emit } from "../bus";
 import * as composio from "../composio";
 import * as files from "../files";
 import * as leads from "../leads";
+import { recordAutomation } from "../automationLog";
+import { localTimeToMs, userTimeZone } from "../timezone";
 import { postVideo as postLinkedInVideo } from "../linkedinVideo";
 import { postInstagram } from "../instagramPost";
 import { collectInstagramLeads } from "../instagramLeads";
@@ -545,18 +547,37 @@ Account: your connected LinkedIn account`,
   {
     name: "create_routine",
     label: "Setting up a routine",
-    description: "Create a recurring task you'll run on a schedule on your own, e.g. a morning briefing. Results reach the user via send_update.",
+    description:
+      "Create an automation: either a recurring task on a schedule (a cron expression), or a ONE-TIME task (run_once_at) that runs once and then deletes itself. Results reach the user via send_update.",
     parameters: obj({
       name: str("Short name"),
       instruction: str("What to do each time, written as a full instruction to yourself"),
-      schedule: str("5-field cron expression in the user's local timezone, e.g. '0 8 * * 1-5' for weekdays at 8am"),
+      schedule: nullableStr("For a recurring routine: 5-field cron expression in the user's local timezone, e.g. '0 8 * * 1-5' for weekdays at 8am. Null for a one-time routine."),
+      run_once_at: nullableStr("For a one-time routine: the user's local date and time like 2026-10-10T09:00. Null for a recurring routine."),
     }),
-    describe: (a) => `set up a recurring routine "${s(a.name)}" (${s(a.schedule)})`,
+    describe: (a) => (s(a.run_once_at) ? `set up a one-time routine "${s(a.name)}" (${s(a.run_once_at)})` : `set up a recurring routine "${s(a.name)}" (${s(a.schedule)})`),
     defaultDecision: () => "allow",
     execute: async (a, ctx) => {
-      if (!repo.validSchedule(s(a.schedule))) return `Invalid cron expression: ${s(a.schedule)}`;
-      const r = repo.addRoutine({ dotId: ctx.dot.id, name: s(a.name), instruction: s(a.instruction), schedule: s(a.schedule) });
-      return `Routine created (id ${r.id}). Next run: ${r.nextRunAt ? new Date(r.nextRunAt).toString() : "unknown"}.`;
+      const tz = userTimeZone();
+      const onceText = s(a.run_once_at).trim();
+      const once = onceText && onceText !== "null" && onceText !== "undefined";
+      let r;
+      if (once) {
+        const at = localTimeToMs(onceText, tz);
+        if (at === null) return `I could not read the time "${onceText}". Use a local date and time like 2026-10-10T09:00.`;
+        if (at < Date.now() + 20_000) return "That time has already passed. Pick a time in the future (at least a minute from now).";
+        r = repo.addRoutine({ dotId: ctx.dot.id, name: s(a.name), instruction: s(a.instruction), schedule: "once", timezone: tz, runAt: at });
+      } else {
+        if (!repo.validSchedule(s(a.schedule))) return `Invalid cron expression: ${s(a.schedule)}`;
+        r = repo.addRoutine({ dotId: ctx.dot.id, name: s(a.name), instruction: s(a.instruction), schedule: s(a.schedule), timezone: tz });
+      }
+      recordAutomation({
+        kind: "created", routineId: r.id, routineName: r.name, dotId: ctx.dot.id, dotName: ctx.dot.name, status: "created",
+        summary: once ? `One-time routine created, to run once at ${onceText} (${tz}) and then delete itself.` : `Recurring routine created: ${s(a.schedule)} (${tz}).`,
+        detail: `Instruction: ${s(a.instruction)}`,
+      });
+      const next = r.nextRunAt ? new Date(r.nextRunAt).toLocaleString("en-GB", { timeZone: tz, dateStyle: "full", timeStyle: "short" }) : "unknown";
+      return `Routine created (id ${r.id}). ${once ? "It runs ONCE, then deletes itself." : "It repeats."} Next run: ${next} (${tz}). Tell the user this in plain words.`;
     },
   },
   {
@@ -595,7 +616,16 @@ Account: your connected LinkedIn account`,
     parameters: obj({ routine_id: str("Routine id") }),
     describe: (a) => `delete routine ${s(a.routine_id)}`,
     defaultDecision: () => "allow",
-    execute: async (a) => (repo.deleteRoutine(s(a.routine_id)), "Routine deleted."),
+    execute: async (a, ctx) => {
+      const target = repo.getRoutine(s(a.routine_id)) ?? repo.findRoutine(ctx.dot.id, s(a.routine_id));
+      if (!target) return `Routine "${s(a.routine_id)}" not found.`;
+      repo.deleteRoutine(target.id);
+      recordAutomation({
+        kind: "deleted", routineId: target.id, routineName: target.name, dotId: target.dotId, dotName: ctx.dot.name, status: "deleted",
+        summary: `Deleted by ${ctx.dot.name}. It was ${target.once ? "a one-time routine" : `a recurring routine (${target.schedule})`}: ${target.instruction.slice(0, 200)}`,
+      });
+      return `Routine "${target.name}" deleted.`;
+    },
   },
   {
     name: "send_update",

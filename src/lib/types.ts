@@ -121,6 +121,9 @@ export type Routine = {
   instruction: string;
   schedule: string; // cron expression
   timezone: string; // IANA timezone, e.g. "America/New_York"
+  /** Runs once at runAt, then deletes itself. */
+  once: boolean;
+  runAt: number | null;
   enabled: boolean;
   lastRunAt: number | null;
   lastError: string | null;

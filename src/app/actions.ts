@@ -18,6 +18,8 @@ import * as triggers from "@/server/triggers";
 import * as composio from "@/server/composio";
 import * as files from "@/server/files";
 import * as leads from "@/server/leads";
+import { syncTimeZone, userTimeZone } from "@/server/timezone";
+import { listAutomationLog, recordAutomation, type AutomationLogEntry } from "@/server/automationLog";
 import * as voice from "@/server/voice";
 import { autoTitle } from "@/server/titles";
 import { cookies, headers } from "next/headers";
@@ -128,7 +130,11 @@ export async function deleteSkill(skillId: string) {
 
 export async function addRoutine(dotId: string, name: string, instruction: string, schedule: string): Promise<string | null> {
   if (!repo.validSchedule(schedule)) return "That schedule isn't a valid cron expression.";
-  repo.addRoutine({ dotId, name: name.trim() || "Routine", instruction, schedule: schedule.trim() });
+  const r = repo.addRoutine({ dotId, name: name.trim() || "Routine", instruction, schedule: schedule.trim(), timezone: userTimeZone() });
+  recordAutomation({
+    kind: "created", routineId: r.id, routineName: r.name, dotId, dotName: repo.getDot(dotId)?.name ?? "", status: "created",
+    summary: `Recurring routine created by you: ${r.schedule} (${r.timezone}).`, detail: `Instruction: ${instruction}`,
+  });
   return null;
 }
 
@@ -142,7 +148,26 @@ export async function runRoutineNow(routineId: string) {
 }
 
 export async function deleteRoutine(routineId: string) {
+  const r = repo.getRoutine(routineId);
   repo.deleteRoutine(routineId);
+  if (r)
+    recordAutomation({
+      kind: "deleted", routineId: r.id, routineName: r.name, dotId: r.dotId, dotName: repo.getDot(r.dotId)?.name ?? "", status: "deleted",
+      summary: `Deleted by you. It was ${r.once ? "a one-time routine" : `a recurring routine (${r.schedule})`}: ${r.instruction.slice(0, 200)}`,
+    });
+}
+
+export async function getAutomations(): Promise<{
+  routines: { id: string; name: string; dotName: string; schedule: string; once: boolean; enabled: boolean; nextRunAt: number | null; lastRunAt: number | null; lastError: string | null }[];
+  log: AutomationLogEntry[];
+  timezone: string;
+}> {
+  const dotName = (id: string) => repo.getDot(id)?.name ?? "";
+  return {
+    routines: repo.listRoutines().map((r) => ({ id: r.id, name: r.name, dotName: dotName(r.dotId), schedule: r.schedule, once: r.once, enabled: r.enabled, nextRunAt: r.nextRunAt, lastRunAt: r.lastRunAt, lastError: r.lastError })),
+    log: listAutomationLog(60),
+    timezone: userTimeZone(),
+  };
 }
 
 export async function savePassword(site: string, username: string, password: string): Promise<string | null> {
@@ -634,4 +659,10 @@ export async function removeLead(leadId: string): Promise<void> {
 
 export async function resumeLinkedInBrowsing(): Promise<void> {
   leads.resumeLinkedIn();
+}
+
+// ---------------------------------------------------------------- Time zone
+
+export async function syncTimezone(tz: string): Promise<void> {
+  syncTimeZone(String(tz || "").slice(0, 64));
 }

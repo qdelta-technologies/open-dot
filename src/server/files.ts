@@ -35,7 +35,7 @@ export class DriveNotConnectedError extends Error {
   constructor() { super("DRIVE_NOT_CONNECTED"); this.name = "DriveNotConnectedError"; }
 }
 
-function saveRecord(dotId: string, fileId: string, name: string, mime: string, size: number, source: "user" | "dot", boxPath: string | null, driveFileId: string | null): Attachment {
+function saveRecord(dotId: string, fileId: string, name: string, mime: string, size: number, source: "user" | "dot" | "log", boxPath: string | null, driveFileId: string | null): Attachment {
   db()
     .prepare("INSERT INTO files (id, dot_id, name, mime, size, source, box_path, drive_file_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
     .run(fileId, dotId, name, mime, size, source, boxPath, driveFileId, Date.now());
@@ -101,11 +101,11 @@ export async function shareFromComputer(dotId: string, p: string): Promise<Attac
   return save(dotId, name, guessMime(name), data, "dot", p);
 }
 
-export function get(fileId: string): (Attachment & { dotId: string; boxPath: string | null; driveFileId: string | null; data: () => Buffer }) | null {
+export function get(fileId: string): (Attachment & { dotId: string; source: string; boxPath: string | null; driveFileId: string | null; data: () => Buffer }) | null {
   const r = db().prepare("SELECT * FROM files WHERE id = ?").get(fileId) as Row | undefined;
   if (!r) return null;
   return {
-    id: r.id, name: r.name, mime: r.mime, size: r.size, dotId: r.dot_id, boxPath: r.box_path, driveFileId: r.drive_file_id ?? null,
+    id: r.id, name: r.name, mime: r.mime, size: r.size, dotId: r.dot_id, source: r.source, boxPath: r.box_path, driveFileId: r.drive_file_id ?? null,
     data: () => {
       const p = path.join(DIR, r.id);
       return fs.existsSync(p) ? fs.readFileSync(p) : Buffer.alloc(0);
@@ -162,7 +162,8 @@ export function listFiles(): StoredFile[] {
       .prepare(
         `SELECT f.*, d.name as dot_name 
          FROM files f 
-         LEFT JOIN dots d ON f.dot_id = d.id 
+         LEFT JOIN dots d ON f.dot_id = d.id
+         WHERE f.source != 'log'
          ORDER BY f.created_at DESC`
       )
       .all() as (Row & { dot_name?: string })[];
@@ -251,7 +252,7 @@ export function getStorageStats(): {
   diskTotalBytes: number | null;
 } {
   try {
-    const rows = db().prepare("SELECT id, size FROM files").all() as { id: string; size: number }[];
+    const rows = db().prepare("SELECT id, size FROM files WHERE source != 'log'").all() as { id: string; size: number }[];
     const local = rows.filter((r) => fs.existsSync(path.join(DIR, r.id)));
     const totalFiles = local.length;
     const totalBytes = local.reduce((n, r) => n + Number(r.size), 0);
@@ -337,6 +338,47 @@ async function ensureDotFolder(dotId: string): Promise<string> {
   return job;
 }
 
+const logFolderLocks = new Map<string, Promise<string>>();
+
+/** "QDot Logs/<dot name>": where run logs go. A deleted folder is recreated, like the dot folders. */
+async function ensureLogFolder(dotId: string): Promise<string> {
+  const pending = logFolderLocks.get(dotId);
+  if (pending) return pending;
+  const job = (async () => {
+    const rootKey = "drive_logs_root";
+    let root = getSetting(rootKey);
+    if (!root || !(await driveFolderAlive(root))) {
+      const created = await executeTool("GOOGLEDRIVE_CREATE_FOLDER", { name: "QDot Logs" });
+      root = driveIdOf(created);
+      if (!root) throw new Error("Couldn't create the QDot Logs folder: " + created.slice(0, 200));
+      setSetting(rootKey, root);
+    }
+    const key = "drive_log_folder:" + dotId;
+    const saved = getSetting(key);
+    if (saved && (await driveFolderAlive(saved))) return saved;
+    const row = db().prepare("SELECT name FROM dots WHERE id = ?").get(dotId) as { name: string } | undefined;
+    const name = (row?.name || "Dot").replace(/[\\/:*?"<>|]/g, "-").trim() || "Dot";
+    const created = await executeTool("GOOGLEDRIVE_CREATE_FOLDER", { name, parent_id: root });
+    const folderId = driveIdOf(created);
+    if (!folderId) return root;
+    setSetting(key, folderId);
+    return folderId;
+  })().finally(() => logFolderLocks.delete(dotId));
+  logFolderLocks.set(dotId, job);
+  return job;
+}
+
+/** Save a small text log as a file (hidden from the attachments list) and back it up to Drive. Returns the file id. */
+export function saveLogFile(dotId: string, name: string, text: string): string {
+  const fileId = id("file");
+  const data = Buffer.from(text, "utf8");
+  fs.mkdirSync(DIR, { recursive: true });
+  fs.writeFileSync(path.join(DIR, fileId), data);
+  saveRecord(dotId, fileId, safeName(name), "text/markdown", data.length, "log", null, null);
+  void backupToDrive(fileId);
+  return fileId;
+}
+
 /** Copy an attachment into its dot's folder inside "QDot Uploads" in Google Drive, using a temporary link Drive can fetch. */
 export async function backupToDrive(fileId: string): Promise<boolean> {
   if (backingUp.has(fileId)) return false;
@@ -344,7 +386,7 @@ export async function backupToDrive(fileId: string): Promise<boolean> {
   if (!f || f.driveFileId || !composioSignedIn() || !isGoogleDriveConnected()) return false;
   backingUp.add(fileId);
   try {
-    const folder = await ensureDotFolder(f.dotId);
+    const folder = f.source === "log" ? await ensureLogFolder(f.dotId) : await ensureDotFolder(f.dotId);
     const { token } = createStoredFileToken(fileId, 15 * 60_000);
     const url = `${getAppUrl()}/api/public-files/${token}`;
     const out = await withTimeout(
@@ -389,7 +431,7 @@ export function startFileMaintenance() {
     try {
       if (composioSignedIn() && isGoogleDriveConnected()) {
         const pending = db()
-          .prepare("SELECT id FROM files WHERE drive_file_id IS NULL AND source = 'user' AND created_at > ? ORDER BY created_at LIMIT 3")
+          .prepare("SELECT id FROM files WHERE drive_file_id IS NULL AND source IN ('user', 'log') AND created_at > ? ORDER BY created_at LIMIT 3")
           .all(Date.now() - RETENTION_MS) as { id: string }[];
         for (const r of pending) await backupToDrive(r.id);
       }

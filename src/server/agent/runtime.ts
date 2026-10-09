@@ -10,6 +10,7 @@ import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
 import * as repo from "../repo";
+import { recordAutomation } from "../automationLog";
 import * as computer from "../computer";
 import type { ComputerAction } from "../computer/browser";
 import { emit } from "../bus";
@@ -91,14 +92,58 @@ export function runRoutine(routine: Routine) {
   const dot = repo.getDot(routine.dotId);
   if (!dot || dot.status === "paused" || !routine.enabled) return;
   // Each routine keeps its own conversation, so its runs read like a log you can open any time.
+  const startedAt = Date.now();
+  // A one-time routine can only fire once: switch it off the moment it starts, so a restart can never run it again.
+  if (routine.once) repo.updateRoutine(routine.id, { enabled: false });
   const conv = repo.workConversation(dot.id, "chat", `routine:${routine.id}`, `Routine · ${routine.name}`);
   repo.addMessage({ dotId: dot.id, role: "system", text: `Routine "${routine.name}" started`, from: `routine:${routine.name}`, conversationId: conv });
   state(dot.id).inbox.push({ text: `[Routine: ${routine.name}] ${routine.instruction}`, trigger: { kind: "routine", name: routine.name }, conversationId: conv });
-  void pump(dot.id).then(() => {
-    repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: null });
-  }).catch((err: unknown) => {
-    repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: err instanceof Error ? err.message : String(err) });
-  });
+  void pump(dot.id)
+    .then(() => finishRoutine(routine, dot.name, conv, startedAt, null))
+    .catch((err: unknown) => finishRoutine(routine, dot.name, conv, startedAt, err instanceof Error ? err.message : String(err)));
+}
+
+/** After a routine run: remember the result, write the log, and delete a one-time routine that is done. */
+function finishRoutine(routine: Routine, dotName: string, conv: string, startedAt: number, error: string | null) {
+  try {
+    const msgs = repo.conversationMessages(conv, 120).filter((m) => m.createdAt >= startedAt);
+    const waiting = msgs.find((m) => m.role === "card" && m.card?.status === "pending");
+    const replies = msgs.filter((m) => m.role === "dot" && m.text).map((m) => m.text);
+    const actions = msgs.filter((m) => m.role === "card").map((m) => `- ${m.card?.status ?? "card"}: ${m.card?.title ?? m.text}`);
+    const status = error ? "error" : waiting ? "waiting" : "ok";
+    const summary = error
+      ? `It failed: ${error}`
+      : waiting
+        ? `Stopped and waiting for you: ${waiting.card?.title ?? "an approval"}`
+        : replies.length
+          ? replies[replies.length - 1].replace(/\s+/g, " ").slice(0, 600)
+          : "It finished without writing a reply.";
+    if (repo.getRoutine(routine.id)) repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: error });
+    recordAutomation({
+      kind: "run",
+      routineId: routine.id,
+      routineName: routine.name,
+      dotId: routine.dotId,
+      dotName,
+      status,
+      summary,
+      detail: [`Instruction: ${routine.instruction}`, actions.length ? `\nActions it took or asked about:\n${actions.join("\n")}` : "", replies.length ? `\nWhat it said:\n${replies.join("\n\n")}` : ""].join("\n"),
+    });
+    if (routine.once && !waiting && repo.getRoutine(routine.id)) {
+      repo.deleteRoutine(routine.id);
+      recordAutomation({
+        kind: "deleted",
+        routineId: routine.id,
+        routineName: routine.name,
+        dotId: routine.dotId,
+        dotName,
+        status: "deleted",
+        summary: `One-time routine finished (${status}) and was deleted automatically. It had run once as planned.`,
+      });
+    }
+  } catch (err) {
+    console.warn("[routine] could not finish the run record:", err instanceof Error ? err.message : err);
+  }
 }
 
 /** A Composio trigger fired: run its dot on the instruction, in the trigger's own chat, from a fresh context. */
