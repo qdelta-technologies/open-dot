@@ -666,3 +666,28 @@ export async function resumeLinkedInBrowsing(): Promise<void> {
 export async function syncTimezone(tz: string): Promise<void> {
   syncTimeZone(String(tz || "").slice(0, 64));
 }
+
+export async function setLeadStatus(leadId: string, status: string): Promise<string | null> {
+  const r = leads.updateLead(leadId, { status });
+  return r.ok ? null : r.reason;
+}
+
+export async function updateLeadContact(leadId: string, email: string, phone: string): Promise<string | null> {
+  const r = leads.updateLead(leadId, { email: email.trim(), phone: phone.trim() });
+  return r.ok ? null : r.reason;
+}
+
+// ---------------------------------------------------------------- Message templates
+
+export async function getTemplates(): Promise<leads.Template[]> {
+  return leads.listTemplates();
+}
+
+export async function saveTemplateAction(name: string, subject: string, body: string): Promise<string | null> {
+  const t = leads.saveTemplate(name, subject, body);
+  return "error" in t ? t.error : null;
+}
+
+export async function deleteTemplateAction(templateId: string): Promise<void> {
+  leads.deleteTemplate(templateId);
+}

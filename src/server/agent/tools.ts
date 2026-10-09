@@ -392,6 +392,8 @@ Account: your connected LinkedIn account`,
       headline: nullableStr("Headline or role as shown"),
       company: nullableStr("Company as shown"),
       location: nullableStr("Location as shown"),
+      email: nullableStr("Email address, only if it is written on the page"),
+      phone: nullableStr("Phone or WhatsApp number with country code, only if it is written on the page"),
       profile_url: str("Full link of the profile page you read"),
       source_url: nullableStr("The search or list page where you found them"),
       evidence: str("The exact text you read on the page for this person"),
@@ -401,7 +403,7 @@ Account: your connected LinkedIn account`,
     defaultDecision: () => "allow",
     execute: async (a, ctx) => {
       const r = leads.addLead(ctx.dot.id, {
-        name: s(a.name), headline: s(a.headline), company: s(a.company), location: s(a.location),
+        name: s(a.name), headline: s(a.headline), company: s(a.company), location: s(a.location), email: s(a.email), phone: s(a.phone),
         profileUrl: s(a.profile_url), sourceUrl: s(a.source_url), evidence: s(a.evidence), notes: s(a.notes),
       });
       if (!r.ok) return `Not saved: ${r.reason}`;
@@ -438,6 +440,118 @@ Account: your connected LinkedIn account`,
     },
   },
   {
+    name: "update_lead",
+    label: "Updating a lead",
+    description:
+      "Update a saved lead: add or fix its email or phone (only values the user gave you or that you read on a page), change its status (new, contacted, replied, client, not_interested), or add a note. Identify the lead by name, email, profile link or id.",
+    parameters: obj({
+      lead: str("Name, email, profile link or id of the lead"),
+      email: nullableStr("New email, or null"),
+      phone: nullableStr("New phone or WhatsApp number with country code, or null"),
+      status: nullableStr("new, contacted, replied, client or not_interested, or null"),
+      notes: nullableStr("A short note, or null"),
+    }),
+    describe: (a) => `update the lead ${s(a.lead)}`,
+    defaultDecision: () => "allow",
+    execute: async (a) => {
+      const val = (v: unknown) => (typeof v === "string" && v.trim() && v.trim() !== "null" ? v.trim() : "");
+      const r = leads.updateLead(s(a.lead), { email: val(a.email), phone: val(a.phone), status: val(a.status), notes: val(a.notes) });
+      return r.ok ? `Updated ${r.lead.name}: email ${r.lead.email || "-"}, phone ${r.lead.phone || "-"}, status ${r.lead.status}.` : r.reason;
+    },
+  },
+  {
+    name: "save_template",
+    label: "Saving a template",
+    description:
+      "Save or update a reusable message template under a name like \"Template 1\". Use {name}, {first_name} and {company} where each lead's details go. For email give a subject; for WhatsApp the subject can be empty. Saves exactly the wording the user gave you.",
+    parameters: obj({ name: str("Template name, e.g. Template 1"), subject: nullableStr("Email subject, or null"), body: str("The message text, exactly as the user wants it") }),
+    describe: (a) => `save the template "${s(a.name)}"`,
+    defaultDecision: () => "allow",
+    execute: async (a) => {
+      const t = leads.saveTemplate(s(a.name), s(a.subject) === "null" ? "" : s(a.subject), s(a.body));
+      return "error" in t ? t.error : `Saved "${t.name}".`;
+    },
+  },
+  {
+    name: "list_templates",
+    label: "Checking templates",
+    description: "List the saved message templates with their text.",
+    parameters: obj({}),
+    defaultDecision: () => "allow",
+    execute: async () => {
+      const all = leads.listTemplates();
+      return all.length ? all.map((t) => `### ${t.name}\nSubject: ${t.subject || "(none)"}\n${t.body}`).join("\n\n") : "No templates saved yet.";
+    },
+  },
+  {
+    name: "email_leads",
+    label: "Emailing leads",
+    timeoutMs: 10 * 60_000,
+    description:
+      "Email saved leads that have an email address and the status new, one email each, using a saved template (or a subject and body you were given). Sends through the user's Gmail after the user approves the exact list and text. Sent leads become contacted. Never repeats an email to the same lead.",
+    parameters: obj({
+      template: nullableStr("Name of a saved template, e.g. Template 1. Null if you pass subject and body instead."),
+      subject: nullableStr("Subject, only when no template is used"),
+      body: nullableStr("Body, only when no template is used"),
+      limit: { type: "integer", description: "How many leads to email in this batch (1 to 25)" },
+    }),
+    describe: (a) => `email saved leads using ${s(a.template) && s(a.template) !== "null" ? `"${s(a.template)}"` : "the given text"}`,
+    detail: (a) => {
+      const msg = outreachMessage(a);
+      if ("error" in msg) return msg.error;
+      const picks = outreachTargets(a);
+      return [
+        `Sends ${picks.length} email(s), one per lead, from your Gmail.`,
+        `Subject: ${msg.subject}`,
+        `Example for ${picks[0]?.name ?? "the first lead"}:\n${picks[0] ? leads.fillTemplate(msg.body, picks[0]) : msg.body}`,
+        `To: ${picks.map((l) => `${l.name} <${l.email}>`).join(", ")}`,
+      ].join("\n\n");
+    },
+    defaultDecision: () => "ask",
+    execute: async (a, ctx) => {
+      const msg = outreachMessage(a);
+      if ("error" in msg) return msg.error;
+      const picks = outreachTargets(a);
+      if (!picks.length) return "No leads are ready: none has status new with an email address. Nothing was sent.";
+      return runOnce(`email_leads|${picks.map((l) => l.id).join(",")}|${msg.subject}`, async () => {
+        const sent: string[] = [];
+        const failed: string[] = [];
+        for (const l of picks) {
+          if (ctx.signal.aborted) break;
+          const out = await composio.executeTool("GMAIL_SEND_EMAIL", { recipient_email: l.email, subject: leads.fillTemplate(msg.subject, l), body: leads.fillTemplate(msg.body, l), is_html: false });
+          if (/"successful"\s*:\s*true/i.test(out) && !/^Error:/i.test(out.trim())) {
+            leads.markContacted(l.id);
+            sent.push(l.name);
+          } else failed.push(`${l.name} (${out.replace(/\s+/g, " ").slice(0, 120)})`);
+          await new Promise((r) => setTimeout(r, 6000 + Math.floor(Math.random() * 4000)));
+        }
+        return `Sent ${sent.length} of ${picks.length}. ${sent.length ? `Sent to: ${sent.join(", ")}. ` : ""}${failed.length ? `NOT sent: ${failed.join("; ")}. ` : ""}Sent leads are marked contacted. Do not send again unless the user asks. Tell the user in plain words.`;
+      });
+    },
+  },
+  {
+    name: "whatsapp_links",
+    label: "Preparing WhatsApp messages",
+    description:
+      "For saved leads that have a phone number, make a ready-to-tap WhatsApp link per lead with the message already filled in (from a saved template or given text). The user taps each link to send it from their own WhatsApp; nothing is sent automatically. Share the links with the user as a list.",
+    parameters: obj({
+      template: nullableStr("Name of a saved template, or null if you pass body"),
+      body: nullableStr("Message text, only when no template is used"),
+      limit: { type: "integer", description: "How many leads to include (1 to 25)" },
+    }),
+    describe: () => "prepare WhatsApp links",
+    defaultDecision: () => "allow",
+    execute: async (a) => {
+      const msg = outreachMessage({ ...a, subject: "x" });
+      if ("error" in msg) return msg.error;
+      const all = leads.listLeads(500).filter((l) => l.phone && l.status !== "not_interested").slice(0, Math.min(Math.max(Number(a.limit) || 10, 1), 25));
+      if (!all.length) return "No leads with a phone number were found.";
+      return all
+        .map((l) => `- [${l.name}](https://wa.me/${l.phone.replace(/\D/g, "")}?text=${encodeURIComponent(leads.fillTemplate(msg.body, l))}) (${l.phone}, ${l.status})`)
+        .join("\n") + "\n\nGive the user this list as it is. Each link opens WhatsApp with the message ready; they tap Send themselves. After they say which they sent, mark those leads contacted with update_lead.";
+    },
+  },
+  {
     name: "list_leads",
     label: "Checking saved leads",
     description: "List the leads saved so far (newest first), so you do not repeat work.",
@@ -445,7 +559,9 @@ Account: your connected LinkedIn account`,
     defaultDecision: () => "allow",
     execute: async () => {
       const all = leads.listLeads(40);
-      return all.length ? all.map((l) => `${l.name} | ${l.headline} | ${l.company} | ${l.profileUrl}`).join("\n") : "No leads saved yet.";
+      return all.length
+        ? all.map((l) => `${l.name} | ${l.headline} | ${l.company} | email: ${l.email || "-"} | phone: ${l.phone || "-"} | ${l.status} | ${l.profileUrl}`).join("\n")
+        : "No leads saved yet.";
     },
   },
   {
@@ -739,6 +855,28 @@ function composioTools(): ToolDef[] {
     }
     return { ...base, label: t.name === "COMPOSIO_SEARCH_TOOLS" ? "Finding app tools" : "Checking app tools" };
   });
+}
+
+/** The subject and body for an outreach batch: a saved template, or the text given. Placeholders other than the known ones are refused. */
+function outreachMessage(a: Record<string, unknown>): { subject: string; body: string } | { error: string } {
+  const tpl = s(a.template).trim();
+  let subject = s(a.subject).trim();
+  let body = s(a.body).trim();
+  if (tpl && tpl !== "null") {
+    const t = leads.findTemplate(tpl);
+    if (!t) return { error: `There is no template called "${tpl}". Saved templates: ${leads.listTemplates().map((x) => x.name).join(", ") || "none"}.` };
+    subject = t.subject;
+    body = t.body;
+  }
+  if (!body || body === "null") return { error: "There is no message text. Give a template name, or the subject and body." };
+  const left = `${subject} ${body}`.replace(/\{\{?\s*(first_name|name|company)\s*\}?\}/gi, "").match(/\{[^}]*\}|\[[A-Za-z][^\]]{1,40}\]/);
+  if (left) return { error: `The message still has an unfilled placeholder: ${left[0]}. Use only {name}, {first_name} and {company}, or write real text.` };
+  return { subject: subject === "null" ? "" : subject, body };
+}
+
+function outreachTargets(a: Record<string, unknown>) {
+  const n = Math.min(Math.max(Number(a.limit) || 10, 1), 25);
+  return leads.listLeads(500).filter((l) => l.email && l.status === "new").slice(0, n);
 }
 
 /** A short-lived private link to one of the dot's files: from its workspace, or the stored attachment (even if only in Drive now). */

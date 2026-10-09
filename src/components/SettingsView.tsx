@@ -61,6 +61,7 @@ import ModelPicker from "./ModelPicker";
 import { TriggersKey } from "./Triggers";
 import StorageManager from "./StorageManager";
 import LeadsSection from "./LeadsSection";
+import TemplatesSection from "./TemplatesSection";
 import AutomationsSection from "./AutomationsSection";
 
 const noop = () => () => {};
@@ -146,6 +147,15 @@ export default function SettingsView() {
           description="People your dots found by reading real pages."
         >
           <LeadsSection />
+        </Section>
+
+        <Section collapsible
+          id="templates"
+          eyebrow="Templates"
+          title="Message templates"
+          description="Saved wording for emails and WhatsApp messages."
+        >
+          <TemplatesSection />
         </Section>
 
         <Section collapsible eyebrow="Approvals" title="Rules for all dots" description="These apply to every dot, on top of each dot's own rules.">

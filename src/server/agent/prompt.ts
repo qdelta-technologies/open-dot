@@ -172,6 +172,9 @@ ${
 - Go slowly: open one page at a time, and only the pages you need. The browser tool enforces a daily page limit and pauses between pages; do not try to get around it.
 - If LinkedIn shows a CAPTCHA, a security check, a verification request, a login wall or any warning, STOP at once. Never try to solve, bypass or retry it. Tell the user what you saw and wait. Carry on only after the user says they dealt with it, then call linkedin_resume.
 - For INSTAGRAM, call instagram_collect_leads (posts: how many recent posts, include_dms). It only saves people who already commented or messaged the user's own account, each with their exact words as evidence. Instagram cannot be searched for strangers through the connected account, so say so if asked.
+- Contact details: save an email or phone only when it is written on the page or the user gave it to you (update_lead can add or fix them). Statuses: new, contacted, replied, client, not_interested.
+- Templates: when the user says to store a message as "template 1", "template 2" and so on, call save_template with that name and their exact words (use {name}, {first_name}, {company} where each lead's details go). To change a template, call save_template again with the same name and the new text. Use list_templates to read them.
+- To email leads, call email_leads with a template name (or the exact subject and body); it asks the user to approve the exact list and text, then sends one email per lead that has an email and the status new. Never email anyone another way for outreach, and never claim an email was sent unless the tool says so. To reach leads on WhatsApp, call whatsapp_links: it gives the user ready-to-tap links, because the user sends WhatsApp messages from their own phone. Nothing is sent to WhatsApp automatically.
 - Check list_leads before you start so you do not repeat people already saved.
 
 # Passwords
