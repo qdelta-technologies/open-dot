@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, LogOut, PanelLeftClose, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, LogOut, PanelLeftClose, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
 import { checkAuthStatus, deleteConversation, lockApp } from "@/app/actions";
 import { markRead, useStore } from "@/lib/store";
 import {
@@ -56,6 +56,8 @@ export default function Sidebar() {
   const [searching, setSearching] = useState(false);
   const [q, setQ] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [scope, setScope] = useState<"dot" | "all">("dot");
+  const [autoOpen, setAutoOpen] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [, start] = useTransition();
   const activeDot = pathname.match(/^\/dots\/([^/]+)/)?.[1];
@@ -64,7 +66,32 @@ export default function Sidebar() {
 
   useEffect(() => {
     checkAuthStatus().then((s) => setAuthEnabled(s.enabled));
+    try {
+      const v = localStorage.getItem("qdot-sidebar-scope");
+      if (v === "all" || v === "dot") setScope(v);
+      setAutoOpen(localStorage.getItem("qdot-sidebar-automations") === "1");
+    } catch {
+      // storage unavailable
+    }
   }, []);
+
+  const chooseScope = (v: "dot" | "all") => {
+    setScope(v);
+    try {
+      localStorage.setItem("qdot-sidebar-scope", v);
+    } catch {
+      // ignore
+    }
+  };
+  const toggleAutomations = () => {
+    const next = !autoOpen;
+    setAutoOpen(next);
+    try {
+      localStorage.setItem("qdot-sidebar-automations", next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  };
 
   // Save current route so the app can restore it after a mobile background kill
   useEffect(() => {
@@ -93,14 +120,36 @@ export default function Sidebar() {
 
   const dotById = useMemo(() => new Map(dots.map((d) => [d.id, d])), [dots]);
 
-  // Chat history across every dot, newest first; search matches titles, dot names, and message text.
+  // Chats are ordered by when they were started, not by activity, so rows never jump while a dot works.
+  // With a dot open the list shows that dot's chats; "All dots" (or searching) shows everything.
   const recent = useMemo(() => {
     const query = q.trim().toLowerCase();
-    const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
-    if (!query) return sorted;
+    const sorted = [...conversations].sort((a, b) => b.createdAt - a.createdAt);
+    if (!query) return scope === "all" || !activeDot ? sorted : sorted.filter((c) => c.dotId === activeDot);
     const hits = new Set(messages.filter((m) => m.conversationId && m.text.toLowerCase().includes(query)).map((m) => m.conversationId));
     return sorted.filter((c) => c.title.toLowerCase().includes(query) || hits.has(c.id) || dotById.get(c.dotId)?.name.toLowerCase().includes(query));
-  }, [conversations, messages, q, dotById]);
+  }, [conversations, messages, q, dotById, scope, activeDot]);
+
+  const isAutomation = (c: Conversation) => /^(Routine|Trigger) · /.test(c.title);
+  const sections = useMemo(() => {
+    const startOfToday = new Date().setHours(0, 0, 0, 0);
+    const day = 24 * 60 * 60 * 1000;
+    const groups: { key: string; label: string; items: Conversation[] }[] = [
+      { key: "today", label: "Today", items: [] },
+      { key: "yesterday", label: "Yesterday", items: [] },
+      { key: "earlier", label: "Earlier", items: [] },
+    ];
+    const autos: Conversation[] = [];
+    for (const c of recent) {
+      if (isAutomation(c)) autos.push(c);
+      else if (c.createdAt >= startOfToday) groups[0].items.push(c);
+      else if (c.createdAt >= startOfToday - day) groups[1].items.push(c);
+      else groups[2].items.push(c);
+    }
+    const out = groups.filter((g) => g.items.length);
+    if (autos.length) out.push({ key: "auto", label: "Automations", items: autos });
+    return out;
+  }, [recent]);
 
   const unread = (c: Conversation) => {
     const since = lastRead[c.dotId];
@@ -216,7 +265,7 @@ export default function Sidebar() {
                 title={`${d.name}${d.purpose ? ` · ${d.purpose}` : ""}`}
               >
                 <span className="relative">
-                  <DotOrb look={d.look} status={d.status} size={40} />
+                  <DotOrb look={d.look} status={d.status} size={40} still />
                   {d.status !== "idle" && <span className={`absolute right-0 bottom-0.5 size-2.5 rounded-full ring-2 ring-card ${statusDot(d)}`} />}
                 </span>
                 <span className="w-full truncate text-center text-[12px] text-foreground/70">{d.name}</span>
@@ -229,6 +278,23 @@ export default function Sidebar() {
               <span className="text-[12px]">New</span>
             </Link>
           </div>
+        </div>
+      )}
+
+      {!q && activeDot && dotById.get(activeDot) && (
+        <div className="mx-3 mb-1 flex shrink-0 gap-1 rounded-full bg-black/[0.04] p-0.5 text-[12px]" role="tablist" aria-label="Which chats to show">
+          {(["dot", "all"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={scope === v}
+              onClick={() => chooseScope(v)}
+              className={`min-w-0 flex-1 truncate rounded-full px-2.5 py-1 transition-colors ${scope === v ? "bg-card text-foreground shadow-2xs" : "text-foreground/55 hover:text-foreground"}`}
+            >
+              {v === "dot" ? dotById.get(activeDot)?.name : "All dots"}
+            </button>
+          ))}
         </div>
       )}
 
@@ -248,7 +314,23 @@ export default function Sidebar() {
             ))}
           </div>
         )}
-        {recent.map((c) => {
+        {sections.map((sec) => (
+          <div key={sec.key} className="mb-1">
+            {sec.key === "auto" ? (
+              <button
+                type="button"
+                onClick={toggleAutomations}
+                aria-expanded={autoOpen || Boolean(q)}
+                className="flex w-full items-center gap-1.5 px-2.5 pt-2 pb-1 text-left text-[12px] text-foreground/50 hover:text-foreground"
+              >
+                <ChevronDown className={`size-3.5 transition-transform ${autoOpen || q ? "" : "-rotate-90"}`} strokeWidth={1.75} />
+                Automations · {sec.items.length}
+              </button>
+            ) : (
+              <div className="px-2.5 pt-2 pb-1 text-[12px] text-foreground/45">{sec.label}</div>
+            )}
+            {(sec.key !== "auto" || autoOpen || Boolean(q)) &&
+        sec.items.map((c) => {
           const d = dotById.get(c.dotId);
           if (!d) return null;
           if (confirming === c.id) {
@@ -268,7 +350,7 @@ export default function Sidebar() {
           return (
             <div key={c.id} className={`group relative flex items-center rounded-xl transition-colors ${c.id === activeConv ? "bg-card shadow-2xs" : "hover:bg-black/[0.03]"}`}>
               <Link href={`/dots/${d.id}?c=${c.id}`} onClick={() => markRead(d.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2.5 py-2.5 [@media(hover:none)]:pr-12">
-                <DotOrb look={d.look} status={d.status} size={42} />
+                <DotOrb look={d.look} status={d.status} size={42} still />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
                     <span className="truncate text-[15px] font-medium">{c.title}</span>
@@ -292,6 +374,8 @@ export default function Sidebar() {
             </div>
           );
         })}
+          </div>
+        ))}
         {loaded && !recent.length && (
           <p className="px-3 py-6 text-center text-caption text-foreground/45">
             {q ? "No chats match." : dots.length ? "No chats yet. Pick a dot above to start one." : "Create your first dot to start chatting."}

@@ -18,7 +18,7 @@ function mix(hex: string, other: string, t: number) {
   return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
 }
 
-export default function DotOrb({ look, status = "idle", size = 36 }: { look: Look; status?: DotStatus; size?: number }) {
+export default function DotOrb({ look, status = "idle", size = 36, still = false }: { look: Look; status?: DotStatus; size?: number; still?: boolean }) {
   const id = useId().replace(/:/g, "");
   const sleeping = status === "paused";
   const { rx, ry } = BODY[look.shape] ?? BODY.round;
@@ -44,7 +44,7 @@ export default function DotOrb({ look, status = "idle", size = 36 }: { look: Loo
 
   return (
     <span
-      className={`relative inline-block shrink-0 ${status === "working" ? "animate-[dot-bob_0.5s_ease-in-out_infinite]" : status === "waiting" ? "animate-[dot-bob_1.2s_ease-in-out_infinite]" : ""}`}
+      className={`relative inline-block shrink-0 ${still ? "" : status === "working" ? "animate-[dot-bob_0.5s_ease-in-out_infinite]" : status === "waiting" ? "animate-[dot-bob_1.2s_ease-in-out_infinite]" : ""}`}
       style={{ width: size, height: size, filter: sleeping ? "grayscale(0.45) brightness(0.97)" : undefined }}
     >
       <svg viewBox="-2 -5 104 104" width={size} height={size} aria-hidden>
