@@ -347,9 +347,25 @@ export function describeExecute(args: Record<string, unknown>): string {
   return "run app action";
 }
 
+const TEXT_KEYS = ["commentary", "text", "message", "body", "content", "caption", "status", "title", "subject", "description"];
+const MEDIA_KEY = /image|photo|picture|media|video|file|attachment|asset|thumbnail|source_url|link/i;
+const POSTS = /(POST|TWEET|PUBLISH|SHARE|STATUS|CAPTION)/i;
+
+/** A plain-words preview of what an app action will send, then the raw call, so nothing is hidden. */
 export function executeDetail(args: Record<string, unknown>): string {
   return executeItems(args)
-    .map((i) => `${i.tool_slug}\n${JSON.stringify(i.arguments ?? {}, null, 1).slice(0, 700)}`)
+    .map((i) => {
+      const a = (i.arguments && typeof i.arguments === "object" ? i.arguments : {}) as Record<string, unknown>;
+      const lines: string[] = [];
+      for (const k of TEXT_KEYS) {
+        const v = a[k];
+        if (typeof v === "string" && v.trim()) lines.push(`${k[0].toUpperCase()}${k.slice(1)}: ${v.trim().slice(0, 600)}`);
+      }
+      const media = Object.keys(a).filter((k) => MEDIA_KEY.test(k) && a[k]);
+      if (POSTS.test(String(i.tool_slug ?? ""))) lines.push(media.length ? `Media: ${media.join(", ")}` : "Media: none (no image or video is included)");
+      const raw = JSON.stringify(a, null, 1).slice(0, 700);
+      return `${i.tool_slug}\n${lines.length ? lines.join("\n") + "\n\n" : ""}${raw}`;
+    })
     .join("\n\n");
 }
 
