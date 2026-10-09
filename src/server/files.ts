@@ -270,14 +270,44 @@ async function ensureBackupFolder(): Promise<string> {
   return folderId;
 }
 
-/** Copy an attachment into the "QDot Uploads" folder in Google Drive, using a temporary link Drive can fetch. */
+const dotFolderLocks = new Map<string, Promise<string>>();
+
+/** "QDot Uploads/<dot name>": one Drive folder per dot, remembered by id so renaming a dot keeps its files together. */
+async function ensureDotFolder(dotId: string): Promise<string> {
+  const root = await ensureBackupFolder();
+  const key = `drive_dot_folder:${dotId}`;
+  const saved = getSetting(key);
+  if (saved) return saved;
+  const pending = dotFolderLocks.get(dotId);
+  if (pending) return pending;
+  const job = (async () => {
+    try {
+      const row = db().prepare("SELECT name FROM dots WHERE id = ?").get(dotId) as { name: string } | undefined;
+      const name = (row?.name || "Dot").replace(/[\/:*?"<>|]/g, "-").trim() || "Dot";
+      const created = await executeTool("GOOGLEDRIVE_CREATE_FOLDER", { name, parent_id: root });
+      const folderId = driveIdOf(created);
+      if (!folderId) throw new Error(created.slice(0, 200));
+      setSetting(key, folderId);
+      return folderId;
+    } catch (err) {
+      console.warn("[files] Couldn't create the dot's Drive folder, using the main folder:", err instanceof Error ? err.message : err);
+      return root;
+    } finally {
+      dotFolderLocks.delete(dotId);
+    }
+  })();
+  dotFolderLocks.set(dotId, job);
+  return job;
+}
+
+/** Copy an attachment into its dot's folder inside "QDot Uploads" in Google Drive, using a temporary link Drive can fetch. */
 export async function backupToDrive(fileId: string): Promise<boolean> {
   if (backingUp.has(fileId)) return false;
   const f = get(fileId);
   if (!f || f.driveFileId || !composioSignedIn() || !isGoogleDriveConnected()) return false;
   backingUp.add(fileId);
   try {
-    const folder = await ensureBackupFolder();
+    const folder = await ensureDotFolder(f.dotId);
     const { token } = createStoredFileToken(fileId, 15 * 60_000);
     const url = `${getAppUrl()}/api/public-files/${token}`;
     const out = await withTimeout(
