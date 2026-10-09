@@ -121,15 +121,6 @@ export default function SettingsView() {
         </Section>
 
         <Section collapsible
-          id="triggers"
-          eyebrow="Triggers"
-          title="Wake dots from your apps"
-          description="Let a dot act when something happens, like a new email or a GitHub issue. Triggers run through a Composio developer project, so they need its API key. Then add them from a dot's Setup page."
-        >
-          <TriggersKey />
-        </Section>
-
-        <Section collapsible
           id="storage"
           eyebrow="Storage & Files"
           title="Cloud & Local Storage"
@@ -200,6 +191,15 @@ export default function SettingsView() {
               </div>
             </form>
           </div>
+        </Section>
+
+        <Section collapsible
+          id="triggers"
+          eyebrow="Triggers"
+          title="Wake dots from your apps"
+          description="Let a dot act when something happens, like a new email or a GitHub issue. Triggers run through a Composio developer project, so they need its API key. Then add them from a dot's Setup page."
+        >
+          <TriggersKey />
         </Section>
 
         <AccessSecuritySection />
