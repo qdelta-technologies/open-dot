@@ -272,18 +272,31 @@ async function ensureBackupFolder(): Promise<string> {
 
 const dotFolderLocks = new Map<string, Promise<string>>();
 
+/** False only when Drive says the folder is gone or in the Bin; any other hiccup keeps the saved folder. */
+async function driveFolderAlive(folderId: string): Promise<boolean> {
+  try {
+    const out = await executeTool("GOOGLEDRIVE_GET_FILE_METADATA", { fileId: folderId, fields: "id,trashed" });
+    if (/"trashed"\s*:\s*true/i.test(out)) return false;
+    if (/not\s*found|404/i.test(out) && !driveIdOf(out)) return false;
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return !/not\s*found|404/i.test(msg);
+  }
+}
+
 /** "QDot Uploads/<dot name>": one Drive folder per dot, remembered by id so renaming a dot keeps its files together. */
 async function ensureDotFolder(dotId: string): Promise<string> {
   const root = await ensureBackupFolder();
   const key = `drive_dot_folder:${dotId}`;
   const saved = getSetting(key);
-  if (saved) return saved;
+  if (saved && (await driveFolderAlive(saved))) return saved;
   const pending = dotFolderLocks.get(dotId);
   if (pending) return pending;
   const job = (async () => {
     try {
       const row = db().prepare("SELECT name FROM dots WHERE id = ?").get(dotId) as { name: string } | undefined;
-      const name = (row?.name || "Dot").replace(/[\/:*?"<>|]/g, "-").trim() || "Dot";
+      const name = (row?.name || "Dot").replace(/[\\/:*?"<>|]/g, "-").trim() || "Dot";
       const created = await executeTool("GOOGLEDRIVE_CREATE_FOLDER", { name, parent_id: root });
       const folderId = driveIdOf(created);
       if (!folderId) throw new Error(created.slice(0, 200));
