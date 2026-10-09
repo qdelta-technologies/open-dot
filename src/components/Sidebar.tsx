@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, LayoutGrid, LogOut, PanelLeftClose, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
-import { checkAuthStatus, deleteConversation, lockApp } from "@/app/actions";
+import { Check, ChevronDown, LayoutGrid, LogOut, PanelLeftClose, Plus, Search, Settings, SquarePen, Trash2, X } from "lucide-react";
+import { checkAuthStatus, deleteConversation, deleteConversations, lockApp } from "@/app/actions";
 import { markRead, useStore } from "@/lib/store";
 import {
   setDesktopSidebarOpen,
@@ -58,6 +58,9 @@ export default function Sidebar() {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [scope, setScope] = useState<"dot" | "all">("dot");
   const [autoOpen, setAutoOpen] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [, start] = useTransition();
   const activeDot = pathname.match(/^\/dots\/([^/]+)/)?.[1];
@@ -165,6 +168,28 @@ export default function Sidebar() {
     });
 
   const closeSearch = () => (setSearching(false), setQ(""));
+
+  // Chats you can see right now (an automation group that is folded away is not selectable)
+  const visibleIds = useMemo(
+    () => sections.filter((sec) => sec.key !== "auto" || autoOpen || Boolean(q)).flatMap((sec) => sec.items.map((c) => c.id)),
+    [sections, autoOpen, q],
+  );
+  const stopSelecting = () => (setSelecting(false), setPicked(new Set()), setConfirmBulk(false));
+  const toggle = (cid: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(cid)) next.delete(cid);
+      else next.add(cid);
+      return next;
+    });
+  const deletePicked = () =>
+    start(async () => {
+      const ids = [...picked];
+      await deleteConversations(ids);
+      const goBack = activeConv && ids.includes(activeConv);
+      stopSelecting();
+      if (goBack) router.push(activeDot ? `/dots/${activeDot}` : "/");
+    });
 
   if (pathname === "/login") return null;
 
@@ -301,6 +326,33 @@ export default function Sidebar() {
 
       {/* Recent chats */}
       {q && <div className="eyebrow shrink-0 px-4 pt-2 pb-1.5">Chats matching “{q}”</div>}
+      {loaded && visibleIds.length > 0 && (
+        <div className="mx-3 mb-1 flex shrink-0 items-center gap-2 text-[12px]">
+          {selecting ? (
+            <>
+              <button
+                type="button"
+                className="rounded-full px-2 py-1 text-foreground/70 hover:bg-black/[0.05] hover:text-foreground"
+                onClick={() => setPicked(picked.size === visibleIds.length ? new Set() : new Set(visibleIds))}
+              >
+                {picked.size === visibleIds.length ? "Clear all" : `Select all (${visibleIds.length})`}
+              </button>
+              <span className="ml-auto text-foreground/50">{picked.size} selected</span>
+              <button type="button" className="rounded-full px-2 py-1 text-foreground/70 hover:bg-black/[0.05] hover:text-foreground" onClick={stopSelecting}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="ml-auto rounded-full px-2 py-1 text-foreground/55 hover:bg-black/[0.05] hover:text-foreground"
+              onClick={() => (setSelecting(true), setConfirmBulk(false))}
+            >
+              Select
+            </button>
+          )}
+        </div>
+      )}
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {!loaded && (
           <div role="status" aria-label="Loading chats" className="space-y-0.5">
@@ -347,6 +399,28 @@ export default function Sidebar() {
               </div>
             );
           }
+          if (selecting) {
+            const on = picked.has(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() => toggle(c.id)}
+                className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors ${on ? "bg-brand/[0.08]" : "hover:bg-black/[0.03]"}`}
+              >
+                <span className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${on ? "border-brand bg-brand text-white" : "border-black/25 bg-card"}`}>
+                  {on && <Check className="size-3.5" strokeWidth={3} />}
+                </span>
+                <DotOrb look={d.look} status={d.status} size={32} still />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-medium">{c.title}</span>
+                  <span className="block truncate text-[12px] text-foreground/50">{d.name}</span>
+                </span>
+              </button>
+            );
+          }
           const line = preview(messages, c.id);
           return (
             <div key={c.id} className={`group relative flex items-center rounded-xl transition-colors ${c.id === activeConv ? "bg-card shadow-2xs" : "hover:bg-black/[0.03]"}`}>
@@ -383,6 +457,28 @@ export default function Sidebar() {
           </p>
         )}
       </nav>
+
+      {selecting && picked.size > 0 && (
+        <div className="mx-3 mb-2 flex shrink-0 items-center gap-2 rounded-xl bg-destructive/[0.07] px-3 py-2">
+          {confirmBulk ? (
+            <>
+              <span className="min-w-0 flex-1 text-[13px] text-destructive">
+                Delete {picked.size} chat{picked.size === 1 ? "" : "s"} for good?
+              </span>
+              <button type="button" className="btn-quiet h-7 px-2 text-[12px] text-destructive" onClick={deletePicked}>
+                Delete
+              </button>
+              <button type="button" className="btn-quiet size-7 p-0" onClick={() => setConfirmBulk(false)} aria-label="Cancel">
+                <X className="size-3.5" strokeWidth={2} />
+              </button>
+            </>
+          ) : (
+            <button type="button" className="flex flex-1 items-center justify-center gap-1.5 text-[13px] text-destructive" onClick={() => setConfirmBulk(true)}>
+              <Trash2 className="size-3.5" strokeWidth={1.75} /> Delete {picked.size} selected
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Bottom */}
       <div className="flex shrink-0 items-center gap-2 p-3">

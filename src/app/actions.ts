@@ -76,6 +76,15 @@ export async function deleteConversation(convId: string) {
   repo.deleteConversation(convId);
 }
 
+export async function deleteConversations(convIds: string[]): Promise<number> {
+  let n = 0;
+  for (const id of convIds.slice(0, 500)) {
+    repo.deleteConversation(String(id));
+    n++;
+  }
+  return n;
+}
+
 export async function stopDot(dotId: string) {
   runtime.stop(dotId);
 }
