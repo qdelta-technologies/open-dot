@@ -15,19 +15,37 @@ export type Trigger =
 
 export const PROFILE_KEYS = { name: "profile_name", role: "profile_role", company: "profile_company" } as const;
 
-export const DEFAULT_COMPANY = `- **About QDelta**: QDelta is a premium digital agency and studio specializing in high-converting landing pages, digital sales experiences, flagship brand websites, motion/3D experiences, and e-commerce stores.
+export const DEFAULT_COMPANY = `- **About QDelta**: QDelta is a premium digital agency and studio specializing in high-converting landing pages, interactive digital experiences, flagship brand websites, web applications, and AI automations.
 - **Promise & Tagline**: "A website that actually grows your business. Designed to be remembered. Built to perform."
-- **Founding Team**: Qais (Founder — AI Strategy, Creative Direction & Product Thinking), Sai Prabath (Co-Founder — Full-Stack Development, Web Applications & Performance Architecture), Fazeel (Co-Founder — GenAI Development & UX Design).
-- **Core Packages**:
-  - *QDelta Digital* ("Built to convert"): Landing systems, digital sales funnels, lead generation systems, checkout integrations, CRM & webhooks.
-  - *QDelta Signature* ("Built to stand out"): Flagship multi-page websites, brand storytelling, motion design & micro-interactions, 3D/interactive web experiences, premium e-commerce.
+- **Founding Team**:
+  - **Qais**: Founder · AI Generalist (AI Strategy, Creative Direction, Business & Product Thinking).
+  - **Sai Prabath**: Co-Founder · Full-Stack Developer (Full-Stack Dev, Web Applications, Performance & Architecture).
+  - **Fazeel**: Co-Founder · GenAI Developer & UX Designer (GenAI Dev, UX Design, AI Workflows).
+- **The 6 Core Services**:
+  1. *High-Converting Landing Pages*: Turn attention into action. Landing pages, sales pages, conversion UX, and checkout integrations.
+  2. *Premium Interactive Websites*: Make brands impossible to ignore. Custom UI/UX, brand storytelling, motion design, and interactive experiences.
+  3. *E-commerce & Online Stores*: Turn products into experiences. Premium storefronts, product pages, Shopify, and checkout flows.
+  4. *Lead Capture Systems*: Turn visitors into opportunities. Structured lead forms, lead magnets, CRM integrations, and booking flows.
+  5. *Full Stack Web & App Development*: From idea to working product. Custom web applications, MVP development, dashboards, and custom systems.
+  6. *AI Automation & Chatbots*: Make everyday work smarter. Practical AI chatbots, workflow automations, AI integrations, and smart assistants.
+- **The Two Core Packages**:
+  - *QDelta Digital* ("Built to convert"): Fast, high-converting landing systems, sales experiences, lead capture funnels, checkout integrations, CRM & webhooks.
+  - *QDelta Signature* ("Built to stand out"): Flagship multi-page brand websites, brand storytelling, custom motion design & micro-interactions, 3D/interactive web experiences, premium e-commerce.
+- **The 4 Standard Inclusions on Every Project**:
+  1. *Strategy & Structure*: Business & audience discovery, strategic page/site architecture.
+  2. *Design & Experience*: Custom UI/UX, conversion-focused copywriting assistance, fluid micro-interactions, two revision rounds.
+  3. *Engineering & Search*: Production Next.js (sub-second speed), technical SEO foundations, AEO / AI Search Readiness foundations, analytics & event tracking.
+  4. *Launch & Support*: Domain/deployment assistance, 30-day post-launch technical support guardianship.
+- **The 7-Step Delivery Process**: 01 Discovery & Alignment → 02 Strategy & Structure → 03 Creative Direction & Wireframes → 04 Visual Design & Prototyping → 05 Content Integration → 06 Interactive Polish & Review → 07 Build & Deploy.
+- **Status & Booking**: Currently "Available for projects". Primary conversion call to action is a 15-minute discovery call.
 - **Ideal Client Profile (ICP)**: Fast-growing B2B SaaS companies, tech startup founders, funded ventures, and premium brands looking to elevate their digital brand and convert attention into revenue.
 - **Continuous Learning & Proactive Memory**: Whenever the user shares any new details about QDelta (campaign ideas, target niches, new offerings, client criteria, or pricing), **proactively call \`remember({ fact: "..." })\`** to store that fact permanently into your memory bank.
 - **Lead Qualification & Pitch Angle**: When finding or evaluating prospects for QDelta (from YC, Product Hunt, TechCrunch, Twitter/X, LinkedIn):
   - **Diagnose Pain Points**: Look up their landing page, messaging clarity, and conversion flow.
-  - **Match QDelta Package**:
+  - **Match QDelta Package/Service**:
     - If their landing page is slow, template-like, lacks social proof, or has weak conversion funnels → Target *QDelta Digital* (high-converting landing page & sales funnel in 7-14 days).
     - If they recently raised capital or need a standout brand identity, 3D interactive experiences, or complete flagship overhaul → Target *QDelta Signature* (flagship website, motion/3D, brand narrative).
+    - If they need custom workflows or lead capture → Target *Lead Capture Systems* or *AI Automation & Chatbots*.
   - **Actionable Pitch Notes**: In spreadsheet columns or digests, always provide a specific "QDelta Pitch Angle" detailing why they need QDelta and what exact hook to use.
 - In all lead generation routines and workflows, actively use this QDelta knowledge to identify, qualify, and recommend prospects that truly fit QDelta's services.`;
 
