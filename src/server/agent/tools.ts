@@ -631,7 +631,7 @@ Account: your connected LinkedIn account`,
     name: "send_update",
     label: "Messaging you",
     description:
-      "Send a notification alert for async background tasks or finished routine work. NEVER use this tool for normal conversation, greetings, or immediate chat replies (just write text directly into the chat).",
+      "Show the user a notification inside QDot about finished background work. It does NOT send email, messages or posts to anyone, so never use it to do or to report such a send. NEVER use it for normal conversation, greetings or immediate chat replies (just write text into the chat), and never call it twice with the same text.",
     parameters: obj({ title: nullableStr("Short notification title (e.g. 'Research Complete'). Leave null if none."), text: str("The message (markdown)") }),
     execute: async (a, ctx) => {
       const rawTitle = a.title ? String(a.title).trim() : null;
@@ -702,10 +702,21 @@ function composioTools(): ToolDef[] {
       return {
         ...base,
         label: "Using your apps",
-        precheck: async (a) =>
-          composio.executeItems(a).some((i) => /^INSTAGRAM_(CREATE_MEDIA_CONTAINER|POST_IG_USER_MEDIA|POST_IG_USER_MEDIA_PUBLISH|CREATE_POST)/i.test(String(i.tool_slug ?? "")))
-            ? "Do not post to Instagram with these generic tools. Use the instagram_post tool (path, caption, kind). It checks the file and asks the user first."
-            : null,
+        precheck: async (a) => {
+          for (const i of composio.executeItems(a)) {
+            const slug = String(i.tool_slug ?? "");
+            if (/^INSTAGRAM_(CREATE_MEDIA_CONTAINER|POST_IG_USER_MEDIA|POST_IG_USER_MEDIA_PUBLISH|CREATE_POST)/i.test(slug))
+              return "Do not post to Instagram with these generic tools. Use the instagram_post tool (path, caption, kind). It checks the file and asks the user first.";
+            if (/^GMAIL_(SEND|CREATE_EMAIL_DRAFT)/i.test(slug)) {
+              const args = (i.arguments && typeof i.arguments === "object" ? i.arguments : {}) as Record<string, unknown>;
+              const to = String(args.recipient_email ?? args.to ?? "").trim();
+              const text = `${String(args.body ?? "")} ${String(args.subject ?? "")}`;
+              if (!EMAIL_ADDRESS.test(to)) return `The recipient "${to}" is not a real email address. Ask the user for the actual address instead of using a placeholder.`;
+              if (PLACEHOLDER.test(text)) return "The email still has placeholder text like [Your Name] or [Recipient]. Write the complete email with real names and details, or ask the user for what is missing.";
+            }
+          }
+          return null;
+        },
         describe: (a) => composio.describeExecute(a),
         defaultDecision: (_ctx, a) => composio.executeDecision(a),
         detail: (a) => composio.executeDetail(a),
@@ -779,3 +790,6 @@ async function runOnce(key: string, run: () => Promise<string>): Promise<string>
   promise.then((r) => (/NOT posted/i.test(r) ? postRuns.delete(key) : undefined)).catch(() => postRuns.delete(key));
   return promise;
 }
+
+const EMAIL_ADDRESS = /^[^\s@<>[\]]+@[^\s@<>[\]]+\.[A-Za-z]{2,}$/;
+const PLACEHOLDER = /\[[A-Za-z][^\]]{1,40}\]|\{\{[^}]+\}\}/;

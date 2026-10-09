@@ -119,6 +119,8 @@ function finishRoutine(routine: Routine, dotName: string, conv: string, startedA
     const waiting = msgs.find((m) => m.role === "card" && m.card?.status === "pending");
     const replies = msgs.filter((m) => m.role === "dot" && m.text).map((m) => m.text);
     const actions = msgs.filter((m) => m.role === "card").map((m) => `- ${m.card?.status ?? "card"}: ${m.card?.title ?? m.text}`);
+    const loop = msgs.find((m) => m.role === "system" && /^Stopped: it kept repeating/.test(m.text));
+    if (loop && !error) error = loop.text;
     const status = error ? "error" : waiting ? "waiting" : "ok";
     const summary = error
       ? `It failed: ${error}`
@@ -128,6 +130,7 @@ function finishRoutine(routine: Routine, dotName: string, conv: string, startedA
           ? replies[replies.length - 1].replace(/\s+/g, " ").slice(0, 600)
           : "It finished without writing a reply.";
     if (repo.getRoutine(routine.id)) repo.updateRoutine(routine.id, { lastRunAt: Date.now(), lastError: error });
+    if (waiting || error) emit({ type: "notify", dotId: routine.dotId, title: `Automation: ${routine.name}`, body: waiting ? `Waiting for your approval: ${waiting.card?.title ?? "an action"}` : `It failed: ${error}`.slice(0, 160) });
     recordAutomation({
       kind: "run",
       routineId: routine.id,
@@ -351,6 +354,7 @@ async function turn(dotId: string, text: string, trigger: Trigger, signal: Abort
 
 async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[], trigger: Trigger, signal: AbortSignal, conversationId?: string | null) {
   const convId = conversationId ?? repo.currentConversation(dot.id);
+  const seenCalls = new Map<string, number>();
   for (let step = 0; step < MAX_STEPS; step++) {
     signal.throwIfAborted();
     let resp: Response;
@@ -385,6 +389,20 @@ async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[]
           input = [{ role: "user", content: "Proceed immediately. Execute web_search and your app tools right now to retrieve the actual details and update the sheet." }];
           continue;
         }
+        return;
+      }
+    }
+    // A model stuck in a loop repeats the identical step; stop it instead of burning 60 steps (and claiming things it never did).
+    for (const c of calls) {
+      if (c.type !== "function_call") continue;
+      const sig = `${c.name}|${c.arguments}`;
+      const n = (seenCalls.get(sig) ?? 0) + 1;
+      seenCalls.set(sig, n);
+      if (n >= 3) {
+        repo.addMessage({
+          dotId: dot.id, role: "system", conversationId: conversationId,
+          text: `Stopped: it kept repeating the same step (${c.name}) without making progress. Nothing more was done in this run.`,
+        });
         return;
       }
     }
