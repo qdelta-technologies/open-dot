@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   ExternalLink,
   File,
   FileCode,
@@ -71,6 +72,24 @@ export default function StorageManager() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem("qdot-storage-files-open") === "1") setFilesOpen(true);
+    } catch {
+      // storage unavailable
+    }
+  }, []);
+  const toggleFiles = () => {
+    const next = !filesOpen;
+    setFilesOpen(next);
+    try {
+      localStorage.setItem("qdot-storage-files-open", next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  };
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -306,9 +325,10 @@ export default function StorageManager() {
 
       {/* File List Header */}
       <div className="flex items-center justify-between pt-2">
-        <h4 className="text-[14px] font-semibold text-foreground">
-          Uploaded Files ({files.length})
-        </h4>
+        <button type="button" onClick={toggleFiles} aria-expanded={filesOpen} className="group flex items-center gap-1.5 text-left">
+          <ChevronDown className={`size-4 text-foreground/45 transition-transform duration-200 group-hover:text-foreground ${filesOpen ? "" : "-rotate-90"}`} strokeWidth={1.75} />
+          <h4 className="text-[14px] font-semibold text-foreground">Uploaded Files ({files.length})</h4>
+        </button>
 
         {files.length > 0 && (
           <div>
@@ -345,7 +365,7 @@ export default function StorageManager() {
       </div>
 
       {/* File List Table */}
-      {files.length > 0 ? (
+      {!filesOpen ? null : files.length > 0 ? (
         <div className="surface divide-y divide-black/[0.06] dark:divide-white/[0.06] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">
           {files.map((f) => (
             <div key={f.id} className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">

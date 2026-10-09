@@ -692,8 +692,8 @@ export async function getTemplates(): Promise<leads.Template[]> {
   return leads.listTemplates();
 }
 
-export async function saveTemplateAction(name: string, subject: string, body: string): Promise<string | null> {
-  const t = leads.saveTemplate(name, subject, body);
+export async function saveTemplateAction(name: string, subject: string, body: string, purpose = ""): Promise<string | null> {
+  const t = leads.saveTemplate(name, subject, body, purpose);
   return "error" in t ? t.error : null;
 }
 

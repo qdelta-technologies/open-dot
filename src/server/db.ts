@@ -97,6 +97,8 @@ function migrate(conn: DatabaseSync) {
   if (!routineCols.includes("timezone")) conn.exec("ALTER TABLE routines ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'");
   if (!routineCols.includes("once")) conn.exec("ALTER TABLE routines ADD COLUMN once INTEGER NOT NULL DEFAULT 0");
   if (!routineCols.includes("run_at")) conn.exec("ALTER TABLE routines ADD COLUMN run_at INTEGER");
+  const tplCols = conn.prepare("PRAGMA table_info(templates)").all().map((c) => (c as { name: string }).name);
+  if (tplCols.length && !tplCols.includes("purpose")) conn.exec("ALTER TABLE templates ADD COLUMN purpose TEXT NOT NULL DEFAULT ''");
   const leadCols = conn.prepare("PRAGMA table_info(leads)").all().map((c) => (c as { name: string }).name);
   if (leadCols.length && !leadCols.includes("email")) conn.exec("ALTER TABLE leads ADD COLUMN email TEXT NOT NULL DEFAULT ''");
   if (leadCols.length && !leadCols.includes("phone")) conn.exec("ALTER TABLE leads ADD COLUMN phone TEXT NOT NULL DEFAULT ''");

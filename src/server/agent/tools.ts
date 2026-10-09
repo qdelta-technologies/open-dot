@@ -464,11 +464,16 @@ Account: your connected LinkedIn account`,
     label: "Saving a template",
     description:
       "Save or update a reusable message template under a name like \"Template 1\". Use {name}, {first_name} and {company} where each lead's details go. For email give a subject; for WhatsApp the subject can be empty. Saves exactly the wording the user gave you.",
-    parameters: obj({ name: str("Template name, e.g. Template 1"), subject: nullableStr("Email subject, or null"), body: str("The message text, exactly as the user wants it") }),
+    parameters: obj({
+      name: str("Template name, e.g. Template 1"),
+      purpose: nullableStr("What this template is for, in a few words, e.g. First email to agencies. Null to keep the existing purpose."),
+      subject: nullableStr("Email subject, or null"),
+      body: str("The message text, exactly as the user wants it"),
+    }),
     describe: (a) => `save the template "${s(a.name)}"`,
     defaultDecision: () => "allow",
     execute: async (a) => {
-      const t = leads.saveTemplate(s(a.name), s(a.subject) === "null" ? "" : s(a.subject), s(a.body));
+      const t = leads.saveTemplate(s(a.name), s(a.subject) === "null" ? "" : s(a.subject), s(a.body), s(a.purpose) === "null" ? "" : s(a.purpose));
       return "error" in t ? t.error : `Saved "${t.name}".`;
     },
   },
@@ -480,7 +485,7 @@ Account: your connected LinkedIn account`,
     defaultDecision: () => "allow",
     execute: async () => {
       const all = leads.listTemplates();
-      return all.length ? all.map((t) => `### ${t.name}\nSubject: ${t.subject || "(none)"}\n${t.body}`).join("\n\n") : "No templates saved yet.";
+      return all.length ? all.map((t) => `### ${t.name}${t.purpose ? ` (for: ${t.purpose})` : ""}\nSubject: ${t.subject || "(none)"}\n${t.body}`).join("\n\n") : "No templates saved yet.";
     },
   },
   {

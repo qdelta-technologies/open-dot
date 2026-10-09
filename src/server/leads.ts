@@ -172,9 +172,9 @@ export function regionCallingCode(): string {
 
 // ---------------- message templates ----------------
 
-export type Template = { id: string; name: string; subject: string; body: string; updatedAt: number };
-type TRow = { id: string; name: string; subject: string; body: string; updated_at: number };
-const toTemplate = (r: TRow): Template => ({ id: r.id, name: r.name, subject: r.subject, body: r.body, updatedAt: Number(r.updated_at) });
+export type Template = { id: string; name: string; purpose: string; subject: string; body: string; updatedAt: number };
+type TRow = { id: string; name: string; purpose: string; subject: string; body: string; updated_at: number };
+const toTemplate = (r: TRow): Template => ({ id: r.id, name: r.name, purpose: r.purpose ?? "", subject: r.subject, body: r.body, updatedAt: Number(r.updated_at) });
 
 export function listTemplates(): Template[] {
   return (db().prepare("SELECT * FROM templates ORDER BY name COLLATE NOCASE").all() as TRow[]).map(toTemplate);
@@ -188,18 +188,19 @@ export function findTemplate(name: string): Template | null {
   return listTemplates().find((t) => norm(t.name) === want) ?? null;
 }
 
-export function saveTemplate(name: string, subject: string, body: string): Template | { error: string } {
+export function saveTemplate(name: string, subject: string, body: string, purpose = ""): Template | { error: string } {
   const n = clip(name, 80);
   if (!n) return { error: "A template needs a name." };
   if (!body.trim()) return { error: "A template needs a body." };
   const existing = findTemplate(n);
   const now = Date.now();
   if (existing) {
-    db().prepare("UPDATE templates SET name = ?, subject = ?, body = ?, updated_at = ? WHERE id = ?").run(n, clip(subject, 200), body.trim().slice(0, 6000), now, existing.id);
+    // an update that gives no purpose keeps the one already saved
+    db().prepare("UPDATE templates SET name = ?, purpose = ?, subject = ?, body = ?, updated_at = ? WHERE id = ?").run(n, purpose.trim() ? clip(purpose, 160) : existing.purpose, clip(subject, 200), body.trim().slice(0, 6000), now, existing.id);
     return listTemplates().find((t) => t.id === existing.id)!;
   }
   const tid = id("tpl");
-  db().prepare("INSERT INTO templates (id, name, subject, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(tid, n, clip(subject, 200), body.trim().slice(0, 6000), now, now);
+  db().prepare("INSERT INTO templates (id, name, purpose, subject, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(tid, n, clip(purpose, 160), clip(subject, 200), body.trim().slice(0, 6000), now, now);
   return listTemplates().find((t) => t.id === tid)!;
 }
 
