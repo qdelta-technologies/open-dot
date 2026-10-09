@@ -313,12 +313,9 @@ Account: your connected LinkedIn account`,
       const text = s(a.text).trim();
       if (!text) return "No post text was given. Ask the user for the exact wording.";
       try {
-        const r = await postLinkedInVideo(link.url, text, link.name, link.size);
-        return r.ok ? `Published. Link: ${r.link}
-
-Steps:
-${r.log}` : `The video was NOT posted. Tell the user exactly this:
-${r.log}`;
+        const r = await postLinkedInVideo(link.url, text, "", link.size);
+        if (r.ok) return r.link ? `Published on LinkedIn. Link: ${r.link}. Tell the user in one plain sentence.` : `${r.log} Reply in two plain sentences, with no JSON or code.`;
+        return `The video was NOT posted. Tell the user in plain words, with no JSON or code: ${r.log}`;
       } catch (err) {
         return `The video was NOT posted: ${err instanceof Error ? err.message : String(err)}`;
       }

@@ -108,7 +108,7 @@ post = {
     "commentary": TEXT,
     "visibility": "PUBLIC",
     "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []},
-    "content": {"media": {"title": TITLE, "id": video_urn}},
+    "content": {"media": ({"title": TITLE, "id": video_urn} if TITLE else {"id": video_urn})},
     "lifecycleState": "PUBLISHED",
     "isReshareDisabledByAuthor": False,
 }
