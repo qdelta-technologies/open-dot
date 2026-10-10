@@ -243,7 +243,7 @@ export async function modelFor(dotModel: string | null): Promise<string> {
   const usable = (id: string | null | undefined): id is string =>
     Boolean(id) &&
     !(id!.startsWith("openrouter:") && !openRouterKey()) &&
-    !((id!.startsWith("groq:") || id!.startsWith("google:")) && m.available.length > 0 && !m.available.includes(id!));
+    !((id!.startsWith("groq:") || id!.startsWith("google:") || id!.startsWith("openrouter:")) && m.available.length > 0 && !m.available.includes(id!));
   if (usable(dotModel)) return dotModel;
   const def = getSetting("default_model");
   if (usable(def)) return def;

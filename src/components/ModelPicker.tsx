@@ -542,6 +542,8 @@ const CLOUDFLARE_CATALOG = [
 
 type ProviderTab = "all" | "cloudflare" | "google" | "openrouter" | "openai" | "anthropic" | "groq";
 
+const HIDDEN_PROVIDERS = ["groq", "anthropic", "openai"];
+
 /**
  * Model picker with provider tabs: Cloudflare · Google · OpenRouter
  */
@@ -638,7 +640,8 @@ export default function ModelPicker({
   }, [list, modelMeta]);
 
   const filtered = useMemo(() => {
-    let base = parsedList;
+    // Groq, Claude and OpenAI are hidden for now (OpenRouter wallet top-up pending); empty this list to bring them back.
+    let base = parsedList.filter((m) => !HIDDEN_PROVIDERS.includes(m.provider));
     if (tab !== "all") base = base.filter((m) => m.provider === tab);
     const q = search.trim().toLowerCase();
     if (!q) return base;
@@ -654,12 +657,9 @@ export default function ModelPicker({
 
   const tabs: { id: ProviderTab; label: string; color: string }[] = [
     { id: "all", label: "All", color: "text-foreground/60" },
-    ...(groqConnected ? [{ id: "groq" as ProviderTab, label: "Groq", color: "text-orange-500" }] : []),
     { id: "cloudflare", label: "Cloudflare", color: "text-amber-500" },
     ...(googleConnected ? [{ id: "google" as ProviderTab, label: "Google", color: "text-blue-500" }] : []),
     ...(openRouterConnected ? [{ id: "openrouter" as ProviderTab, label: "OpenRouter", color: "text-emerald-500" }] : []),
-    ...(anthropicConnected ? [{ id: "anthropic" as ProviderTab, label: "Claude", color: "text-violet-500" }] : []),
-    ...(openAIConnected ? [{ id: "openai" as ProviderTab, label: "OpenAI", color: "text-green-500" }] : []),
   ];
 
   const providerIcon = (provider: string) => {

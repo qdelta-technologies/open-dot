@@ -113,6 +113,12 @@ export async function saveOpenRouterKey(key: string): Promise<string | null> {
 }
 
 /**
+ * OpenRouter model ids (without the "openrouter:" prefix) offered in the picker. Free models were dropped because
+ * they rate-limit; add the paid models we pick here, e.g. "google/gemini-2.5-flash-lite". Empty = none offered.
+ */
+const OPENROUTER_ALLOWED: string[] = ["anthropic/claude-haiku-5.5"];
+
+/**
  * Free models from OpenRouter (and models that turned paid within a 30-day grace window).
  * If a model turns paid, it remains shown as "Paid (Grace period)" for 30 days before being removed.
  */
@@ -196,15 +202,19 @@ export async function openModelsAndMeta(): Promise<{ ids: string[]; meta: Record
   const ids: string[] = [];
   const meta: Record<string, OpenModelMeta> = {};
 
-  for (const row of activeRows) {
-    const fullId = OPENROUTER_PREFIX + row.id;
+  void activeRows;
+
+  // Only the models we chose, straight from OpenRouter's live list (they're paid, so they aren't in the free-model table).
+  for (const m of data) {
+    if (!OPENROUTER_ALLOWED.includes(m.id) || !m.supported_parameters?.includes("tools")) continue;
+    const fullId = OPENROUTER_PREFIX + m.id;
     ids.push(fullId);
     meta[fullId] = {
-      isFree: row.is_free === 1,
-      paidUntil: row.first_paid_at ? row.first_paid_at + THIRTY_DAYS_MS : null,
-      contextLength: row.context_length,
-      contextFormatted: formatContext(row.context_length),
-      parameters: row.parameters,
+      isFree: false,
+      paidUntil: null,
+      contextLength: m.context_length ?? null,
+      contextFormatted: formatContext(m.context_length ?? null),
+      parameters: parseParameters(m.id, m.name, m.description),
     };
   }
 
