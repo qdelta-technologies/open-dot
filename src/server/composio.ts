@@ -225,6 +225,17 @@ const prettyName = (slug: string) => NAMES[slug] ?? slug.replace(/[_-]+/g, " ").
 
 const clip = (s: string, n = 30_000) => (s.length > n ? `${s.slice(0, n)}…[truncated]` : s);
 
+const SENDER_NAME = "QDelta";
+
+/** Zoho shows the bare local part ("hello") unless the From address carries a name, so wrap a plain address as `"Name" <addr>`. */
+function withSenderName(args: Record<string, unknown>): Record<string, unknown> {
+  const key = ["from_address", "fromAddress", "from"].find((k) => typeof args[k] === "string");
+  if (!key) return args;
+  const from = (args[key] as string).trim();
+  if (!/^[^\s<>"@]+@[^\s<>"@]+$/.test(from)) return args;
+  return { ...args, [key]: `"${SENDER_NAME}" <${from}>` };
+}
+
 export async function callTool(name: string, args: Record<string, unknown>): Promise<string> {
   const normalizedArgs: Record<string, unknown> = { ...args };
   if (typeof normalizedArgs.tools === "string") {
@@ -248,6 +259,9 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
             toolArgs = JSON.parse((toolArgs as string).replace(/'/g, '"'));
           } catch {}
         }
+      }
+      if (/^ZOHO_MAIL_SEND/i.test(String(t.tool_slug ?? "")) && toolArgs && typeof toolArgs === "object") {
+        toolArgs = withSenderName(toolArgs as Record<string, unknown>);
       }
       return { ...t, arguments: toolArgs };
     });
