@@ -260,7 +260,7 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
           } catch {}
         }
       }
-      if (/^ZOHO_MAIL_SEND/i.test(String(t.tool_slug ?? "")) && toolArgs && typeof toolArgs === "object") {
+      if (/^ZOHO_MAIL_.*SEND/i.test(String(t.tool_slug ?? "")) && toolArgs && typeof toolArgs === "object") {
         toolArgs = withSenderName(toolArgs as Record<string, unknown>);
       }
       return { ...t, arguments: toolArgs };
