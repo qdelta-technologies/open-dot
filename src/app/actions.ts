@@ -25,6 +25,7 @@ import { autoTitle } from "@/server/titles";
 import { cookies, headers } from "next/headers";
 import { AUTH_COOKIE_NAME, hashPassword, isAuthEnabled } from "@/lib/auth";
 import { checkRateLimit, getClientIp, recordFailedAttempt, resetRateLimit } from "@/lib/rateLimit";
+import { isProtectedDot } from "@/lib/protectedDots";
 import type { Attachment, Dot, Look, RuleDecision, TriggerApp, TriggerType } from "@/lib/types";
 
 // All mutations go through here; the UI updates from the event stream, not from return values.
@@ -40,15 +41,38 @@ export async function createDot(input: { name: string; purpose: string; look: Lo
   return dot.id;
 }
 
-export async function updateDot(dotId: string, patch: Partial<Pick<Dot, "name" | "purpose" | "instructions" | "look">>) {
+/** Returns an error message when the change was refused (core dots keep their names), or null once saved. */
+export async function updateDot(dotId: string, patch: Partial<Pick<Dot, "name" | "purpose" | "instructions" | "look">>): Promise<string | null> {
+  const dot = repo.getDot(dotId);
+  const newName = patch.name?.trim().toLowerCase();
+  if (dot && newName !== undefined && newName !== dot.name.trim().toLowerCase()) {
+    if (isProtectedDot(dot.name)) return `${dot.name} is a core dot and can't be renamed.`;
+    if (isProtectedDot(newName)) return `"${patch.name?.trim()}" is reserved for a core dot. Pick another name.`;
+  }
   repo.updateDot(dotId, patch);
+  return null;
 }
 
-export async function deleteDot(dotId: string) {
+/** Returns an error message when the delete was refused, or null once the dot is gone. */
+export async function deleteDot(dotId: string, password?: string): Promise<string | null> {
+  const dot = repo.getDot(dotId);
+  if (dot && isProtectedDot(dot.name)) {
+    const expected = process.env.ACCESS_PASSWORD?.trim() || "";
+    if (!expected) return `${dot.name} is protected and can't be deleted (no team password is set).`;
+    const clientIp = await getClientIp();
+    const limit = checkRateLimit(clientIp);
+    if (!limit.allowed) return `Too many failed attempts. Please wait ${limit.waitMinutes || 15} minute(s) before trying again.`;
+    if ((password ?? "").trim() !== expected) {
+      const { remaining } = recordFailedAttempt(clientIp);
+      return remaining === 0 ? "Too many failed attempts. Locked for 15 minutes." : `Wrong team password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`;
+    }
+    resetRateLimit(clientIp);
+  }
   runtime.stop(dotId);
   await computer.destroy(dotId);
   await triggers.removeTriggersFor(dotId);
   repo.deleteDot(dotId);
+  return null;
 }
 
 export async function sendMessage(dotId: string, text: string, attachments: Attachment[] = [], conversationId?: string) {
