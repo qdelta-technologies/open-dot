@@ -39,11 +39,15 @@ export async function review(dotId: string, action: string, fallback: RuleDecisi
     });
     const parsed = JSON.parse(res.output_text) as { applying_rules: number[] };
     const matched = parsed.applying_rules.map((n) => rules[n - 1]).filter(Boolean);
-    if (!matched.length) return { decision: fallback, rule: null };
+    if (!matched.length) {
+      console.log(`[dots] rules: none of ${rules.length} rule(s) matched "${action.slice(0, 120)}" (reviewer ${model}); using default "${fallback}"`);
+      return { decision: fallback, rule: null };
+    }
     const pick = (d: RuleDecision) => matched.find((r) => r.decision === d);
     const rule = pick("never") ?? pick("ask") ?? pick("allow")!;
     return { decision: rule.decision, rule };
-  } catch {
+  } catch (err) {
+    console.warn("[dots] rules: reviewer failed, so no rule was applied:", err instanceof Error ? err.message : err);
     // If the reviewer is unavailable, be conservative for anything not explicitly safe.
     return { decision: fallback === "allow" ? "allow" : "ask", rule: null };
   }

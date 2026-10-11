@@ -109,11 +109,13 @@ export function RemoveButton({ onClick, label }: { onClick: () => void; label: s
   );
 }
 
-const DECISIONS: { value: RuleDecision; label: string; tone: string }[] = [
-  { value: "allow", label: "Allow automatically", tone: "bg-success/12 text-success" },
-  { value: "ask", label: "Ask first", tone: "bg-warning/15 text-warning" },
-  { value: "never", label: "Never allow", tone: "bg-destructive/10 text-destructive" },
+const DECISIONS: { value: RuleDecision; label: string; tone: string; hint: string }[] = [
+  { value: "allow", label: "Allow", tone: "bg-success/12 text-success", hint: "Allow: does it automatically, without asking." },
+  { value: "ask", label: "Ask", tone: "bg-warning/15 text-warning", hint: "Ask: waits for your approval every time." },
+  { value: "never", label: "Never", tone: "bg-destructive/10 text-destructive", hint: "Never: blocked completely." },
 ];
+
+const RULE_EXAMPLES = ["send emails", "reply to emails", "delete files", "post on social media"];
 
 export function RuleEditor({ dotId, name }: { dotId: string | null; name: string }) {
   const all = useStore((s) => s.rules);
@@ -152,6 +154,15 @@ export function RuleEditor({ dotId, name }: { dotId: string | null; name: string
         <label className="block">
           <span className="eyebrow mb-1.5 block">When {name} wants to</span>
           <input className="field" placeholder="reply to emails for me" value={action} onChange={(e) => setAction(e.target.value)} />
+          {!action && (
+            <span className="mt-1.5 flex flex-wrap gap-1.5">
+              {RULE_EXAMPLES.map((ex) => (
+                <button key={ex} type="button" onClick={() => setAction(ex)} className="rounded-full border border-black/10 px-2.5 py-0.5 text-[12px] text-foreground/55 transition-colors hover:border-black/25 hover:text-foreground">
+                  {ex}
+                </button>
+              ))}
+            </span>
+          )}
         </label>
         <div>
           <span className="eyebrow mb-1.5 block">It should</span>
@@ -161,7 +172,7 @@ export function RuleEditor({ dotId, name }: { dotId: string | null; name: string
                 key={d.value}
                 type="button"
                 onClick={() => setDecision(d.value)}
-                className={`h-8 rounded-md border px-3 text-[13px] transition-colors ${decision === d.value ? "border-foreground bg-foreground text-card" : "border-black/10 text-foreground/70 hover:border-black/25"}`}
+                className={`h-8 rounded-md border px-3 text-[13px] transition-colors ${decision === d.value ? `border-current ${d.tone} font-medium` : "border-black/10 text-foreground/70 hover:border-black/25"}`}
               >
                 {d.label}
               </button>
@@ -170,6 +181,7 @@ export function RuleEditor({ dotId, name }: { dotId: string | null; name: string
               Add rule
             </button>
           </div>
+          <p className="mt-2 text-caption text-foreground/50">{DECISIONS.find((d) => d.value === decision)!.hint}</p>
         </div>
       </form>
       <p className="text-caption text-foreground/45">One short, natural-language rule per action. &ldquo;Ask first&rdquo; wins if rules conflict. Built-in safety checks always apply.</p>
